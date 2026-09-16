@@ -546,6 +546,24 @@ def prepare_document_chunks(
             )
         )
 
+                # As janelas posteriores repetem os últimos tokens da janela
+        # anterior. Esses tokens são úteis como contexto, mas não devem
+        # participar novamente da perda ou das métricas.
+        #
+        # O índice 0 é o token especial [CLS]. Por isso, os tokens de
+        # sobreposição começam no índice 1.
+        if chunk_index > 0:
+            overlap_end = min(
+                1 + stride,
+                len(labels) - 1,
+            )
+
+            for label_index in range(
+                1,
+                overlap_end,
+            ):
+                labels[label_index] = -100
+
         entities_found_in_document.update(
             found_entity_indices
         )
@@ -873,7 +891,7 @@ def run_pipeline(
         args.model_name,
         use_fast=True,
     )
-    
+
     tokenizer.model_max_length = 1_000_000
 
     # Somente tokenizers rápidos oferecem offset_mapping.

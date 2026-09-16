@@ -1,0 +1,10 @@
+JOHN SMITH
+
+TECHNICAL SKILLS
+Python, FastAPI, PostgreSQL
+React • Next.js • TypeScript
+Git, Docker, AWS
+
+EXPERIENCE
+Frontend Developer
+Developed web applications using Next.js.

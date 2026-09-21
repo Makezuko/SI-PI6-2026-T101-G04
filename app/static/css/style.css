@@ -114,6 +114,84 @@ tr.job-row.closed td:first-child{ box-shadow:inset 3px 0 0 #cbd5e1; }
 .fill-high{ background:var(--high); } .fill-mid{ background:var(--mid); } .fill-low{ background:var(--low); }
 .chevron{ color:#cbd5e1; flex-shrink:0; }
 
+/* ---------- Adicionar Currículos ---------- */
+.back-btn{ width:34px; height:34px; border-radius:9px; border:1px solid var(--line-strong); background:#fff;
+  display:inline-flex; align-items:center; justify-content:center; color:var(--ink-soft); text-decoration:none; margin-right:14px; flex-shrink:0; }
+.back-btn:hover{ color:var(--ink); border-color:var(--ink-soft); }
+.job-select-panel{ display:flex; align-items:center; gap:16px; background:#fff; border:1px solid var(--line);
+  border-radius:14px; padding:20px 24px; margin-bottom:20px; }
+.job-select-icon{ width:36px; height:36px; border-radius:10px; background:var(--brand-50); color:var(--brand-600);
+  display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.job-select-panel label{ display:block; font-size:12.5px; font-weight:600; color:var(--ink-soft); margin-bottom:6px; }
+.job-select-panel select{ width:100%; font-family:inherit; font-size:14px; font-weight:600; color:var(--ink);
+  border:1px solid var(--line-strong); border-radius:9px; padding:10px 13px; background:#fff; }
+.job-select-note{ font-size:12px; color:#94a3b8; max-width:220px; line-height:1.5; flex-shrink:0; }
+.job-select-note-flex{ flex:1; }
+.dropzone{ border:2px dashed var(--line-strong); border-radius:16px; background:#fff;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:56px 20px; }
+.dropzone-icon{ color:#cbd5e1; margin-bottom:16px; }
+.dropzone-title{ font-size:15px; font-weight:600; margin-bottom:6px; }
+.dropzone-sub{ font-size:12.5px; color:#94a3b8; margin-bottom:22px; }
+.dropzone-actions{ display:flex; gap:10px; }
+.dropzone-actions .btn-ghost{ background:#fff; }
+.upload-footer{ display:flex; justify-content:flex-end; margin-top:22px; }
+.file-list{ background:#fff; border:1px solid var(--line); border-radius:14px; margin-top:20px; overflow:hidden; }
+.file-row{ display:flex; align-items:center; gap:14px; padding:14px 22px; border-bottom:1px solid var(--line); }
+.file-row:last-child{ border-bottom:none; }
+.file-name{ flex:1; font-size:13px; font-weight:500; }
+.file-status{ font-size:12px; color:#94a3b8; }
+
+/* ---------- Detalhes do candidato ---------- */
+.cand-detail{ max-width:700px; }
+.cand-detail-card{ background:#fff; border:1px solid var(--line); border-radius:16px; overflow:hidden; }
+.cand-detail-head{ padding:22px 26px; border-bottom:1px solid var(--line); display:flex; align-items:flex-start; justify-content:space-between; }
+.cand-detail-id{ display:flex; align-items:center; gap:14px; }
+.cand-detail-avatar{ width:48px; height:48px; border-radius:50%; background:var(--brand-100); color:var(--brand-700);
+  display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:700; flex-shrink:0; }
+.cand-detail-name{ font-size:18px; font-weight:700; margin-bottom:6px; }
+.cand-detail-badge{ display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600; padding:4px 11px; border-radius:20px; }
+.cand-detail-badge.high{ background:var(--high-soft); color:var(--high); }
+.cand-detail-badge.mid{ background:var(--mid-soft); color:var(--mid); }
+.cand-detail-badge.low{ background:var(--low-soft); color:var(--low); }
+.cand-detail-close{ width:30px; height:30px; border-radius:8px; border:none; background:transparent; color:#94a3b8;
+  display:flex; align-items:center; justify-content:center; cursor:pointer; text-decoration:none; flex-shrink:0; }
+.cand-detail-close:hover{ background:#f1f5f9; color:var(--ink); }
+.cand-detail-body{ padding:24px 26px; display:flex; flex-direction:column; gap:26px; }
+.section-label{ font-size:11.5px; font-weight:600; color:#94a3b8; margin-bottom:12px; }
+.adherence-box{ background:#f8fafc; border-radius:12px; padding:16px 18px; }
+.adherence-top{ display:flex; justify-content:space-between; font-size:12.5px; color:var(--ink-soft); margin-bottom:10px; }
+.adherence-top b{ color:var(--ink); font-size:13px; }
+.adherence-track{ height:10px; border-radius:6px; background:#e2e8f0; overflow:hidden; }
+.adherence-fill{ height:100%; border-radius:6px; }
+.data-grid{ background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+.data-row{ display:flex; align-items:flex-start; gap:12px; padding:13px 16px; border-bottom:1px solid var(--line); }
+.data-row:last-child{ border-bottom:none; }
+.data-row svg{ color:#94a3b8; margin-top:2px; flex-shrink:0; }
+.data-row .data-label{ font-size:11.5px; color:#94a3b8; margin-bottom:2px; }
+.data-row .data-value{ font-size:13.5px; font-weight:500; }
+.req-list{ display:flex; flex-direction:column; gap:8px; }
+.req-item{ display:flex; align-items:center; gap:10px; padding:11px 14px; border-radius:10px; font-size:13px; font-weight:500; }
+.req-item.ok{ background:var(--high-soft); color:#0b6b3c; }
+.req-item.bad{ background:var(--low-soft); color:#a5342a; }
+.req-item .req-icon{ width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; color:#fff; }
+.req-item.ok .req-icon{ background:var(--high); }
+.req-item.bad .req-icon{ background:var(--low); }
+.pdf-mock{ border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+.pdf-toolbar{ display:flex; align-items:center; justify-content:space-between; background:var(--brand-800); color:#cbd5e1;
+  font-size:12px; font-family:'Courier New',monospace; padding:10px 16px; }
+.pdf-toolbar .page-num{ background:rgba(255,255,255,.15); color:#fff; padding:2px 9px; border-radius:5px; margin:0 6px; }
+.pdf-page{ background:#fff; padding:22px; font-family:'Courier New',monospace; }
+.pdf-page h3{ margin:0 0 4px; font-size:17px; }
+.pdf-page .pdf-contact{ font-size:12px; color:var(--ink-soft); margin-bottom:16px; }
+.pdf-section-title{ font-size:11px; font-weight:700; color:#94a3b8; margin-bottom:8px; }
+.pdf-bar{ height:8px; background:#eef1f5; border-radius:4px; margin-bottom:6px; }
+.pdf-tags{ display:flex; gap:8px; flex-wrap:wrap; }
+.pdf-tags span{ background:#f1f5f9; color:#475569; font-size:11.5px; padding:3px 10px; border-radius:5px; }
+.cand-detail-foot{ padding:18px 26px; border-top:1px solid var(--line); display:flex; gap:12px; }
+.cand-detail-foot .btn{ flex:1; justify-content:center; }
+.btn-outline{ background:#fff; border:1px solid var(--line-strong); color:var(--ink-soft); }
+.btn-outline:hover{ border-color:var(--ink-soft); color:var(--ink); }
+
 /* ---------- Configurações ---------- */
 .settings-panel .set-row{ display:flex; align-items:center; justify-content:space-between; padding:19px 24px; border-bottom:1px solid var(--line); text-decoration:none; color:inherit; }
 .settings-panel .set-row:last-child{ border-bottom:none; }

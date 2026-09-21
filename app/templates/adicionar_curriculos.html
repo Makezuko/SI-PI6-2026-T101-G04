@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Adicionar Currículos · TalentMatch AI{% endblock %}
+
+{% block topbar %}
+<div class="topbar">
+  <div style="display:flex;align-items:center">
+    <a href="{{ url_for('vagas', job_id=job.id) }}" class="back-btn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+    </a>
+    <div>
+      <h1 class="h1">Adicionar Currículos</h1>
+      <p class="h1-sub">A IA extrai nomes e calcula a aderência automaticamente.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<form method="POST" enctype="multipart/form-data" action="{{ url_for('adicionar_curriculos', job_id=job.id) }}">
+  <div class="job-select-panel">
+    <div class="job-select-icon">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+    </div>
+    <div class="job-select-note-flex">
+      <label for="job_id">Vaga para este lote</label>
+      <select name="job_id" id="job_id">
+        {% for j in jobs %}
+        <option value="{{ j.id }}" {{ 'selected' if j.id == job.id else '' }}>{{ j.title }}{{ ' (Encerrada)' if j.status == 'Encerrada' else '' }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="job-select-note">Todos os currículos deste lote serão comparados a esta vaga.</div>
+  </div>
+
+  <div class="dropzone" id="dropzone">
+    <div class="dropzone-icon">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+    </div>
+    <div class="dropzone-title">Arraste uma pasta ou vários currículos aqui</div>
+    <div class="dropzone-sub">Formatos aceitos: .pdf e .docx — múltiplos arquivos simultâneos</div>
+    <div class="dropzone-actions">
+      <button type="button" class="btn btn-primary" id="btn-select-files">+ Selecionar arquivos</button>
+      <button type="button" class="btn btn-ghost" id="btn-select-folder">Selecionar pasta</button>
+    </div>
+    <input type="file" id="input-files" name="files" accept=".pdf,.docx" multiple style="display:none">
+    <input type="file" id="input-folder" name="files" webkitdirectory directory multiple style="display:none">
+  </div>
+
+  <div class="file-list" id="file-list" style="display:none"></div>
+
+  <div class="upload-footer">
+    <button type="submit" class="btn btn-primary" id="btn-ver-ranking" disabled>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      Ver Ranking
+    </button>
+  </div>
+</form>
+
+<script>
+  const inputFiles = document.getElementById('input-files');
+  const inputFolder = document.getElementById('input-folder');
+  const fileList = document.getElementById('file-list');
+  const btnRanking = document.getElementById('btn-ver-ranking');
+
+  document.getElementById('btn-select-files').addEventListener('click', () => inputFiles.click());
+  document.getElementById('btn-select-folder').addEventListener('click', () => inputFolder.click());
+
+  function renderFiles(files) {
+    if (!files.length) { fileList.style.display = 'none'; fileList.innerHTML = ''; btnRanking.disabled = true; return; }
+    fileList.style.display = 'block';
+    fileList.innerHTML = Array.from(files).map(f =>
+      `<div class="file-row"><span class="file-name">${f.name}</span><span class="file-status">Pronto para análise</span></div>`
+    ).join('');
+    btnRanking.disabled = false;
+  }
+
+  inputFiles.addEventListener('change', () => renderFiles(inputFiles.files));
+  inputFolder.addEventListener('change', () => renderFiles(inputFolder.files));
+
+  const dropzone = document.getElementById('dropzone');
+  dropzone.addEventListener('dragover', e => e.preventDefault());
+  dropzone.addEventListener('drop', e => {
+    e.preventDefault();
+    inputFiles.files = e.dataTransfer.files;
+    renderFiles(e.dataTransfer.files);
+  });
+</script>
+{% endblock %}

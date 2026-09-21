@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}{{ candidate.name }} · TalentMatch AI{% endblock %}
+
+{% block topbar %}
+<div class="topbar">
+  <div>
+    <div class="eyebrow">Detalhes do candidato</div>
+    <h1 class="h1">{{ job.title }}</h1>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+{% set level = 'high' if candidate.score >= 80 else ('mid' if candidate.score >= 60 else 'low') %}
+{% set label = 'Alta aderência' if candidate.score >= 80 else ('Média aderência' if candidate.score >= 60 else 'Baixa aderência') %}
+
+<div class="cand-detail">
+  <div class="cand-detail-card">
+    <div class="cand-detail-head">
+      <div class="cand-detail-id">
+        <div class="cand-detail-avatar">{{ candidate.initials }}</div>
+        <div>
+          <div class="cand-detail-name">{{ candidate.name }}</div>
+          <span class="cand-detail-badge {{ level }}">{{ candidate.score }}% — {{ label }}</span>
+        </div>
+      </div>
+      <a href="{{ url_for('vagas', job_id=job.id) }}" class="cand-detail-close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </a>
+    </div>
+
+    <div class="cand-detail-body">
+      <div class="adherence-box">
+        <div class="adherence-top"><span>Índice de Aderência</span><b>{{ candidate.score }}%</b></div>
+        <div class="adherence-track">
+  <div class="adherence-fill fill-{{ level }}" data-score="{{ candidate.score }}"></div>
+  <script>
+    const adherenceFill = document.currentScript.previousElementSibling;
+    adherenceFill.style.width = `${adherenceFill.dataset.score}%`;
+  </script>
+</div>
+      </div>
+
+      <div>
+        <div class="section-label">Dados Extraídos</div>
+        <div class="data-grid">
+          <div class="data-row">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            <div><div class="data-label">E-mail</div><div class="data-value">{{ candidate.email }}</div></div>
+          </div>
+          <div class="data-row">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13 19.79 19.79 0 0 1 1.59 4.38 2 2 0 0 1 3.55 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.1 6.1l.88-.88a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            <div><div class="data-label">Telefone</div><div class="data-value">{{ candidate.phone }}</div></div>
+          </div>
+          <div class="data-row">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+            <div><div class="data-label">Escolaridade</div><div class="data-value">{{ candidate.education }}</div></div>
+          </div>
+          <div class="data-row">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+            <div><div class="data-label">Último Cargo</div><div class="data-value">{{ candidate.last_role }}</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Requisitos Atendidos</div>
+        <div class="req-list">
+          {% for item in candidate.met %}
+          <div class="req-item ok">
+            <span class="req-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></span>
+            {{ item }}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Requisitos Ausentes</div>
+        <div class="req-list">
+          {% for item in candidate.missing %}
+          <div class="req-item bad">
+            <span class="req-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>
+            {{ item }}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Currículo Original</div>
+        <div class="pdf-mock">
+          <div class="pdf-toolbar">
+            <span>Página <span class="page-num">1</span> / 2</span>
+            <span>100% ⬇</span>
+          </div>
+          <div class="pdf-page">
+            <h3>{{ candidate.name }}</h3>
+            <div class="pdf-contact">{{ candidate.email }} · {{ candidate.phone }}</div>
+            <div class="pdf-section-title">RESUMO PROFISSIONAL</div>
+            <div class="pdf-bar" style="width:100%"></div>
+            <div class="pdf-bar" style="width:82%"></div>
+            <div class="pdf-bar" style="width:60%;margin-bottom:16px"></div>
+            <div class="pdf-section-title">EXPERIÊNCIA</div>
+            <p style="font-size:13px;margin:0 0 8px">{{ candidate.last_role }}</p>
+            <div class="pdf-bar" style="width:95%"></div>
+            <div class="pdf-bar" style="width:70%;margin-bottom:16px"></div>
+            <div class="pdf-section-title">HABILIDADES</div>
+            <div class="pdf-tags">
+              {% for skill in candidate.skills %}<span>{{ skill }}</span>{% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cand-detail-foot">
+      <button class="btn btn-primary">Aprovar para Entrevista</button>
+      <button class="btn btn-outline">Descartar Candidato</button>
+    </div>
+  </div>
+</div>
+{% endblock %}

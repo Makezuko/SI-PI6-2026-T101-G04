@@ -9,7 +9,7 @@
   </div>
   <div style="display:flex;gap:12px;align-items:center">
     <div class="job-meta-badge"><b>{{ candidates|length }}</b> candidatos analisados</div>
-    <a href="#" class="btn btn-primary">+ Adicionar Currículos</a>
+    <a href="{{ url_for('adicionar_curriculos', job_id=job.id) }}" class="btn btn-primary">+ Adicionar Currículos</a>
   </div>
 </div>
 {% endblock %}
@@ -23,7 +23,7 @@
 
 <div class="panel">
   {% for c in candidates %}
-  <a href="#" class="cand-row">
+  <a href="{{ url_for('candidato_detalhe', job_id=job.id, candidate_id=c.id) }}" class="cand-row">
     <div class="rank-num">{{ loop.index }}</div>
     <div class="cand-avatar">{{ c.initials }}</div>
     <div class="cand-main">
@@ -38,7 +38,12 @@
       {% set label = 'Alta aderência' if c.score >= 80 else ('Média aderência' if c.score >= 60 else 'Baixa aderência') %}
       <div class="score-label {{ level }}">{{ label }}</div>
       <div class="score-pct">{{ c.score }}%</div>
-      <div class="score-track"><div class="score-fill fill-{{ level }}" style="--score: {{ c.score|default(0, true) }}%; width: var(--score)"></div></div>
+      <div class="score-track">
+        <div
+          class="score-fill fill-{{ level }}"
+          style="--score-width: {{ c.score }}%; width: var(--score-width, 0%);"
+        ></div>
+      </div>
     </div>
     <div class="chevron">›</div>
   </a>

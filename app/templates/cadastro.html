@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Criar conta · TalentMatch AI</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="logo-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+      </div>
+      <div><div class="logo-name">TalentMatch</div><div class="logo-sub">AI</div></div>
+    </div>
+
+    <h1 class="auth-title">Criar sua conta</h1>
+    <p class="auth-sub">Comece a triar currículos com IA em minutos.</p>
+
+    {% if error %}
+    <div class="auth-error">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('cadastro') }}">
+      <div class="field">
+        <label for="name">Nome completo</label>
+        <input type="text" id="name" name="name" placeholder="Carlos Andrade" required>
+      </div>
+      <div class="field">
+        <label for="company">Empresa</label>
+        <input type="text" id="company" name="company" placeholder="Nexora Technologies" required>
+      </div>
+      <div class="field">
+        <label for="email">E-mail corporativo</label>
+        <input type="email" id="email" name="email" placeholder="voce@empresa.com" required>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="password">Senha</label>
+          <input type="password" id="password" name="password" placeholder="••••••••" required>
+        </div>
+        <div class="field">
+          <label for="password_confirm">Confirmar senha</label>
+          <input type="password" id="password_confirm" name="password_confirm" placeholder="••••••••" required>
+        </div>
+      </div>
+      <div class="field-inline">
+        <input type="checkbox" id="terms" name="terms" required>
+        <label for="terms" style="margin:0">Aceito os <a href="#">termos de uso</a> e a <a href="#">política de privacidade</a></label>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">Criar conta</button>
+    </form>
+
+    <p class="auth-alt">Já tem uma conta? <a href="{{ url_for('login') }}">Entrar</a></p>
+  </div>
+</div>
+</body>
+</html>

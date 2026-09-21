@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Nova Vaga · TalentMatch AI{% endblock %}
+
+{% block topbar %}
+<div class="topbar">
+  <div>
+    <h1 class="h1">Nova Vaga</h1>
+    <p class="h1-sub">Preencha os dados abaixo e a IA irá processar os requisitos automaticamente.</p>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:700px">
+  <form method="POST" action="{{ url_for('nova_vaga') }}" id="nova-vaga-form">
+    <div class="panel">
+      <div class="panel-head"><h2>Informações da Vaga</h2></div>
+
+      <div style="padding:24px">
+        <div class="field">
+          <label for="title">Título da Vaga</label>
+          <input type="text" id="title" name="title" placeholder="Ex: Desenvolvedor Backend Python" required>
+        </div>
+
+        <div class="field" style="margin-bottom:0">
+          <label for="description">Descrição Completa / Requisitos</label>
+          <textarea id="description" name="description"
+            placeholder="Cole aqui a descrição completa da vaga, incluindo responsabilidades, requisitos técnicos, experiências desejadas e perfil comportamental..."
+            required></textarea>
+          <p class="field-hint">Cole o texto completo da vaga. A IA irá interpretar automaticamente todos os requisitos técnicos e comportamentais e criar um perfil de referência para a triagem dos currículos.</p>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary" id="btn-save-job">Salvar e Processar Vaga</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<script>
+  document.getElementById('nova-vaga-form').addEventListener('submit', function () {
+    const btn = document.getElementById('btn-save-job');
+    btn.disabled = true;
+    btn.textContent = 'Processando os requisitos da vaga com IA...';
+  });
+</script>
+{% endblock %}

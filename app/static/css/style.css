@@ -216,6 +216,19 @@ tr.job-row.closed td:first-child{ box-shadow:inset 3px 0 0 #cbd5e1; }
 .field input:focus{ outline:2px solid var(--brand-400); outline-offset:1px; border-color:var(--brand-400); }
 .field-row{ display:flex; gap:12px; }
 .field-row .field{ flex:1; }
+.field textarea{ width:100%; font-family:inherit; font-size:13.5px; color:var(--ink); border:1px solid var(--line-strong);
+  border-radius:9px; padding:11px 13px; background:#fff; min-height:260px; resize:vertical; line-height:1.6; }
+.field textarea:focus{ outline:2px solid var(--brand-400); outline-offset:1px; border-color:var(--brand-400); }
+.field-hint{ font-size:12px; color:#94a3b8; margin-top:9px; line-height:1.6; }
+.form-actions{ display:flex; justify-content:flex-end; padding:18px 24px; border-top:1px solid var(--line); }
+.processing-box{ display:flex; flex-direction:column; align-items:center; text-align:center; padding:64px 30px; }
+.processing-icon{ width:52px; height:52px; border-radius:16px; background:var(--brand-50); color:var(--brand-600);
+  display:flex; align-items:center; justify-content:center; margin-bottom:18px; }
+.processing-title{ font-size:15px; font-weight:600; margin-bottom:8px; }
+.processing-sub{ font-size:13px; color:#94a3b8; max-width:360px; margin-bottom:26px; line-height:1.6; }
+.spinner-track{ width:220px; height:6px; background:#e2e8f0; border-radius:4px; overflow:hidden; }
+.spinner-fill{ height:100%; width:60%; background:var(--brand-500); border-radius:4px; animation:pulseWidth 1.4s ease-in-out infinite; }
+@keyframes pulseWidth{ 0%,100%{ opacity:.55; } 50%{ opacity:1; } }
 .field-inline{ display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink-soft); margin-bottom:20px; }
 .field-inline input{ width:auto; }
 .field-inline a{ color:var(--brand-600); font-weight:600; text-decoration:none; }

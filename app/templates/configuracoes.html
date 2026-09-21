@@ -43,6 +43,21 @@
       </div>
       <span class="chevron">›</span>
     </a>
+    
+    <!-- BOTÃO DE LOGOUT ADICIONADO AQUI -->
+    <a href="{{ url_for('logout') }}" class="set-row">
+      <div class="set-info">
+        <!-- Ícone com estilo de cor usando suas variáveis CSS de 'low' (vermelho) -->
+        <div class="set-icon" style="background: var(--low-soft); color: var(--low);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </div>
+        <div>
+          <div class="set-title" style="color: var(--low);">Sair da conta</div>
+          <div class="set-desc">Encerrar sua sessão atual</div>
+        </div>
+      </div>
+    </a>
+    
   </div>
 </div>
 {% endblock %}

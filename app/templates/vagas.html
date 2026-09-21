@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}{{ job.title }} · TalentMatch AI{% endblock %}
+
+{% block topbar %}
+<div class="topbar">
+  <div>
+    <div class="eyebrow">Ranking de aderência</div>
+    <h1 class="h1">{{ job.title }}</h1>
+  </div>
+  <div style="display:flex;gap:12px;align-items:center">
+    <div class="job-meta-badge"><b>{{ candidates|length }}</b> candidatos analisados</div>
+    <a href="#" class="btn btn-primary">+ Adicionar Currículos</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="filters">
+  <input type="search" placeholder="Buscar por nome ou habilidade...">
+  <select><option>Maior nota primeiro</option><option>Mais recente</option></select>
+  <select><option>Qualquer experiência</option><option>+2 anos</option><option>+5 anos</option></select>
+</div>
+
+<div class="panel">
+  {% for c in candidates %}
+  <a href="#" class="cand-row">
+    <div class="rank-num">{{ loop.index }}</div>
+    <div class="cand-avatar">{{ c.initials }}</div>
+    <div class="cand-main">
+      <div class="cand-name">{{ c.name }}</div>
+      <div class="cand-tags">
+        {% for skill in c.skills[:4] %}<span class="tag">{{ skill }}</span>{% endfor %}
+        {% if c.skills|length > 4 %}<span class="tag">+{{ c.skills|length - 4 }}</span>{% endif %}
+      </div>
+    </div>
+    <div class="cand-score">
+      {% set level = 'high' if c.score >= 80 else ('mid' if c.score >= 60 else 'low') %}
+      {% set label = 'Alta aderência' if c.score >= 80 else ('Média aderência' if c.score >= 60 else 'Baixa aderência') %}
+      <div class="score-label {{ level }}">{{ label }}</div>
+      <div class="score-pct">{{ c.score }}%</div>
+      <div class="score-track"><div class="score-fill fill-{{ level }}" style="--score: {{ c.score|default(0, true) }}%; width: var(--score)"></div></div>
+    </div>
+    <div class="chevron">›</div>
+  </a>
+  {% endfor %}
+</div>
+{% endblock %}

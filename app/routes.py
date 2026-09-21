@@ -1,5 +1,6 @@
 from flask import render_template, request, redirect, url_for, session
 from functools import wraps
+from datetime import datetime
 from app import app
 
 JOBS = [
@@ -55,16 +56,13 @@ CANDIDATES_BY_JOB = {
     ],
 }
 
-
 def get_job_or_first(job_id):
     job = next((j for j in JOBS if j["id"] == job_id), None)
     return job or JOBS[0]
 
-
 USERS = {
     "carlos@nexora.com": {"password": "123456", "name": "Carlos Andrade", "role": "RH Sênior"}
 }
-
 
 def login_required(view):
     @wraps(view)
@@ -138,13 +136,29 @@ def dashboard():
     )
 
 
+# ---- A MÁGICA ACONTECE AQUI ----
 @app.route("/vagas")
 @app.route("/vagas/<job_id>")
 @login_required
-def vagas(job_id="1"):
+def vagas(job_id=None):
+    # 1. Se clicou apenas em "Vagas" no menu lateral (sem ID), abre o formulário de Nova Vaga
+    if job_id is None:
+        return redirect(url_for("nova_vaga"))
+    
+    # 2. Se tem um ID (clicou em "Ver ranking" no dashboard), abre o ranking 
+    # e acende a aba "Candidatos" no menu lateral
     job = get_job_or_first(job_id)
     candidates = CANDIDATES_BY_JOB.get(job["id"], [])
-    return render_template("vagas.html", active_page="vagas", job=job, candidates=candidates)
+    return render_template("vagas.html", active_page="candidatos", job=job, candidates=candidates)
+
+
+# Rota de fallback caso a pessoa clique direto em "Candidatos" no menu lateral
+@app.route("/candidatos")
+@login_required
+def candidatos():
+    # Joga para o ranking da primeira vaga
+    return redirect(url_for("vagas", job_id="1"))
+
 
 @app.route("/vagas/<job_id>/candidato/<candidate_id>")
 @login_required
@@ -153,7 +167,9 @@ def candidato_detalhe(job_id, candidate_id):
     candidate = get_candidate_or_404(job["id"], candidate_id)
     if candidate is None:
         return redirect(url_for("vagas", job_id=job["id"]))
-    return render_template("candidato.html", active_page="vagas", job=job, candidate=candidate)
+    # Mantém a aba "Candidatos" selecionada
+    return render_template("candidato.html", active_page="candidatos", job=job, candidate=candidate)
+
 
 def get_candidate_or_404(job_id, candidate_id):
     candidates = CANDIDATES_BY_JOB.get(job_id, [])
@@ -165,13 +181,35 @@ def get_candidate_or_404(job_id, candidate_id):
 def configuracoes():
     return render_template("configuracoes.html", active_page="configuracoes")
 
+
 @app.route("/vagas/<job_id>/adicionar-curriculos", methods=["GET", "POST"])
 @login_required
 def adicionar_curriculos(job_id):
     job = get_job_or_first(job_id)
     if request.method == "POST":
-        # Aqui depois entra a lógica real: salvar os arquivos enviados e
-        # rodar a IA para calcular a aderência de cada currículo com a vaga.
-        # Por enquanto, só redireciona de volta para o ranking da vaga.
         return redirect(url_for("vagas", job_id=job["id"]))
-    return render_template("adicionar_curriculos.html", active_page="vagas", job=job, jobs=JOBS)
+    # Mantém a aba "Candidatos" selecionada
+    return render_template("adicionar_curriculos.html", active_page="candidatos", job=job, jobs=JOBS)
+
+
+@app.route("/nova-vaga", methods=["GET", "POST"])
+@login_required
+def nova_vaga():
+    if request.method == "POST":
+        title = request.form.get("title")
+        description = request.form.get("description")
+        
+        nova_vaga_id = str(len(JOBS) + 1)
+        JOBS.insert(0, {
+            "id": nova_vaga_id,
+            "title": title,
+            "created_at": datetime.now().strftime("%d/%m/%Y"),
+            "candidate_count": 0,
+            "status": "Aberta"
+        })
+        
+        return redirect(url_for("dashboard"))
+
+    # Aqui passamos active_page="vagas" para que a aba "Vagas" fique azul 
+    # enquanto você estiver nesta tela de criação
+    return render_template("nova_vaga.html", active_page="vagas")

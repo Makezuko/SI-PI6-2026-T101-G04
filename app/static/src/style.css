@@ -1,0 +1,148 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root{
+  --brand-50:#eaf1f8; --brand-100:#cddff0; --brand-200:#9dc0e0; --brand-300:#6da0d1;
+  --brand-400:#4a80bc; --brand-500:#3a78a8; --brand-600:#2c5f8a; --brand-700:#1e4a6e; --brand-800:#163552;
+  --bg:#f8fafc; --ink:#0f172a; --ink-soft:#64748b; --line:#eef1f5; --line-strong:#e2e8f0;
+  --high:#0f9d58; --high-soft:#e8f7ee; --mid:#c9860a; --mid-soft:#fbf1de; --low:#d0463a; --low-soft:#fbeae8;
+}
+
+*{ box-sizing:border-box; }
+html,body{ margin:0; background:var(--bg); color:var(--ink); font-family:'Inter',ui-sans-serif,system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
+a{ color:inherit; }
+
+::-webkit-scrollbar{ width:6px; height:6px; }
+::-webkit-scrollbar-track{ background:transparent; }
+::-webkit-scrollbar-thumb{ background:#cbd5e1; border-radius:3px; }
+::-webkit-scrollbar-thumb:hover{ background:#94a3b8; }
+
+/* ---------- App shell (dashboard / vagas / configurações) ---------- */
+.app-shell{ display:flex; min-height:100vh; }
+
+.sidebar{ width:236px; flex-shrink:0; background:#fff; border-right:1px solid var(--line); display:flex; flex-direction:column; }
+.logo-row{ display:flex; align-items:center; gap:10px; padding:20px 22px; border-bottom:1px solid var(--line); text-decoration:none; }
+.logo-mark{ width:32px; height:32px; border-radius:9px; background:var(--brand-600); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.logo-mark svg{ width:16px; height:16px; }
+.logo-name{ font-size:14px; font-weight:700; line-height:1.15; color:var(--ink); }
+.logo-sub{ font-size:11.5px; font-weight:600; color:var(--brand-600); line-height:1.15; }
+
+.nav{ flex:1; padding:14px 12px; display:flex; flex-direction:column; gap:2px; }
+.nav a{ display:flex; align-items:center; gap:11px; text-decoration:none; color:var(--ink-soft);
+  font-size:13.5px; font-weight:500; padding:10px 12px; border-radius:9px; }
+.nav a svg{ width:17px; height:17px; }
+.nav a.current{ background:var(--brand-50); color:var(--brand-700); }
+.nav a:not(.current):hover{ background:#f8fafc; color:#334155; }
+
+.user-row{ display:flex; align-items:center; gap:10px; padding:16px 22px; border-top:1px solid var(--line); }
+.user-avatar{ width:32px; height:32px; border-radius:50%; background:var(--brand-100); color:var(--brand-700);
+  display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0; }
+.user-name{ font-size:12.5px; font-weight:600; }
+.user-role{ font-size:11.5px; color:#94a3b8; }
+
+.main{ flex:1; display:flex; flex-direction:column; min-width:0; }
+.topbar{ background:#fff; border-bottom:1px solid var(--line); padding:22px 34px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.eyebrow{ font-size:12.5px; color:#94a3b8; margin-bottom:2px; }
+.h1{ font-size:22px; font-weight:700; letter-spacing:-.015em; margin:0; }
+.h1-sub{ font-size:13.5px; color:var(--ink-soft); margin-top:3px; }
+.content{ padding:30px 34px; flex:1; }
+
+.btn{ font-family:inherit; font-weight:600; font-size:13px; border:none; cursor:pointer;
+  padding:10px 18px; border-radius:9px; display:inline-flex; align-items:center; gap:8px; text-decoration:none; }
+.btn-primary{ background:var(--brand-600); color:#fff; }
+.btn-primary:hover{ background:var(--brand-700); }
+.btn-ghost{ background:transparent; color:var(--ink-soft); border:1px solid var(--line-strong); }
+.btn-ghost:hover{ border-color:var(--ink-soft); color:var(--ink); }
+.btn-block{ width:100%; justify-content:center; }
+
+/* ---------- Stat strip ---------- */
+.stat-strip{ background:#fff; border:1px solid var(--line); border-radius:14px; display:flex; margin-bottom:26px; overflow:hidden; }
+.stat{ flex:1; padding:22px 26px; position:relative; }
+.stat + .stat{ border-left:1px solid var(--line); }
+.stat-label{ font-size:12.5px; color:var(--ink-soft); margin-bottom:8px; }
+.stat-value{ font-size:32px; font-weight:800; letter-spacing:-.02em; line-height:1; }
+.stat-note{ font-size:11.5px; color:#94a3b8; margin-top:7px; }
+.stat.hero{ background:linear-gradient(180deg,var(--brand-50) 0%, #fff 65%); }
+.stat.hero .stat-value{ color:var(--brand-700); }
+.spark{ display:flex; align-items:flex-end; gap:3px; height:24px; margin-top:10px; }
+.spark div{ width:5px; background:var(--brand-200); border-radius:2px; }
+.spark div:last-child{ background:var(--brand-500); }
+
+/* ---------- Generic panel / table ---------- */
+.panel{ background:#fff; border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+.panel-head{ padding:18px 24px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; }
+.panel-head h2{ margin:0; font-size:14.5px; font-weight:700; }
+.panel-head .count{ font-size:12px; color:#94a3b8; }
+
+table{ width:100%; border-collapse:collapse; }
+th{ text-align:left; font-size:11.5px; font-weight:500; color:#94a3b8; padding:11px 24px; border-bottom:1px solid var(--line); }
+td{ padding:15px 24px; font-size:13.5px; border-bottom:1px solid var(--line); }
+tr:last-child td{ border-bottom:none; }
+tr.job-row.open td:first-child{ box-shadow:inset 3px 0 0 var(--high); }
+tr.job-row.closed td:first-child{ box-shadow:inset 3px 0 0 #cbd5e1; }
+.job-title-cell{ display:flex; align-items:center; gap:10px; padding-left:21px; }
+.job-icon{ width:28px; height:28px; border-radius:8px; background:var(--brand-50); color:var(--brand-600);
+  display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.job-title{ font-weight:600; }
+.status-dot{ display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:500; }
+.status-dot.open{ color:var(--high); } .status-dot.closed{ color:#94a3b8; }
+.status-dot span{ width:6px; height:6px; border-radius:50%; background:currentColor; }
+.link-cell{ color:var(--brand-600); font-weight:600; font-size:12.5px; text-decoration:none; display:inline-flex; align-items:center; gap:4px; }
+.link-cell:hover{ color:var(--brand-800); }
+
+/* ---------- Vagas / Ranking ---------- */
+.job-meta-badge{ background:#f1f5f9; border:1px solid var(--line-strong); border-radius:20px; padding:7px 14px; font-size:12.5px; color:var(--ink-soft); }
+.job-meta-badge b{ color:var(--ink); font-weight:700; }
+.filters{ display:flex; gap:10px; margin-bottom:18px; flex-wrap:wrap; }
+.filters input, .filters select{ font-family:inherit; font-size:13px; border:1px solid var(--line-strong); border-radius:9px; padding:10px 13px; background:#fff; color:var(--ink); }
+.filters input{ flex:1; min-width:200px; }
+.cand-row{ display:flex; align-items:center; gap:20px; padding:18px 24px; border-bottom:1px solid var(--line); text-decoration:none; color:inherit; }
+.cand-row:last-child{ border-bottom:none; }
+.cand-row:hover{ background:#fafbfc; }
+.rank-num{ width:22px; font-size:16px; font-weight:800; color:#cbd5e1; flex-shrink:0; text-align:center; }
+.cand-avatar{ width:38px; height:38px; border-radius:50%; background:var(--brand-100); color:var(--brand-700);
+  display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; flex-shrink:0; }
+.cand-main{ flex:1; min-width:0; }
+.cand-name{ font-weight:600; font-size:13.5px; margin-bottom:6px; }
+.cand-tags{ display:flex; gap:6px; flex-wrap:wrap; }
+.tag{ font-size:11px; background:#f1f5f9; color:#64748b; padding:3px 9px; border-radius:6px; }
+.cand-score{ width:190px; text-align:right; flex-shrink:0; }
+.score-label{ font-size:12px; font-weight:600; margin-bottom:5px; }
+.score-label.high{ color:var(--high); } .score-label.mid{ color:var(--mid); } .score-label.low{ color:var(--low); }
+.score-pct{ font-size:24px; font-weight:800; letter-spacing:-.02em; margin-bottom:6px; }
+.score-track{ height:6px; border-radius:4px; background:#f1f5f9; overflow:hidden; }
+.score-fill{ height:100%; border-radius:4px; }
+.fill-high{ background:var(--high); } .fill-mid{ background:var(--mid); } .fill-low{ background:var(--low); }
+.chevron{ color:#cbd5e1; flex-shrink:0; }
+
+/* ---------- Configurações ---------- */
+.settings-panel .set-row{ display:flex; align-items:center; justify-content:space-between; padding:19px 24px; border-bottom:1px solid var(--line); text-decoration:none; color:inherit; }
+.settings-panel .set-row:last-child{ border-bottom:none; }
+.settings-panel .set-row:hover{ background:#fafbfc; }
+.set-info{ flex:1; display:flex; align-items:center; }
+.set-icon{ width:36px; height:36px; border-radius:10px; background:var(--brand-50); color:var(--brand-600);
+  display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-right:16px; }
+.set-title{ font-size:13.5px; font-weight:600; }
+.set-desc{ font-size:12px; color:#94a3b8; margin-top:2px; }
+
+/* ---------- Auth pages (login / cadastro) ---------- */
+.auth-page{ min-height:100vh; display:flex; align-items:center; justify-content:center; background:var(--bg); padding:24px; }
+.auth-card{ width:100%; max-width:400px; background:#fff; border:1px solid var(--line); border-radius:16px; padding:34px 32px;
+  box-shadow:0 1px 3px rgba(15,23,42,0.04); }
+.auth-logo{ display:flex; align-items:center; gap:10px; margin-bottom:26px; }
+.auth-title{ font-size:20px; font-weight:700; letter-spacing:-.015em; margin:0 0 6px; }
+.auth-sub{ font-size:13px; color:var(--ink-soft); margin:0 0 26px; }
+.field{ margin-bottom:16px; }
+.field label{ display:block; font-size:12.5px; font-weight:600; margin-bottom:6px; color:var(--ink); }
+.field input{ width:100%; font-family:inherit; font-size:13.5px; color:var(--ink); border:1px solid var(--line-strong);
+  border-radius:9px; padding:11px 13px; background:#fff; }
+.field input:focus{ outline:2px solid var(--brand-400); outline-offset:1px; border-color:var(--brand-400); }
+.field-row{ display:flex; gap:12px; }
+.field-row .field{ flex:1; }
+.field-inline{ display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink-soft); margin-bottom:20px; }
+.field-inline input{ width:auto; }
+.field-inline a{ color:var(--brand-600); font-weight:600; text-decoration:none; }
+.auth-alt{ text-align:center; font-size:13px; color:var(--ink-soft); margin-top:22px; }
+.auth-alt a{ color:var(--brand-600); font-weight:600; text-decoration:none; }
+.auth-error{ background:var(--low-soft); color:var(--low); font-size:12.5px; font-weight:500; padding:10px 14px;
+  border-radius:9px; margin-bottom:18px; }
+.forgot-link{ display:block; text-align:right; font-size:12px; color:var(--brand-600); text-decoration:none; margin:-8px 0 18px; }

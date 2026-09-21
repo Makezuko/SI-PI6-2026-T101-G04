@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Painel Inicial · TalentMatch AI{% endblock %}
+
+{% block topbar %}
+<div class="topbar">
+  <div>
+    <div class="eyebrow">Bem-vindo de volta 👋</div>
+    <h1 class="h1">Painel Inicial</h1>
+  </div>
+  <a href="#" class="btn btn-primary">+ Nova Vaga</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="stat-strip">
+  <div class="stat">
+    <div class="stat-label">Vagas abertas</div>
+    <div class="stat-value">{{ open_jobs_count }}</div>
+    <div class="stat-note">de {{ jobs|length }} vagas cadastradas</div>
+  </div>
+  <div class="stat hero">
+    <div class="stat-label">Currículos analisados</div>
+    <div class="stat-value">{{ total_resumes }}</div>
+    <div class="stat-note">total processado pela IA</div>
+    <div class="spark">
+      <div style="height:8px"></div><div style="height:12px"></div><div style="height:10px"></div>
+      <div style="height:16px"></div><div style="height:14px"></div><div style="height:22px"></div><div style="height:20px"></div>
+    </div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Taxa média de aderência</div>
+    <div class="stat-value">{{ avg_match_rate }}%</div>
+    <div class="stat-note">média de todos os rankings</div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-head">
+    <h2>Últimas vagas cadastradas</h2>
+    <span class="count">{{ jobs|length }} vagas</span>
+  </div>
+  <table>
+    <tr><th>Título da vaga</th><th>Criada em</th><th>Candidatos</th><th>Status</th><th></th></tr>
+    {% for job in jobs %}
+    <tr class="job-row {{ 'open' if job.status == 'Aberta' else 'closed' }}">
+      <td>
+        <div class="job-title-cell">
+          <div class="job-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+          </div>
+          <span class="job-title">{{ job.title }}</span>
+        </div>
+      </td>
+      <td>{{ job.created_at }}</td>
+      <td>{{ job.candidate_count }}</td>
+      <td>
+        <span class="status-dot {{ 'open' if job.status == 'Aberta' else 'closed' }}">
+          <span></span>{{ job.status }}
+        </span>
+      </td>
+      <td><a href="{{ url_for('vagas', job_id=job.id) }}" class="link-cell">Ver ranking →</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

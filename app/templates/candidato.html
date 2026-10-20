@@ -20,8 +20,14 @@
       <div class="cand-detail-id">
         <div class="cand-detail-avatar">{{ candidate.initials }}</div>
         <div>
-          <div class="cand-detail-name">{{ candidate.name }}</div>
-          <span class="cand-detail-badge {{ level }}">{{ candidate.score }}% — {{ label }}</span>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div class="cand-detail-name" style="margin-bottom:0">{{ candidate.name }}</div>
+            {% set status_class = candidate.status|lower %}
+            <span class="status-badge {{ status_class }}">
+              <span></span>{{ candidate.status }}
+            </span>
+          </div>
+          <span class="cand-detail-badge {{ level }}" style="margin-top:6px;">{{ candidate.score }}% — {{ label }}</span>
         </div>
       </div>
       <a href="{{ url_for('vagas', job_id=job.id) }}" class="cand-detail-close">
@@ -33,12 +39,12 @@
       <div class="adherence-box">
         <div class="adherence-top"><span>Índice de Aderência</span><b>{{ candidate.score }}%</b></div>
         <div class="adherence-track">
-  <div class="adherence-fill fill-{{ level }}" data-score="{{ candidate.score }}"></div>
-  <script>
-    const adherenceFill = document.currentScript.previousElementSibling;
-    adherenceFill.style.width = `${adherenceFill.dataset.score}%`;
-  </script>
-</div>
+          <div class="adherence-fill fill-{{ level }}" data-score="{{ candidate.score }}"></div>
+          <script>
+            const adherenceFill = document.currentScript.previousElementSibling;
+            adherenceFill.style.width = `${adherenceFill.dataset.score}%`;
+          </script>
+        </div>
       </div>
 
       <div>
@@ -51,6 +57,10 @@
           <div class="data-row">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13 19.79 19.79 0 0 1 1.59 4.38 2 2 0 0 1 3.55 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.1 6.1l.88-.88a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
             <div><div class="data-label">Telefone</div><div class="data-value">{{ candidate.phone }}</div></div>
+          </div>
+          <div class="data-row">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <div><div class="data-label">Arquivo de Origem</div><div class="data-value">{{ candidate.filename }} (Enviado em {{ candidate.submitted_at }})</div></div>
           </div>
           <div class="data-row">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
@@ -91,7 +101,7 @@
         <div class="section-label">Currículo Original</div>
         <div class="pdf-mock">
           <div class="pdf-toolbar">
-            <span>Página <span class="page-num">1</span> / 2</span>
+            <span>Arquivo: {{ candidate.filename }}</span>
             <span>100% ⬇</span>
           </div>
           <div class="pdf-page">
@@ -115,8 +125,14 @@
     </div>
 
     <div class="cand-detail-foot">
-      <button class="btn btn-primary">Aprovar para Entrevista</button>
-      <button class="btn btn-outline">Descartar Candidato</button>
+      <form method="POST" action="{{ url_for('atualizar_status_candidato', job_id=job.id, candidate_id=candidate.id) }}" style="flex:1;display:flex;gap:12px;">
+        <button type="submit" name="status" value="Aprovado" class="btn btn-primary" style="flex:1;justify-content:center;">
+          Aprovar para Entrevista
+        </button>
+        <button type="submit" name="status" value="Descartado" class="btn btn-outline" style="flex:1;justify-content:center;color:var(--low);border-color:var(--low-soft);">
+          Descartar Candidato
+        </button>
+      </form>
     </div>
   </div>
 </div>

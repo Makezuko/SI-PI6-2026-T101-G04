@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+﻿@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 :root{
   --brand-50:#eaf1f8; --brand-100:#cddff0; --brand-200:#9dc0e0; --brand-300:#6da0d1;
@@ -93,7 +93,66 @@ tr.job-row.closed td:first-child{ box-shadow:inset 3px 0 0 #cbd5e1; }
 .job-meta-badge{ background:#f1f5f9; border:1px solid var(--line-strong); border-radius:20px; padding:7px 14px; font-size:12.5px; color:var(--ink-soft); }
 .job-meta-badge b{ color:var(--ink); font-weight:700; }
 .filters{ display:flex; gap:10px; margin-bottom:18px; flex-wrap:wrap; }
-.filters input, .filters select{ font-family:inherit; font-size:13px; border:1px solid var(--line-strong); border-radius:9px; padding:10px 13px; background:#fff; color:var(--ink); }
+.filters input, .filters select{
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  padding: 10px 15px;
+  background-color: #fff;
+  color: var(--ink);
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+.filters input:hover, .filters select:hover{
+  border-color: #cbd5e1;
+  background-color: #fafbfc;
+}
+.filters input:focus, .filters select:focus{
+  outline: none;
+  border-color: var(--brand-500);
+  box-shadow: 0 0 0 3px rgba(58, 120, 168, 0.15);
+  background-color: #fff;
+}
+.filters select{
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 36px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 14px;
+}
+.filters select option{
+  font-family: inherit;
+  font-size: 13.5px;
+  color: var(--ink);
+  background: #fff;
+  padding: 10px 14px;
+}
+.job-select-panel select{
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 36px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%232c5f8a' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 15px;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+.job-select-panel select:hover{
+  border-color: #cbd5e1;
+}
+.job-select-panel select:focus{
+  outline: none;
+  border-color: var(--brand-500);
+  box-shadow: 0 0 0 3px rgba(58, 120, 168, 0.15);
+}
 .filters input{ flex:1; min-width:200px; }
 .cand-row{ display:flex; align-items:center; gap:20px; padding:18px 24px; border-bottom:1px solid var(--line); text-decoration:none; color:inherit; }
 .cand-row:last-child{ border-bottom:none; }
@@ -114,7 +173,7 @@ tr.job-row.closed td:first-child{ box-shadow:inset 3px 0 0 #cbd5e1; }
 .fill-high{ background:var(--high); } .fill-mid{ background:var(--mid); } .fill-low{ background:var(--low); }
 .chevron{ color:#cbd5e1; flex-shrink:0; }
 
-/* ---------- Adicionar Currículos ---------- */
+/* ---------- Adicionar Currículos  ---------- */
 .back-btn{ width:34px; height:34px; border-radius:9px; border:1px solid var(--line-strong); background:#fff;
   display:inline-flex; align-items:center; justify-content:center; color:var(--ink-soft); text-decoration:none; margin-right:14px; flex-shrink:0; }
 .back-btn:hover{ color:var(--ink); border-color:var(--ink-soft); }
@@ -192,7 +251,7 @@ tr.job-row.closed td:first-child{ box-shadow:inset 3px 0 0 #cbd5e1; }
 .btn-outline{ background:#fff; border:1px solid var(--line-strong); color:var(--ink-soft); }
 .btn-outline:hover{ border-color:var(--ink-soft); color:var(--ink); }
 
-/* ---------- Configurações ---------- */
+/* ---------- Configurações  ---------- */
 .settings-panel .set-row{ display:flex; align-items:center; justify-content:space-between; padding:19px 24px; border-bottom:1px solid var(--line); text-decoration:none; color:inherit; }
 .settings-panel .set-row:last-child{ border-bottom:none; }
 .settings-panel .set-row:hover{ background:#fafbfc; }
@@ -236,4 +295,119 @@ tr.job-row.closed td:first-child{ box-shadow:inset 3px 0 0 #cbd5e1; }
 .auth-alt a{ color:var(--brand-600); font-weight:600; text-decoration:none; }
 .auth-error{ background:var(--low-soft); color:var(--low); font-size:12.5px; font-weight:500; padding:10px 14px;
   border-radius:9px; margin-bottom:18px; }
-.forgot-link{ display:block; text-align:right; font-size:12px; color:var(--brand-600); text-decoration:none; margin:-8px 0 18px; }
+.forgot-link{ display:block; text-align:right; font-size:12px; color:var(--brand-600); text-decoration:none; margin:-8px 0 18px; }/* ---------- Badges de Status e Controles de Selecao de Curriculo ---------- */
+.status-badge{ display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:600; padding:3px 9px; border-radius:12px; }
+.status-badge.aprovado{ background:var(--high-soft); color:var(--high); }
+.status-badge.descartado{ background:var(--low-soft); color:var(--low); }
+.status-badge.analisado{ background:var(--brand-50); color:var(--brand-700); }
+.status-badge.pendente{ background:var(--mid-soft); color:var(--mid); }
+.status-badge span{ width:5px; height:5px; border-radius:50%; background:currentColor; }
+
+.cand-meta-sub{ display:flex; align-items:center; gap:12px; font-size:12px; color:#94a3b8; margin-top:4px; margin-bottom:6px; flex-wrap:wrap; }
+.cand-meta-sub span{ display:inline-flex; align-items:center; gap:4px; }
+
+.check-col{ display:flex; align-items:center; justify-content:center; padding-right:6px; }
+.check-col input[type="checkbox"]{ width:17px; height:17px; cursor:pointer; accent-color:var(--brand-600); }
+
+.table-check-header{ display:flex; align-items:center; gap:10px; font-size:13px; font-weight:600; color:var(--ink-soft); }
+.table-check-header input[type="checkbox"]{ width:16px; height:16px; cursor:pointer; accent-color:var(--brand-600); }
+
+.empty-state{ padding:44px 20px; text-align:center; color:var(--ink-soft); }
+.empty-state-icon{ width:44px; height:44px; border-radius:50%; background:#f1f5f9; display:inline-flex; align-items:center; justify-content:center; color:#94a3b8; margin-bottom:12px; }
+.empty-state-title{ font-size:14.5px; font-weight:600; color:var(--ink); margin-bottom:4px; }
+.empty-state-desc{ font-size:12.5px; color:#94a3b8; }
+/* ---------- Custom Dropdown Elegante (Substituto do select nativo) ---------- */
+.custom-select{
+  position: relative;
+  user-select: none;
+  min-width: 170px;
+}
+.custom-select-trigger{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: #fff;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+.custom-select-trigger:hover{
+  border-color: #cbd5e1;
+  background: #fafbfc;
+}
+.custom-select.active .custom-select-trigger{
+  border-color: var(--brand-500);
+  box-shadow: 0 0 0 3px rgba(58, 120, 168, 0.15);
+}
+.custom-select-arrow{
+  width: 14px;
+  height: 14px;
+  color: #64748b;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+.custom-select.active .custom-select-arrow{
+  transform: rotate(180deg);
+  color: var(--brand-600);
+}
+.custom-options{
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.12), 0 8px 10px -6px rgba(15, 23, 42, 0.06);
+  padding: 6px;
+  z-index: 100;
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 100%;
+  animation: dropdownFadeIn 0.15s ease-out;
+}
+@keyframes dropdownFadeIn{
+  from{ opacity: 0; transform: translateY(-4px); }
+  to{ opacity: 1; transform: translateY(0); }
+}
+.custom-select.active .custom-options{
+  display: flex;
+}
+.custom-option{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.custom-option:hover{
+  background: var(--brand-50);
+  color: var(--brand-700);
+}
+.custom-option.selected{
+  background: var(--brand-50);
+  color: var(--brand-700);
+  font-weight: 600;
+}
+/* Custom Select Full Width para os paineis de vaga */
+.job-select-note-flex .custom-select{
+  width: 100%;
+}
+.job-select-note-flex .custom-select-trigger{
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+}

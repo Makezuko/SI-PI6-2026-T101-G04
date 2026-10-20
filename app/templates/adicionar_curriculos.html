@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Adicionar Currículos · TalentMatch AI{% endblock %}
+{% block title %}Adicionar e Selecionar Currículos · TalentMatch AI{% endblock %}
 
 {% block topbar %}
 <div class="topbar">
@@ -8,36 +8,54 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
     </a>
     <div>
-      <h1 class="h1">Adicionar Currículos</h1>
-      <p class="h1-sub">A IA extrai nomes e calcula a aderência automaticamente.</p>
+      <h1 class="h1">Seleção e Triagem de Currículos</h1>
+      <p class="h1-sub">Filtre e selecione os currículos desta vaga antes de disparar o processamento de aderência pela IA.</p>
     </div>
   </div>
 </div>
 {% endblock %}
 
 {% block content %}
-<form method="POST" enctype="multipart/form-data" action="{{ url_for('adicionar_curriculos', job_id=job.id) }}">
+<form method="POST" enctype="multipart/form-data" action="{{ url_for('adicionar_curriculos', job_id=job.id) }}" id="form-triagem">
+  
+  <!-- Seletor Dinâmico de Vagas com Dropdown Elegante Customizado -->
   <div class="job-select-panel">
     <div class="job-select-icon">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
     </div>
     <div class="job-select-note-flex">
-      <label for="job_id">Vaga para este lote</label>
-      <select name="job_id" id="job_id">
-        {% for j in jobs %}
-        <option value="{{ j.id }}" {{ 'selected' if j.id == job.id else '' }}>{{ j.title }}{{ ' (Encerrada)' if j.status == 'Encerrada' else '' }}</option>
-        {% endfor %}
-      </select>
+      <label for="job_id">Vaga Selecionada para Análise</label>
+      <div class="custom-select" id="cs-job-select">
+        <select name="job_id" id="job_id" style="display:none">
+          {% for j in jobs %}
+          <option value="{{ j.id }}" {{ 'selected' if j.id == job.id else '' }}>
+            {{ j.title }}{{ ' (Encerrada)' if j.status == 'Encerrada' else '' }}
+          </option>
+          {% endfor %}
+        </select>
+        <div class="custom-select-trigger">
+          <span class="trigger-label">{{ job.title }}{{ ' (Encerrada)' if job.status == 'Encerrada' else '' }}</span>
+          <svg class="custom-select-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="custom-options">
+          {% for j in jobs %}
+          <div class="custom-option {{ 'selected' if j.id == job.id else '' }}" data-value="{{ j.id }}" data-url="/vagas/{{ j.id }}/adicionar-curriculos">
+            {{ j.title }}{{ ' (Encerrada)' if j.status == 'Encerrada' else '' }}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
     </div>
-    <div class="job-select-note">Todos os currículos deste lote serão comparados a esta vaga.</div>
+    <div class="job-select-note">Todos os currículos selecionados abaixo serão comparados aos requisitos desta vaga.</div>
   </div>
 
-  <div class="dropzone" id="dropzone">
+  <!-- Área de Upload de Novos Currículos -->
+  <div class="dropzone" id="dropzone" style="margin-bottom:24px;">
     <div class="dropzone-icon">
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
     </div>
-    <div class="dropzone-title">Arraste uma pasta ou vários currículos aqui</div>
-    <div class="dropzone-sub">Formatos aceitos: .pdf e .docx — múltiplos arquivos simultâneos</div>
+    <div class="dropzone-title">Upload de novos currículos para esta vaga</div>
+    <div class="dropzone-sub">Formatos aceitos: .pdf e .docx — eles serão incluídos na lista abaixo para análise</div>
     <div class="dropzone-actions">
       <button type="button" class="btn btn-primary" id="btn-select-files">+ Selecionar arquivos</button>
       <button type="button" class="btn btn-ghost" id="btn-select-folder">Selecionar pasta</button>
@@ -46,43 +64,318 @@
     <input type="file" id="input-folder" name="files" webkitdirectory directory multiple style="display:none">
   </div>
 
-  <div class="file-list" id="file-list" style="display:none"></div>
+  <!-- Barra de Filtros com Dropdowns Customizados -->
+  <div class="filters">
+    <input type="search" id="triagem-search" placeholder="Filtrar por nome de candidato, arquivo (.pdf) ou habilidade...">
+    
+    <!-- Select Customizado para Status na Triagem -->
+    <div class="custom-select" id="cs-triagem-status">
+      <select id="triagem-status" style="display:none">
+        <option value="">Todos os status</option>
+        <option value="Pendente">Pendente</option>
+        <option value="Analisado">Analisado</option>
+        <option value="Aprovado">Aprovado</option>
+        <option value="Descartado">Descartado</option>
+      </select>
+      <div class="custom-select-trigger">
+        <span class="trigger-label">Todos os status</span>
+        <svg class="custom-select-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="custom-options">
+        <div class="custom-option selected" data-value="">Todos os status</div>
+        <div class="custom-option" data-value="Pendente">Pendente</div>
+        <div class="custom-option" data-value="Analisado">Analisado</div>
+        <div class="custom-option" data-value="Aprovado">Aprovado</div>
+        <div class="custom-option" data-value="Descartado">Descartado</div>
+      </div>
+    </div>
 
-  <div class="upload-footer">
-    <button type="submit" class="btn btn-primary" id="btn-ver-ranking" disabled>
+    <!-- Select Customizado para Data na Triagem -->
+    <div class="custom-select" id="cs-triagem-date">
+      <select id="triagem-date" style="display:none">
+        <option value="">Qualquer data de envio</option>
+        <option value="7">Últimos 7 dias</option>
+        <option value="15">Últimos 15 dias</option>
+        <option value="30">Últimos 30 dias</option>
+      </select>
+      <div class="custom-select-trigger">
+        <span class="trigger-label">Qualquer data de envio</span>
+        <svg class="custom-select-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="custom-options">
+        <div class="custom-option selected" data-value="">Qualquer data de envio</div>
+        <div class="custom-option" data-value="7">Últimos 7 dias</div>
+        <div class="custom-option" data-value="15">Últimos 15 dias</div>
+        <div class="custom-option" data-value="30">Últimos 30 dias</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Painel de Lista de Currículos com Checkbox para Seleção -->
+  <div class="panel">
+    <div class="panel-head">
+      <div class="table-check-header">
+        <input type="checkbox" id="check-all" title="Selecionar todos os currículos visíveis">
+        <label for="check-all" style="cursor:pointer;margin:0">Selecionar Todos</label>
+      </div>
+      <span class="count" id="selection-counter">0 selecionado(s) de {{ candidates|length }} currículo(s)</span>
+    </div>
+
+    <!-- Container dos currículos existentes e dos novos adicionados -->
+    <div id="triagem-candidates-list">
+      {% for c in candidates %}
+      <div class="file-row triagem-item"
+           data-name="{{ c.name|lower }}"
+           data-filename="{{ c.filename|lower }}"
+           data-skills="{{ c.skills|join(' ')|lower }}"
+           data-status="{{ c.status }}"
+           data-date="{{ c.submitted_at }}">
+        <div class="check-col">
+          <input type="checkbox" 
+                 name="selected_candidates" 
+                 value="{{ c.id }}" 
+                 class="item-checkbox" 
+                 id="cand-{{ c.id }}" 
+                 {{ 'checked' if c.status == 'Pendente' else '' }}>
+        </div>
+        <div class="cand-avatar" style="width:34px;height:34px;font-size:11.5px;margin-right:12px;">{{ c.initials }}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <label for="cand-{{ c.id }}" style="font-size:13.5px;font-weight:600;cursor:pointer;margin:0;">{{ c.name }}</label>
+            {% set status_class = c.status|lower %}
+            <span class="status-badge {{ status_class }}">
+              <span></span>{{ c.status }}
+            </span>
+          </div>
+          <div class="cand-meta-sub" style="margin-bottom:0">
+            <span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              {{ c.filename }}
+            </span>
+            <span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Enviado em {{ c.submitted_at }}
+            </span>
+            <span>
+              <b>Skills:</b> {{ c.skills[:3]|join(', ') }}
+            </span>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Lista de novos arquivos recém-carregados pelo Dropzone -->
+    <div id="new-files-container"></div>
+
+    <div id="triagem-empty" class="empty-state" style="display:none;">
+      <div class="empty-state-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </div>
+      <div class="empty-state-title">Nenhum currículo encontrado com estes filtros</div>
+      <div class="empty-state-desc">Altere o filtro de status, data de envio ou o texto pesquisado.</div>
+    </div>
+  </div>
+
+  <!-- Rodapé com botão para disparar o processamento dos currículos selecionados -->
+  <div class="upload-footer" style="display:flex;justify-content:space-between;align-items:center;">
+    <div style="font-size:13px;color:var(--ink-soft);" id="summary-text">
+      Marque os currículos desejados acima para iniciar o processamento de aderência.
+    </div>
+    <button type="submit" class="btn btn-primary" id="btn-ver-ranking">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-      Ver Ranking
+      Processar Aderência dos Selecionados
     </button>
   </div>
 </form>
 
 <script>
+  function setupCustomDropdowns() {
+    document.querySelectorAll('.custom-select').forEach(cs => {
+      const trigger = cs.querySelector('.custom-select-trigger');
+      const label = cs.querySelector('.trigger-label');
+      const options = cs.querySelectorAll('.custom-option');
+      const hiddenSelect = cs.querySelector('select');
+
+      trigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.querySelectorAll('.custom-select').forEach(other => {
+          if (other !== cs) other.classList.remove('active');
+        });
+        cs.classList.toggle('active');
+      });
+
+      options.forEach(opt => {
+        opt.addEventListener('click', (e) => {
+          e.stopPropagation();
+          options.forEach(o => o.classList.remove('selected'));
+          opt.classList.add('selected');
+          label.textContent = opt.textContent;
+          const val = opt.getAttribute('data-value');
+          if (hiddenSelect) {
+            hiddenSelect.value = val;
+            hiddenSelect.dispatchEvent(new Event('change'));
+          }
+          cs.classList.remove('active');
+          const targetUrl = opt.getAttribute('data-url');
+          if (targetUrl) {
+            window.location.href = targetUrl;
+          }
+        });
+      });
+    });
+
+    document.addEventListener('click', () => {
+      document.querySelectorAll('.custom-select').forEach(cs => cs.classList.remove('active'));
+    });
+  }
+  setupCustomDropdowns();
+
   const inputFiles = document.getElementById('input-files');
   const inputFolder = document.getElementById('input-folder');
-  const fileList = document.getElementById('file-list');
+  const newFilesContainer = document.getElementById('new-files-container');
   const btnRanking = document.getElementById('btn-ver-ranking');
+  const checkAll = document.getElementById('check-all');
+  const selectionCounter = document.getElementById('selection-counter');
+  const summaryText = document.getElementById('summary-text');
+
+  const searchInput = document.getElementById('triagem-search');
+  const statusSelect = document.getElementById('triagem-status');
+  const dateSelect = document.getElementById('triagem-date');
+  const emptyState = document.getElementById('triagem-empty');
 
   document.getElementById('btn-select-files').addEventListener('click', () => inputFiles.click());
   document.getElementById('btn-select-folder').addEventListener('click', () => inputFolder.click());
 
-  function renderFiles(files) {
-    if (!files.length) { fileList.style.display = 'none'; fileList.innerHTML = ''; btnRanking.disabled = true; return; }
-    fileList.style.display = 'block';
-    fileList.innerHTML = Array.from(files).map(f =>
-      `<div class="file-row"><span class="file-name">${f.name}</span><span class="file-status">Pronto para análise</span></div>`
-    ).join('');
-    btnRanking.disabled = false;
+  function parseDateBR(dateStr) {
+    if (!dateStr) return new Date(0);
+    const parts = dateStr.split('/');
+    if (parts.length === 3) return new Date(parts[2], parts[1] - 1, parts[0]);
+    return new Date(dateStr);
   }
 
-  inputFiles.addEventListener('change', () => renderFiles(inputFiles.files));
-  inputFolder.addEventListener('change', () => renderFiles(inputFolder.files));
+  function updateCounters() {
+    const visibleCheckboxes = Array.from(document.querySelectorAll('.triagem-item'))
+      .filter(row => row.style.display !== 'none')
+      .map(row => row.querySelector('.item-checkbox'))
+      .filter(Boolean);
+
+    const checkedCount = document.querySelectorAll('.item-checkbox:checked').length;
+    const newFilesCount = inputFiles.files.length + inputFolder.files.length;
+    const totalSelected = checkedCount + newFilesCount;
+
+    selectionCounter.textContent = `${totalSelected} selecionado(s) para análise`;
+    btnRanking.disabled = totalSelected === 0;
+
+    if (totalSelected > 0) {
+      summaryText.textContent = `Pronto: ${totalSelected} currículo(s) serão enviados para cálculo de aderência com a vaga.`;
+    } else {
+      summaryText.textContent = 'Marque os currículos desejados acima para iniciar o processamento de aderência.';
+    }
+
+    if (visibleCheckboxes.length > 0) {
+      checkAll.checked = visibleCheckboxes.every(cb => cb.checked);
+      checkAll.indeterminate = !checkAll.checked && visibleCheckboxes.some(cb => cb.checked);
+    } else {
+      checkAll.checked = false;
+      checkAll.indeterminate = false;
+    }
+  }
+
+  function applyFilters() {
+    const query = searchInput.value.trim().toLowerCase();
+    const selectedStatus = statusSelect.value;
+    const selectedDays = dateSelect.value ? parseInt(dateSelect.value, 10) : null;
+    const now = new Date(2026, 9, 20);
+
+    const rows = document.querySelectorAll('.triagem-item');
+    let visibleCount = 0;
+
+    rows.forEach(row => {
+      const name = row.getAttribute('data-name') || '';
+      const filename = row.getAttribute('data-filename') || '';
+      const skills = row.getAttribute('data-skills') || '';
+      const status = row.getAttribute('data-status') || '';
+      const dateStr = row.getAttribute('data-date') || '';
+
+      const matchesSearch = !query || name.includes(query) || filename.includes(query) || skills.includes(query);
+      const matchesStatus = !selectedStatus || status === selectedStatus;
+
+      let matchesDate = true;
+      if (selectedDays) {
+        const itemDate = parseDateBR(dateStr);
+        const diffDays = Math.floor((now - itemDate) / (1000 * 60 * 60 * 24));
+        if (diffDays > selectedDays || diffDays < 0) matchesDate = false;
+      }
+
+      if (matchesSearch && matchesStatus && matchesDate) {
+        row.style.display = 'flex';
+        visibleCount++;
+      } else {
+        row.style.display = 'none';
+      }
+    });
+
+    emptyState.style.display = visibleCount === 0 ? 'block' : 'none';
+    updateCounters();
+  }
+
+  checkAll.addEventListener('change', () => {
+    const isChecked = checkAll.checked;
+    const visibleCheckboxes = Array.from(document.querySelectorAll('.triagem-item'))
+      .filter(row => row.style.display !== 'none')
+      .map(row => row.querySelector('.item-checkbox'))
+      .filter(Boolean);
+
+    visibleCheckboxes.forEach(cb => cb.checked = isChecked);
+    updateCounters();
+  });
+
+  document.addEventListener('change', (e) => {
+    if (e.target && e.target.classList.contains('item-checkbox')) {
+      updateCounters();
+    }
+  });
+
+  searchInput.addEventListener('input', applyFilters);
+  statusSelect.addEventListener('change', applyFilters);
+  dateSelect.addEventListener('change', applyFilters);
+
+  function renderNewUploadedFiles(files) {
+    if (!files.length) {
+      newFilesContainer.innerHTML = '';
+      updateCounters();
+      return;
+    }
+    newFilesContainer.innerHTML = Array.from(files).map((f, i) => `
+      <div class="file-row" style="background:#f8fafc">
+        <div class="check-col">
+          <input type="checkbox" checked disabled title="Novos arquivos sempre entram selecionados">
+        </div>
+        <div class="cand-avatar" style="width:34px;height:34px;font-size:11px;background:var(--brand-200);color:var(--brand-800);margin-right:12px;">NOVO</div>
+        <div style="flex:1">
+          <div style="font-size:13.5px;font-weight:600;">${f.name}</div>
+          <div class="cand-meta-sub" style="margin-bottom:0">
+            <span class="status-badge pendente"><span></span>Novo Upload (Aguardando análise)</span>
+            <span>Tamanho: ${(f.size / 1024).toFixed(1)} KB</span>
+          </div>
+        </div>
+      </div>
+    `).join('');
+    updateCounters();
+  }
+
+  inputFiles.addEventListener('change', () => renderNewUploadedFiles(inputFiles.files));
+  inputFolder.addEventListener('change', () => renderNewUploadedFiles(inputFolder.files));
 
   const dropzone = document.getElementById('dropzone');
   dropzone.addEventListener('dragover', e => e.preventDefault());
   dropzone.addEventListener('drop', e => {
     e.preventDefault();
     inputFiles.files = e.dataTransfer.files;
-    renderFiles(e.dataTransfer.files);
+    renderNewUploadedFiles(e.dataTransfer.files);
   });
+
+  updateCounters();
 </script>
 {% endblock %}

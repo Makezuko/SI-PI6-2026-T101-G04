@@ -8,45 +8,305 @@
     <h1 class="h1">{{ job.title }}</h1>
   </div>
   <div style="display:flex;gap:12px;align-items:center">
-    <div class="job-meta-badge"><b>{{ candidates|length }}</b> candidatos analisados</div>
-    <a href="{{ url_for('adicionar_curriculos', job_id=job.id) }}" class="btn btn-primary">+ Adicionar Currículos</a>
+    <div class="job-meta-badge"><b>{{ candidates|length }}</b> candidatos cadastrados</div>
+    <a href="{{ url_for('adicionar_curriculos', job_id=job.id) }}" class="btn btn-primary">+ Adicionar / Analisar Currículos</a>
   </div>
 </div>
 {% endblock %}
 
 {% block content %}
-<div class="filters">
-  <input type="search" placeholder="Buscar por nome ou habilidade...">
-  <select><option>Maior nota primeiro</option><option>Mais recente</option></select>
-  <select><option>Qualquer experiência</option><option>+2 anos</option><option>+5 anos</option></select>
+<!-- Seletor de Vaga Integrado no Topo com Dropdown Customizado -->
+<div class="job-select-panel" style="margin-bottom:16px;">
+  <div class="job-select-icon">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+  </div>
+  <div class="job-select-note-flex">
+    <label for="select-job-rank">Alternar Vaga</label>
+    <div class="custom-select" id="cs-job-rank">
+      <select id="select-job-rank" style="display:none">
+        {% for j in jobs %}
+        <option value="{{ j.id }}" {{ 'selected' if j.id == job.id else '' }}>
+          {{ j.title }} ({{ j.status }})
+        </option>
+        {% endfor %}
+      </select>
+      <div class="custom-select-trigger">
+        <span class="trigger-label">{{ job.title }} ({{ job.status }})</span>
+        <svg class="custom-select-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="custom-options">
+        {% for j in jobs %}
+        <div class="custom-option {{ 'selected' if j.id == job.id else '' }}" data-value="{{ j.id }}" data-url="/vagas/{{ j.id }}">
+          {{ j.title }} ({{ j.status }})
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  <div class="job-select-note">Selecione para ver o ranking e filtrar candidatos de outra vaga.</div>
 </div>
 
-<div class="panel">
-  {% for c in candidates %}
-  <a href="{{ url_for('candidato_detalhe', job_id=job.id, candidate_id=c.id) }}" class="cand-row">
-    <div class="rank-num">{{ loop.index }}</div>
-    <div class="cand-avatar">{{ c.initials }}</div>
-    <div class="cand-main">
-      <div class="cand-name">{{ c.name }}</div>
-      <div class="cand-tags">
-        {% for skill in c.skills[:4] %}<span class="tag">{{ skill }}</span>{% endfor %}
-        {% if c.skills|length > 4 %}<span class="tag">+{{ c.skills|length - 4 }}</span>{% endif %}
-      </div>
+<!-- Barra de Filtros com Dropdowns Customizados e Arredondados -->
+<div class="filters">
+  <input type="search" id="filter-search" placeholder="Buscar por nome de candidato, arquivo (.pdf) ou habilidade...">
+  
+  <!-- Select Nativo Oculto + UI Customizada para Status -->
+  <div class="custom-select" id="cs-status">
+    <select id="filter-status" style="display:none">
+      <option value="">Todos os status</option>
+      <option value="Aprovado">Aprovado</option>
+      <option value="Descartado">Descartado</option>
+      <option value="Analisado">Analisado</option>
+      <option value="Pendente">Pendente</option>
+    </select>
+    <div class="custom-select-trigger">
+      <span class="trigger-label">Todos os status</span>
+      <svg class="custom-select-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="6 9 12 15 18 9"/></svg>
     </div>
-    <div class="cand-score">
-      {% set level = 'high' if c.score >= 80 else ('mid' if c.score >= 60 else 'low') %}
-      {% set label = 'Alta aderência' if c.score >= 80 else ('Média aderência' if c.score >= 60 else 'Baixa aderência') %}
-      <div class="score-label {{ level }}">{{ label }}</div>
-      <div class="score-pct">{{ c.score }}%</div>
-      <div class="score-track">
-        <div
-          class="score-fill fill-{{ level }}"
-          style="--score-width: {{ c.score }}%; width: var(--score-width, 0%);"
-        ></div>
-      </div>
+    <div class="custom-options">
+      <div class="custom-option selected" data-value="">Todos os status</div>
+      <div class="custom-option" data-value="Aprovado">Aprovado</div>
+      <div class="custom-option" data-value="Descartado">Descartado</div>
+      <div class="custom-option" data-value="Analisado">Analisado</div>
+      <div class="custom-option" data-value="Pendente">Pendente</div>
     </div>
-    <div class="chevron">›</div>
-  </a>
-  {% endfor %}
+  </div>
+
+  <!-- Select Nativo Oculto + UI Customizada para Data -->
+  <div class="custom-select" id="cs-date">
+    <select id="filter-date" style="display:none">
+      <option value="">Qualquer data de envio</option>
+      <option value="7">Últimos 7 dias</option>
+      <option value="15">Últimos 15 dias</option>
+      <option value="30">Últimos 30 dias</option>
+    </select>
+    <div class="custom-select-trigger">
+      <span class="trigger-label">Qualquer data de envio</span>
+      <svg class="custom-select-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="custom-options">
+      <div class="custom-option selected" data-value="">Qualquer data de envio</div>
+      <div class="custom-option" data-value="7">Últimos 7 dias</div>
+      <div class="custom-option" data-value="15">Últimos 15 dias</div>
+      <div class="custom-option" data-value="30">Últimos 30 dias</div>
+    </div>
+  </div>
+
+  <!-- Select Nativo Oculto + UI Customizada para Ordenação -->
+  <div class="custom-select" id="cs-sort">
+    <select id="filter-sort" style="display:none">
+      <option value="score-desc">Maior nota primeiro</option>
+      <option value="score-asc">Menor nota primeiro</option>
+      <option value="name-asc">Nome (A - Z)</option>
+      <option value="recent">Mais recente</option>
+    </select>
+    <div class="custom-select-trigger">
+      <span class="trigger-label">Maior nota primeiro</span>
+      <svg class="custom-select-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="custom-options">
+      <div class="custom-option selected" data-value="score-desc">Maior nota primeiro</div>
+      <div class="custom-option" data-value="score-asc">Menor nota primeiro</div>
+      <div class="custom-option" data-value="name-asc">Nome (A - Z)</div>
+      <div class="custom-option" data-value="recent">Mais recente</div>
+    </div>
+  </div>
 </div>
+
+<!-- Painel de Candidatos Filtrados -->
+<div class="panel" id="candidate-list-panel">
+  <div class="panel-head">
+    <h2>Candidatos da Vaga</h2>
+    <span class="count" id="candidate-counter">{{ candidates|length }} candidatos exibidos</span>
+  </div>
+
+  <div id="candidates-container">
+    {% for c in candidates %}
+    <a href="{{ url_for('candidato_detalhe', job_id=job.id, candidate_id=c.id) }}" 
+       class="cand-row" 
+       data-name="{{ c.name|lower }}" 
+       data-filename="{{ c.filename|lower }}" 
+       data-skills="{{ c.skills|join(' ')|lower }}" 
+       data-status="{{ c.status }}" 
+       data-date="{{ c.submitted_at }}" 
+       data-score="{{ c.score }}">
+      <div class="rank-num">{{ loop.index }}</div>
+      <div class="cand-avatar">{{ c.initials }}</div>
+      <div class="cand-main">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <div class="cand-name" style="margin-bottom:0">{{ c.name }}</div>
+          {% set status_class = c.status|lower %}
+          <span class="status-badge {{ status_class }}">
+            <span></span>{{ c.status }}
+          </span>
+        </div>
+        
+        <div class="cand-meta-sub">
+          <span>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            {{ c.filename }}
+          </span>
+          <span>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Enviado em {{ c.submitted_at }}
+          </span>
+        </div>
+
+        <div class="cand-tags">
+          {% for skill in c.skills[:5] %}<span class="tag">{{ skill }}</span>{% endfor %}
+          {% if c.skills|length > 5 %}<span class="tag">+{{ c.skills|length - 5 }}</span>{% endif %}
+        </div>
+      </div>
+      
+      <div class="cand-score">
+        {% set level = 'high' if c.score >= 80 else ('mid' if c.score >= 60 else 'low') %}
+        {% set label = 'Alta aderência' if c.score >= 80 else ('Média aderência' if c.score >= 60 else 'Baixa aderência') %}
+        <div class="score-label {{ level }}">{{ label }}</div>
+        <div class="score-pct">{{ c.score }}%</div>
+        <div class="score-track">
+          <div
+            class="score-fill fill-{{ level }}"
+            style="width: {{ c.score }}%;"
+          ></div>
+        </div>
+      </div>
+      <div class="chevron">›</div>
+    </a>
+    {% endfor %}
+  </div>
+
+  <div id="no-results" class="empty-state" style="display:none;">
+    <div class="empty-state-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </div>
+    <div class="empty-state-title">Nenhum candidato encontrado</div>
+    <div class="empty-state-desc">Tente ajustar os filtros de busca, status ou data de envio.</div>
+  </div>
+</div>
+
+<script>
+  function setupCustomDropdowns() {
+    document.querySelectorAll('.custom-select').forEach(cs => {
+      const trigger = cs.querySelector('.custom-select-trigger');
+      const label = cs.querySelector('.trigger-label');
+      const options = cs.querySelectorAll('.custom-option');
+      const hiddenSelect = cs.querySelector('select');
+
+      trigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.querySelectorAll('.custom-select').forEach(other => {
+          if (other !== cs) other.classList.remove('active');
+        });
+        cs.classList.toggle('active');
+      });
+
+      options.forEach(opt => {
+        opt.addEventListener('click', (e) => {
+          e.stopPropagation();
+          options.forEach(o => o.classList.remove('selected'));
+          opt.classList.add('selected');
+          label.textContent = opt.textContent;
+          const val = opt.getAttribute('data-value');
+          if (hiddenSelect) {
+            hiddenSelect.value = val;
+            hiddenSelect.dispatchEvent(new Event('change'));
+          }
+          cs.classList.remove('active');
+          const targetUrl = opt.getAttribute('data-url');
+          if (targetUrl) {
+            window.location.href = targetUrl;
+          }
+        });
+      });
+    });
+
+    document.addEventListener('click', () => {
+      document.querySelectorAll('.custom-select').forEach(cs => cs.classList.remove('active'));
+    });
+  }
+  setupCustomDropdowns();
+
+  const searchInput = document.getElementById('filter-search');
+  const statusSelect = document.getElementById('filter-status');
+  const dateSelect = document.getElementById('filter-date');
+  const sortSelect = document.getElementById('filter-sort');
+  const container = document.getElementById('candidates-container');
+  const noResults = document.getElementById('no-results');
+  const counter = document.getElementById('candidate-counter');
+
+  function parseDateBR(dateStr) {
+    if (!dateStr) return new Date(0);
+    const parts = dateStr.split('/');
+    if (parts.length === 3) {
+      return new Date(parts[2], parts[1] - 1, parts[0]);
+    }
+    return new Date(dateStr);
+  }
+
+  function applyFilters() {
+    const query = searchInput.value.trim().toLowerCase();
+    const selectedStatus = statusSelect.value;
+    const selectedDays = dateSelect.value ? parseInt(dateSelect.value, 10) : null;
+    const sortBy = sortSelect.value;
+
+    const rows = Array.from(container.getElementsByClassName('cand-row'));
+    const now = new Date(2026, 9, 20);
+
+    let visibleRows = [];
+
+    rows.forEach(row => {
+      const name = row.getAttribute('data-name') || '';
+      const filename = row.getAttribute('data-filename') || '';
+      const skills = row.getAttribute('data-skills') || '';
+      const status = row.getAttribute('data-status') || '';
+      const dateStr = row.getAttribute('data-date') || '';
+
+      const matchesSearch = !query || name.includes(query) || filename.includes(query) || skills.includes(query);
+      const matchesStatus = !selectedStatus || status === selectedStatus;
+      
+      let matchesDate = true;
+      if (selectedDays) {
+        const itemDate = parseDateBR(dateStr);
+        const diffDays = Math.floor((now - itemDate) / (1000 * 60 * 60 * 24));
+        if (diffDays > selectedDays || diffDays < 0) {
+          matchesDate = false;
+        }
+      }
+
+      if (matchesSearch && matchesStatus && matchesDate) {
+        row.style.display = 'flex';
+        visibleRows.push(row);
+      } else {
+        row.style.display = 'none';
+      }
+    });
+
+    visibleRows.sort((a, b) => {
+      if (sortBy === 'score-desc') {
+        return parseInt(b.getAttribute('data-score'), 10) - parseInt(a.getAttribute('data-score'), 10);
+      } else if (sortBy === 'score-asc') {
+        return parseInt(a.getAttribute('data-score'), 10) - parseInt(b.getAttribute('data-score'), 10);
+      } else if (sortBy === 'name-asc') {
+        return a.getAttribute('data-name').localeCompare(b.getAttribute('data-name'));
+      } else if (sortBy === 'recent') {
+        return parseDateBR(b.getAttribute('data-date')) - parseDateBR(a.getAttribute('data-date'));
+      }
+      return 0;
+    });
+
+    visibleRows.forEach((row, index) => {
+      const rankNum = row.querySelector('.rank-num');
+      if (rankNum) rankNum.textContent = index + 1;
+      container.appendChild(row);
+    });
+
+    counter.textContent = `${visibleRows.length} candidato(s) exibido(s)`;
+    noResults.style.display = visibleRows.length === 0 ? 'block' : 'none';
+  }
+
+  searchInput.addEventListener('input', applyFilters);
+  statusSelect.addEventListener('change', applyFilters);
+  dateSelect.addEventListener('change', applyFilters);
+  sortSelect.addEventListener('change', applyFilters);
+</script>
 {% endblock %}

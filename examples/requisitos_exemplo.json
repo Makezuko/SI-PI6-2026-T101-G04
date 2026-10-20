@@ -1,0 +1,11 @@
+{
+  "dataset_note": "Exemplo didático anotado manualmente para resume_embeddings_example.json original: input 0=Python, 1=SQL, 2=experiência, 3=projeto. Revise as anotações ao trocar o currículo. Não é conjunto de teste real.",
+  "requirements": [
+    {"id":"R1","text":"Python","acceptable_input_indices":[0,2,3],"category":"literal"},
+    {"id":"R2","text":"SQL","acceptable_input_indices":[1],"category":"literal"},
+    {"id":"R3","text":"Clean datasets and produce analytical reports using Python","acceptable_input_indices":[2],"category":"paráfrase"},
+    {"id":"R4","text":"Build visualizations to investigate sales trends","acceptable_input_indices":[3],"category":"paráfrase"},
+    {"id":"R5","text":"Use the Pandas library for data analysis","acceptable_input_indices":[],"category":"relacionada, não confirmada"},
+    {"id":"R6","text":"Deploy applications on AWS","acceptable_input_indices":[],"category":"sem evidência"}
+  ]
+}

@@ -641,6 +641,134 @@ def extract_ner_skill_blocks(
     return blocks
 
 
+# Seções que contêm evidências úteis para a comparação semântica.
+CONTEXT_SECTION_HEADINGS = {
+    "experience": "experience",
+    "professional experience": "experience",
+    "work experience": "experience",
+    "employment": "experience",
+    "employment history": "experience",
+    "work history": "experience",
+    "internships": "experience",
+    "volunteer experience": "experience",
+    "experiência": "experience",
+    "experiências": "experience",
+    "experiência profissional": "experience",
+    "experiências profissionais": "experience",
+    "experiencia profissional": "experience",
+    "estágios": "experience",
+    "projects": "project",
+    "personal projects": "project",
+    "academic projects": "project",
+    "professional projects": "project",
+    "projetos": "project",
+    "projetos pessoais": "project",
+    "projetos acadêmicos": "project",
+    "projetos profissionais": "project",
+}
+
+# Títulos conhecidos que encerram um bloco de contexto.
+CONTEXT_STOP_HEADINGS = (
+    SKILL_SECTION_HEADINGS
+    | STOP_SECTION_HEADINGS
+    | {
+        "formação",
+        "formação acadêmica",
+        "educação",
+        "habilidades",
+        "competências",
+        "certificações",
+        "idiomas",
+        "contato",
+        "resumo",
+        "objetivo",
+        "referências",
+    }
+)
+
+
+def extract_context_blocks(text: str) -> list[dict[str, Any]]:
+    """
+    Preserva blocos de experiências e projetos.
+
+    Não usa os filtros de skills: frases longas são úteis aqui.
+    As linhas de origem usam numeração a partir de 1.
+    """
+    blocks = []
+    current_source = None
+    current_heading = None
+    current_lines = []
+    start_line = None
+
+    def close_block(end_line: int) -> None:
+        nonlocal current_source, current_heading
+        nonlocal current_lines, start_line
+
+        block_text = "\n".join(current_lines).strip()
+
+        if current_source is not None and block_text:
+            blocks.append({
+                "text": block_text,
+                "source": current_source,
+                "heading": current_heading,
+                "start_line": start_line,
+                "end_line": end_line,
+            })
+
+        current_source = None
+        current_heading = None
+        current_lines = []
+        start_line = None
+
+    lines = text.splitlines()
+
+    for line_number, line in enumerate(lines, start=1):
+        heading, inline_content = split_heading_and_content(line)
+        normalized = normalize_heading(heading)
+
+        if normalized in CONTEXT_SECTION_HEADINGS:
+            close_block(line_number - 1)
+
+            current_source = CONTEXT_SECTION_HEADINGS[normalized]
+            current_heading = heading
+            start_line = line_number
+
+            if inline_content:
+                current_lines.append(inline_content)
+
+        elif normalized in CONTEXT_STOP_HEADINGS:
+            close_block(line_number - 1)
+
+        elif current_source is not None:
+            current_lines.append(line)
+
+    close_block(len(lines))
+    return blocks
+
+
+def prepare_semantic_inputs(
+    skill_details: list[dict[str, Any]],
+    context_blocks: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """
+    Organiza os textos que serão enviados ao modelo de embeddings.
+    Mantém a distinção entre uma skill e um bloco de contexto.
+    """
+    inputs = []
+
+    for item in skill_details:
+        inputs.append({
+            "text": item["skill"],
+            "source": "skill",
+            "extraction_sources": item["sources"],
+            "evidence": item["evidence"],
+        })
+
+    for block in context_blocks:
+        inputs.append(dict(block))
+
+    return inputs
+
 def extract_skills(
     text: str,
     ner_entities: list[
@@ -762,6 +890,13 @@ def extract_skills(
         candidates.values()
     )
 
+    context_blocks = extract_context_blocks(text)
+
+    semantic_inputs = prepare_semantic_inputs(
+        skill_details=skill_details,
+        context_blocks=context_blocks,
+    )
+
     return {
         "skills": [
             item["skill"]
@@ -776,6 +911,8 @@ def extract_skills(
         "ner_skill_blocks": (
             ner_blocks
         ),
+        "context_blocks": context_blocks,
+        "semantic_inputs": semantic_inputs,
         "statistics": {
             "sections_found": len(
                 sections

@@ -8,3 +8,4 @@ sentence-transformers>=3,<4
 Flask>=3,<4
 supabase>=2,<3
 python-dotenv>=1,<2
+pypdf>=6,<7

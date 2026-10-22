@@ -1,0 +1,5 @@
+Flask>=3,<4
+Flask-Session>=0.8,<0.9
+cachelib>=0.13,<0.14
+supabase>=2.20,<3
+python-dotenv>=1,<2

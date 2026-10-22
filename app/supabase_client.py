@@ -2,19 +2,20 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
-from supabase import create_client
+from supabase import ClientOptions, create_client
 
-env_path = Path(__file__).resolve().parent.parent / ".env"
-load_dotenv(dotenv_path=env_path)
-
-url = os.getenv("SUPABASE_URL")
-key = os.getenv("SUPABASE_KEY")
-
-if not url or not key:
-    raise RuntimeError(
-        "Configure SUPABASE_URL e SUPABASE_KEY no arquivo .env."
-    )
+load_dotenv(Path(__file__).resolve().parent.parent / '.env')
 
 
 def create_supabase_client():
-    return create_client(url, key)
+    url = os.getenv('SUPABASE_URL')
+    key = os.getenv('SUPABASE_KEY')
+    if not url or not key:
+        raise RuntimeError('Configure SUPABASE_URL e SUPABASE_KEY no .env.')
+    if not key.startswith('sb_publishable_'):
+        raise RuntimeError('Esta etapa usa uma chave sb_publishable_ do Supabase.')
+    # Cada requisição cria seu cliente: sessões não se misturam entre usuários.
+    return create_client(
+        url, key,
+        options=ClientOptions(persist_session=False, auto_refresh_token=False),
+    )

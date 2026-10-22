@@ -174,6 +174,42 @@ def repair_common_encoding(
     return repaired
 
 
+# Termos isolados que não descrevem uma competência.
+GENERIC_SKILL_PLACEHOLDERS = {
+    "specialization",
+    "specialisation",
+    "specilization",
+    "especialização",
+    "especializacao",
+}
+
+
+def is_skill_noise(text: str) -> bool:
+    """Identifica links, contatos e termos genéricos isolados."""
+    normalized = text.strip().casefold()
+
+    if normalized in GENERIC_SKILL_PLACEHOLDERS:
+        return True
+
+    # Rejeita candidatos que contêm uma URL.
+    if re.search(r"(?:https?://|www\.)\S+", text, re.IGNORECASE):
+        return True
+
+    # Também identifica links de perfil sem protocolo.
+    if re.search(
+        r"\b(?:indeed\.com|linkedin\.com|github\.com)/\S+",
+        text,
+        re.IGNORECASE,
+    ):
+        return True
+
+    # Um endereço de e-mail não é uma competência.
+    if re.search(r"\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b", text, re.IGNORECASE):
+        return True
+
+    return False
+
+
 def is_valid_skill_candidate(skill: str) -> bool:
     """
     Verifica se um texto realmente parece representar uma competência.
@@ -197,6 +233,9 @@ def is_valid_skill_candidate(skill: str) -> bool:
     normalized_lower = normalized.casefold()
 
     if not normalized:
+        return False
+
+    if is_skill_noise(normalized):
         return False
 
     # Aceita explicitamente tecnologias curtas conhecidas.

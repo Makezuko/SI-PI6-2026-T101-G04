@@ -1,0 +1,160 @@
+{
+  "resume_id": "cv_007_ccf4e61f",
+  "source_index": 7,
+  "ner_result": {
+    "model": "models\\ner\\augmented\\best_model",
+    "device": "cpu",
+    "text_length": 448,
+    "entity_count": 9,
+    "entities": [
+      {
+        "label": "NAME",
+        "text": "Rishabh soni",
+        "start": 0,
+        "end": 12,
+        "confidence": 0.9395042955875397
+      },
+      {
+        "label": "LOCATION",
+        "text": "An",
+        "start": 13,
+        "end": 15,
+        "confidence": 0.3551315367221832
+      },
+      {
+        "label": "NAME",
+        "text": "up",
+        "start": 15,
+        "end": 17,
+        "confidence": 0.3937881886959076
+      },
+      {
+        "label": "LOCATION",
+        "text": "pur",
+        "start": 17,
+        "end": 20,
+        "confidence": 0.689138650894165
+      },
+      {
+        "label": "EMAIL_ADDRESS",
+        "text": "indeed.com/r/Rishabh-\nsoni/503ce837ae2924ff",
+        "start": 59,
+        "end": 102,
+        "confidence": 0.8732607157334037
+      },
+      {
+        "label": "DESIGNATION",
+        "text": "Typing work",
+        "start": 121,
+        "end": 132,
+        "confidence": 0.4976206322511037
+      },
+      {
+        "label": "COMPANIES_WORKED_AT",
+        "text": "Microsoft",
+        "start": 134,
+        "end": 143,
+        "confidence": 0.5287677645683289
+      },
+      {
+        "label": "DEGREE",
+        "text": "B-tech (CSE)",
+        "start": 209,
+        "end": 221,
+        "confidence": 0.5806463956832886
+      },
+      {
+        "label": "COLLEGE_NAME",
+        "text": "II",
+        "start": 223,
+        "end": 225,
+        "confidence": 0.2566591203212738
+      }
+    ]
+  },
+  "hybrid_skills": {
+    "skills": [
+      "Specilization",
+      "https://www.indeed.com/r/Rishabh-soni/503ce837ae2924ff?isid=rex-download&ikw=download-top&co=IN"
+    ],
+    "skill_details": [
+      {
+        "skill": "Specilization",
+        "normalized": "specilization",
+        "sources": [
+          "section"
+        ],
+        "evidence": [
+          "Specilization\n\nhttps://www.indeed.com/r/Rishabh-soni/503ce837ae2924ff?isid=rex-download&ikw=download-top&co=IN\nhttps://www.indeed.com/r/Rishabh-soni/503ce837ae2924ff?isid=rex-download&ikw=download-top&co=IN"
+        ],
+        "ner_confidence": null
+      },
+      {
+        "skill": "https://www.indeed.com/r/Rishabh-soni/503ce837ae2924ff?isid=rex-download&ikw=download-top&co=IN",
+        "normalized": "https://www.indeed.com/r/rishabh-soni/503ce837ae2924ff?isid=rex-download&ikw=download-top&co=in",
+        "sources": [
+          "section"
+        ],
+        "evidence": [
+          "Specilization\n\nhttps://www.indeed.com/r/Rishabh-soni/503ce837ae2924ff?isid=rex-download&ikw=download-top&co=IN\nhttps://www.indeed.com/r/Rishabh-soni/503ce837ae2924ff?isid=rex-download&ikw=download-top&co=IN"
+        ],
+        "ner_confidence": null
+      }
+    ],
+    "sections_found": [
+      {
+        "heading": "SKILLS",
+        "text": "Specilization\n\nhttps://www.indeed.com/r/Rishabh-soni/503ce837ae2924ff?isid=rex-download&ikw=download-top&co=IN\nhttps://www.indeed.com/r/Rishabh-soni/503ce837ae2924ff?isid=rex-download&ikw=download-top&co=IN",
+        "start_line": 20,
+        "end_line": 25
+      }
+    ],
+    "ner_skill_blocks": [],
+    "context_blocks": [
+      {
+        "text": "Typing work\n\nMicrosoft -\n\nJanuary 2018 to Present\n\nWork as much as i can do",
+        "source": "experience",
+        "heading": "WORK EXPERIENCE",
+        "start_line": 5,
+        "end_line": 14
+      }
+    ],
+    "semantic_inputs": [
+      {
+        "text": "Specilization",
+        "source": "skill",
+        "extraction_sources": [
+          "section"
+        ],
+        "evidence": [
+          "Specilization\n\nhttps://www.indeed.com/r/Rishabh-soni/503ce837ae2924ff?isid=rex-download&ikw=download-top&co=IN\nhttps://www.indeed.com/r/Rishabh-soni/503ce837ae2924ff?isid=rex-download&ikw=download-top&co=IN"
+        ]
+      },
+      {
+        "text": "https://www.indeed.com/r/Rishabh-soni/503ce837ae2924ff?isid=rex-download&ikw=download-top&co=IN",
+        "source": "skill",
+        "extraction_sources": [
+          "section"
+        ],
+        "evidence": [
+          "Specilization\n\nhttps://www.indeed.com/r/Rishabh-soni/503ce837ae2924ff?isid=rex-download&ikw=download-top&co=IN\nhttps://www.indeed.com/r/Rishabh-soni/503ce837ae2924ff?isid=rex-download&ikw=download-top&co=IN"
+        ]
+      },
+      {
+        "text": "Typing work\n\nMicrosoft -\n\nJanuary 2018 to Present\n\nWork as much as i can do",
+        "source": "experience",
+        "heading": "WORK EXPERIENCE",
+        "start_line": 5,
+        "end_line": 14
+      }
+    ],
+    "statistics": {
+      "sections_found": 1,
+      "ner_blocks_found": 0,
+      "unique_skills": 2,
+      "skills_from_section": 2,
+      "skills_from_ner": 0,
+      "skills_confirmed_by_both": 0
+    }
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "COLLEGE_NAME": {
+    "precision": 0.14285714285714285,
+    "recall": 0.0851063829787234,
+    "f1-score": 0.10666666666666665,
+    "support": 47
+  },
+  "COMPANIES_WORKED_AT": {
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1-score": 0.0,
+    "support": 127
+  },
+  "DEGREE": {
+    "precision": 0.125,
+    "recall": 0.02564102564102564,
+    "f1-score": 0.0425531914893617,
+    "support": 39
+  },
+  "DESIGNATION": {
+    "precision": 0.11475409836065574,
+    "recall": 0.0875,
+    "f1-score": 0.09929078014184398,
+    "support": 80
+  },
+  "EMAIL_ADDRESS": {
+    "precision": 0.5098039215686274,
+    "recall": 0.7428571428571429,
+    "f1-score": 0.6046511627906976,
+    "support": 35
+  },
+  "GRADUATION_YEAR": {
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1-score": 0.0,
+    "support": 28
+  },
+  "LOCATION": {
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1-score": 0.0,
+    "support": 54
+  },
+  "NAME": {
+    "precision": 0.3023255813953488,
+    "recall": 0.38235294117647056,
+    "f1-score": 0.33766233766233766,
+    "support": 34
+  },
+  "SKILLS": {
+    "precision": 0.021739130434782608,
+    "recall": 0.041666666666666664,
+    "f1-score": 0.028571428571428567,
+    "support": 48
+  },
+  "YEARS_OF_EXPERIENCE": {
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1-score": 0.0,
+    "support": 7
+  },
+  "micro avg": {
+    "precision": 0.18027210884353742,
+    "recall": 0.1062124248496994,
+    "f1-score": 0.13366960907944517,
+    "support": 499
+  },
+  "macro avg": {
+    "precision": 0.12164798746165575,
+    "recall": 0.13651241593200292,
+    "f1-score": 0.12193955673223363,
+    "support": 499
+  },
+  "weighted avg": {
+    "precision": 0.10007073921112537,
+    "recall": 0.1062124248496994,
+    "f1-score": 0.09745673138755197,
+    "support": 499
+  }
+}

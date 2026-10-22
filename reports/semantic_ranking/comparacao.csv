@@ -1,0 +1,10 @@
+﻿id,requisito,cosseno_top1,cosseno_so_skills,margem_top1_top2,posicao_correta,origem,evidencia
+R1,Python,1.0,1.0,0.5579371728782201,1,skill,Python
+R2,SQL,1.0,1.0,0.6185037754186471,1,skill,SQL
+R3,Clean datasets and produce analytical reports using Python,0.7572893262432355,0.2715111753773679,0.3338001618755965,1,experience,"Data Analyst
+Worked with Python to clean data and build analytical reports."
+R4,Build visualizations to investigate sales trends,0.801294665459997,0.14993800440304636,0.5305724243373078,1,project,"Sales analysis
+Created visualizations and investigated sales trends using Python."
+R5,Use the Pandas library for data analysis,0.5469057893969476,0.3521522137474633,0.08581069210051945,,experience,"Data Analyst
+Worked with Python to clean data and build analytical reports."
+R6,Deploy applications on AWS,0.08292005372946673,0.08292005372946673,0.0002692952747275351,,skill,Python

@@ -1,0 +1,460 @@
+{
+  "resume_id": "cv_014_962e2cda",
+  "source_index": 14,
+  "ner_result": {
+    "model": "models\\ner\\augmented\\best_model",
+    "device": "cpu",
+    "text_length": 2917,
+    "entity_count": 14,
+    "entities": [
+      {
+        "label": "NAME",
+        "text": "Rohit Bijlani",
+        "start": 0,
+        "end": 13,
+        "confidence": 0.9528960585594177
+      },
+      {
+        "label": "DESIGNATION",
+        "text": "JAVA Developer/Senior Systems Engineer",
+        "start": 14,
+        "end": 52,
+        "confidence": 0.7519383132457733
+      },
+      {
+        "label": "LOCATION",
+        "text": "Itarsi",
+        "start": 72,
+        "end": 78,
+        "confidence": 0.5411058763662974
+      },
+      {
+        "label": "EMAIL_ADDRESS",
+        "text": "indeed.com/r/Rohit-Bijlani/06ecf59ddac448c7",
+        "start": 117,
+        "end": 160,
+        "confidence": 0.951953635765956
+      },
+      {
+        "label": "DESIGNATION",
+        "text": "JAVA Developer/Senior Systems Engineer\n\nINFOSYS L",
+        "start": 531,
+        "end": 580,
+        "confidence": 0.6853386741131544
+      },
+      {
+        "label": "LOCATION",
+        "text": "Pune",
+        "start": 590,
+        "end": 594,
+        "confidence": 0.637279748916626
+      },
+      {
+        "label": "EMAIL_ADDRESS",
+        "text": "ec",
+        "start": 2271,
+        "end": 2273,
+        "confidence": 0.4937187135219574
+      },
+      {
+        "label": "EMAIL_ADDRESS",
+        "text": "ac",
+        "start": 2278,
+        "end": 2280,
+        "confidence": 0.5900585651397705
+      },
+      {
+        "label": "EMAIL_ADDRESS",
+        "text": "8c",
+        "start": 2282,
+        "end": 2284,
+        "confidence": 0.5175389349460602
+      },
+      {
+        "label": "DEGREE",
+        "text": "Bachelor of Engineering in Mechanical Eng\n\nIT",
+        "start": 2533,
+        "end": 2578,
+        "confidence": 0.7713917344808578
+      },
+      {
+        "label": "COLLEGE_NAME",
+        "text": "M University Gwalior",
+        "start": 2578,
+        "end": 2598,
+        "confidence": 0.6254282355308532
+      },
+      {
+        "label": "SKILLS",
+        "text": "J2Ee, Sql server, Core Java, Spring mvc, Hibernate, Spring\n\nADDI",
+        "start": 2641,
+        "end": 2705,
+        "confidence": 0.9490299820899963
+      },
+      {
+        "label": "SKILLS",
+        "text": "AL",
+        "start": 2709,
+        "end": 2711,
+        "confidence": 0.5963821411132812
+      },
+      {
+        "label": "SKILLS",
+        "text": "Languages: JAVA.\nTechnologies/Frmwks: Hibernate, Spring, Spring MVC.\nIDE/Tools: Eclipse, Rational Application Development (RAD)\nDatabase",
+        "start": 2732,
+        "end": 2868,
+        "confidence": 0.803965438902378
+      }
+    ]
+  },
+  "hybrid_skills": {
+    "skills": [
+      "J2Ee",
+      "Sql server",
+      "Core Java",
+      "Spring mvc",
+      "Hibernate",
+      "Spring",
+      "ADDI",
+      "JAVA.",
+      "Technologies/Frmwks: Hibernate",
+      "Spring MVC.",
+      "IDE/Tools: Eclipse",
+      "Rational Application Development (RAD)"
+    ],
+    "skill_details": [
+      {
+        "skill": "J2Ee",
+        "normalized": "j2ee",
+        "sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "J2Ee, Sql server, Core Java, Spring mvc, Hibernate, Spring",
+          "J2Ee, Sql server, Core Java, Spring mvc, Hibernate, Spring\n\nADDI"
+        ],
+        "ner_confidence": 0.9490299820899963
+      },
+      {
+        "skill": "Sql server",
+        "normalized": "sql server",
+        "sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "J2Ee, Sql server, Core Java, Spring mvc, Hibernate, Spring",
+          "J2Ee, Sql server, Core Java, Spring mvc, Hibernate, Spring\n\nADDI"
+        ],
+        "ner_confidence": 0.9490299820899963
+      },
+      {
+        "skill": "Core Java",
+        "normalized": "core java",
+        "sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "J2Ee, Sql server, Core Java, Spring mvc, Hibernate, Spring",
+          "J2Ee, Sql server, Core Java, Spring mvc, Hibernate, Spring\n\nADDI"
+        ],
+        "ner_confidence": 0.9490299820899963
+      },
+      {
+        "skill": "Spring mvc",
+        "normalized": "spring mvc",
+        "sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "J2Ee, Sql server, Core Java, Spring mvc, Hibernate, Spring",
+          "J2Ee, Sql server, Core Java, Spring mvc, Hibernate, Spring\n\nADDI"
+        ],
+        "ner_confidence": 0.9490299820899963
+      },
+      {
+        "skill": "Hibernate",
+        "normalized": "hibernate",
+        "sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "J2Ee, Sql server, Core Java, Spring mvc, Hibernate, Spring",
+          "J2Ee, Sql server, Core Java, Spring mvc, Hibernate, Spring\n\nADDI"
+        ],
+        "ner_confidence": 0.9490299820899963
+      },
+      {
+        "skill": "Spring",
+        "normalized": "spring",
+        "sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "J2Ee, Sql server, Core Java, Spring mvc, Hibernate, Spring",
+          "J2Ee, Sql server, Core Java, Spring mvc, Hibernate, Spring\n\nADDI",
+          "Languages: JAVA.\nTechnologies/Frmwks: Hibernate, Spring, Spring MVC.\nIDE/Tools: Eclipse, Rational Application Development (RAD)\nDatabase"
+        ],
+        "ner_confidence": 0.9490299820899963
+      },
+      {
+        "skill": "ADDI",
+        "normalized": "addi",
+        "sources": [
+          "ner"
+        ],
+        "evidence": [
+          "J2Ee, Sql server, Core Java, Spring mvc, Hibernate, Spring\n\nADDI"
+        ],
+        "ner_confidence": 0.9490299820899963
+      },
+      {
+        "skill": "JAVA.",
+        "normalized": "java.",
+        "sources": [
+          "ner"
+        ],
+        "evidence": [
+          "Languages: JAVA.\nTechnologies/Frmwks: Hibernate, Spring, Spring MVC.\nIDE/Tools: Eclipse, Rational Application Development (RAD)\nDatabase"
+        ],
+        "ner_confidence": 0.803965438902378
+      },
+      {
+        "skill": "Technologies/Frmwks: Hibernate",
+        "normalized": "technologies/frmwks: hibernate",
+        "sources": [
+          "ner"
+        ],
+        "evidence": [
+          "Languages: JAVA.\nTechnologies/Frmwks: Hibernate, Spring, Spring MVC.\nIDE/Tools: Eclipse, Rational Application Development (RAD)\nDatabase"
+        ],
+        "ner_confidence": 0.803965438902378
+      },
+      {
+        "skill": "Spring MVC.",
+        "normalized": "spring mvc.",
+        "sources": [
+          "ner"
+        ],
+        "evidence": [
+          "Languages: JAVA.\nTechnologies/Frmwks: Hibernate, Spring, Spring MVC.\nIDE/Tools: Eclipse, Rational Application Development (RAD)\nDatabase"
+        ],
+        "ner_confidence": 0.803965438902378
+      },
+      {
+        "skill": "IDE/Tools: Eclipse",
+        "normalized": "ide/tools: eclipse",
+        "sources": [
+          "ner"
+        ],
+        "evidence": [
+          "Languages: JAVA.\nTechnologies/Frmwks: Hibernate, Spring, Spring MVC.\nIDE/Tools: Eclipse, Rational Application Development (RAD)\nDatabase"
+        ],
+        "ner_confidence": 0.803965438902378
+      },
+      {
+        "skill": "Rational Application Development (RAD)",
+        "normalized": "rational application development (rad)",
+        "sources": [
+          "ner"
+        ],
+        "evidence": [
+          "Languages: JAVA.\nTechnologies/Frmwks: Hibernate, Spring, Spring MVC.\nIDE/Tools: Eclipse, Rational Application Development (RAD)\nDatabase"
+        ],
+        "ner_confidence": 0.803965438902378
+      }
+    ],
+    "sections_found": [
+      {
+        "heading": "SKILLS",
+        "text": "J2Ee, Sql server, Core Java, Spring mvc, Hibernate, Spring",
+        "start_line": 66,
+        "end_line": 69
+      }
+    ],
+    "ner_skill_blocks": [
+      {
+        "text": "J2Ee, Sql server, Core Java, Spring mvc, Hibernate, Spring\n\nADDI",
+        "confidence": 0.9490299820899963,
+        "start": 2641,
+        "end": 2705
+      },
+      {
+        "text": "AL",
+        "confidence": 0.5963821411132812,
+        "start": 2709,
+        "end": 2711
+      },
+      {
+        "text": "Languages: JAVA.\nTechnologies/Frmwks: Hibernate, Spring, Spring MVC.\nIDE/Tools: Eclipse, Rational Application Development (RAD)\nDatabase",
+        "confidence": 0.803965438902378,
+        "start": 2732,
+        "end": 2868
+      }
+    ],
+    "context_blocks": [
+      {
+        "text": "JAVA Developer/Senior Systems Engineer\n\nINFOSYS LIMITED -  Pune, Maharashtra -\n\nFebruary 2016 to Present\n\nProject Idea: The Aetna Quoting Center (AQC) comes under the Aetna Group in Health Industry\nand its HeadOffice is in Hartford. AQC is a Java enterprise Web based application in Sales Rating\nand Quoting (SRQ) domain. AQC is developed as a single Rating/Quoting engine for Middle and\nNational Market Customers for new business offering both Traditional and Health Maintenance\nOrganization Products.\n\nAQC is used by the Aetna Sales Representatives and Underwriters for creation of New Business\nQuotes.A Quote typically comprised of Customer, Member Information along with the Product/\nBenefits being offered and the corresponding Premium to be paid for the HealthCare Plan.\n\nResponsibilities:\n✓ Analysing business and system requirements and creating design patterns for applications.\n✓ Presenting the ideas to client for application and implementing it in the application.\n✓ Clear understanding of Requirement gathering and designing phase. Created Detailed Level\ndesign (DLD) document of all subsequent releases till date.\n✓ Experience in working over deployment process, deploying code over different servers,\nmaintaining deployment documents and handling different task in subsequent releases.\n✓ Excellent hands-on in performing request analysis, finding defects and giving code fixes in\nminimal amount of time.\n✓ Resolving Client Issue\n\nOther Responsibilities:\n✓ Sharing knowledge with the team by sharing KM tips/quizzes/sessions.\n✓ Mentoring 2-3 team members and providing technical guidance in AQC project\n\nJAVA Intern\n\nINFOSYS LIMITED -  Mysore, Karnataka -\n\nJune 2015 to November 2015\n\nhttps://www.indeed.com/r/Rohit-Bijlani/06ecf59ddac448c7?isid=rex-download&ikw=download-top&co=IN\n\n\nUndergone 6 months of internship with Infosys, which includes theoretical as well as hands on\nexperience in Core Java, Hibernate and SQL.\n- Successfully completed Infosys's Mysore Internship.",
+        "source": "experience",
+        "heading": "WORK EXPERIENCE",
+        "start_line": 13,
+        "end_line": 58
+      }
+    ],
+    "semantic_inputs": [
+      {
+        "text": "J2Ee",
+        "source": "skill",
+        "extraction_sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "J2Ee, Sql server, Core Java, Spring mvc, Hibernate, Spring",
+          "J2Ee, Sql server, Core Java, Spring mvc, Hibernate, Spring\n\nADDI"
+        ]
+      },
+      {
+        "text": "Sql server",
+        "source": "skill",
+        "extraction_sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "J2Ee, Sql server, Core Java, Spring mvc, Hibernate, Spring",
+          "J2Ee, Sql server, Core Java, Spring mvc, Hibernate, Spring\n\nADDI"
+        ]
+      },
+      {
+        "text": "Core Java",
+        "source": "skill",
+        "extraction_sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "J2Ee, Sql server, Core Java, Spring mvc, Hibernate, Spring",
+          "J2Ee, Sql server, Core Java, Spring mvc, Hibernate, Spring\n\nADDI"
+        ]
+      },
+      {
+        "text": "Spring mvc",
+        "source": "skill",
+        "extraction_sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "J2Ee, Sql server, Core Java, Spring mvc, Hibernate, Spring",
+          "J2Ee, Sql server, Core Java, Spring mvc, Hibernate, Spring\n\nADDI"
+        ]
+      },
+      {
+        "text": "Hibernate",
+        "source": "skill",
+        "extraction_sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "J2Ee, Sql server, Core Java, Spring mvc, Hibernate, Spring",
+          "J2Ee, Sql server, Core Java, Spring mvc, Hibernate, Spring\n\nADDI"
+        ]
+      },
+      {
+        "text": "Spring",
+        "source": "skill",
+        "extraction_sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "J2Ee, Sql server, Core Java, Spring mvc, Hibernate, Spring",
+          "J2Ee, Sql server, Core Java, Spring mvc, Hibernate, Spring\n\nADDI",
+          "Languages: JAVA.\nTechnologies/Frmwks: Hibernate, Spring, Spring MVC.\nIDE/Tools: Eclipse, Rational Application Development (RAD)\nDatabase"
+        ]
+      },
+      {
+        "text": "ADDI",
+        "source": "skill",
+        "extraction_sources": [
+          "ner"
+        ],
+        "evidence": [
+          "J2Ee, Sql server, Core Java, Spring mvc, Hibernate, Spring\n\nADDI"
+        ]
+      },
+      {
+        "text": "JAVA.",
+        "source": "skill",
+        "extraction_sources": [
+          "ner"
+        ],
+        "evidence": [
+          "Languages: JAVA.\nTechnologies/Frmwks: Hibernate, Spring, Spring MVC.\nIDE/Tools: Eclipse, Rational Application Development (RAD)\nDatabase"
+        ]
+      },
+      {
+        "text": "Technologies/Frmwks: Hibernate",
+        "source": "skill",
+        "extraction_sources": [
+          "ner"
+        ],
+        "evidence": [
+          "Languages: JAVA.\nTechnologies/Frmwks: Hibernate, Spring, Spring MVC.\nIDE/Tools: Eclipse, Rational Application Development (RAD)\nDatabase"
+        ]
+      },
+      {
+        "text": "Spring MVC.",
+        "source": "skill",
+        "extraction_sources": [
+          "ner"
+        ],
+        "evidence": [
+          "Languages: JAVA.\nTechnologies/Frmwks: Hibernate, Spring, Spring MVC.\nIDE/Tools: Eclipse, Rational Application Development (RAD)\nDatabase"
+        ]
+      },
+      {
+        "text": "IDE/Tools: Eclipse",
+        "source": "skill",
+        "extraction_sources": [
+          "ner"
+        ],
+        "evidence": [
+          "Languages: JAVA.\nTechnologies/Frmwks: Hibernate, Spring, Spring MVC.\nIDE/Tools: Eclipse, Rational Application Development (RAD)\nDatabase"
+        ]
+      },
+      {
+        "text": "Rational Application Development (RAD)",
+        "source": "skill",
+        "extraction_sources": [
+          "ner"
+        ],
+        "evidence": [
+          "Languages: JAVA.\nTechnologies/Frmwks: Hibernate, Spring, Spring MVC.\nIDE/Tools: Eclipse, Rational Application Development (RAD)\nDatabase"
+        ]
+      },
+      {
+        "text": "JAVA Developer/Senior Systems Engineer\n\nINFOSYS LIMITED -  Pune, Maharashtra -\n\nFebruary 2016 to Present\n\nProject Idea: The Aetna Quoting Center (AQC) comes under the Aetna Group in Health Industry\nand its HeadOffice is in Hartford. AQC is a Java enterprise Web based application in Sales Rating\nand Quoting (SRQ) domain. AQC is developed as a single Rating/Quoting engine for Middle and\nNational Market Customers for new business offering both Traditional and Health Maintenance\nOrganization Products.\n\nAQC is used by the Aetna Sales Representatives and Underwriters for creation of New Business\nQuotes.A Quote typically comprised of Customer, Member Information along with the Product/\nBenefits being offered and the corresponding Premium to be paid for the HealthCare Plan.\n\nResponsibilities:\n✓ Analysing business and system requirements and creating design patterns for applications.\n✓ Presenting the ideas to client for application and implementing it in the application.\n✓ Clear understanding of Requirement gathering and designing phase. Created Detailed Level\ndesign (DLD) document of all subsequent releases till date.\n✓ Experience in working over deployment process, deploying code over different servers,\nmaintaining deployment documents and handling different task in subsequent releases.\n✓ Excellent hands-on in performing request analysis, finding defects and giving code fixes in\nminimal amount of time.\n✓ Resolving Client Issue\n\nOther Responsibilities:\n✓ Sharing knowledge with the team by sharing KM tips/quizzes/sessions.\n✓ Mentoring 2-3 team members and providing technical guidance in AQC project\n\nJAVA Intern\n\nINFOSYS LIMITED -  Mysore, Karnataka -\n\nJune 2015 to November 2015\n\nhttps://www.indeed.com/r/Rohit-Bijlani/06ecf59ddac448c7?isid=rex-download&ikw=download-top&co=IN\n\n\nUndergone 6 months of internship with Infosys, which includes theoretical as well as hands on\nexperience in Core Java, Hibernate and SQL.\n- Successfully completed Infosys's Mysore Internship.",
+        "source": "experience",
+        "heading": "WORK EXPERIENCE",
+        "start_line": 13,
+        "end_line": 58
+      }
+    ],
+    "statistics": {
+      "sections_found": 1,
+      "ner_blocks_found": 3,
+      "unique_skills": 12,
+      "skills_from_section": 6,
+      "skills_from_ner": 12,
+      "skills_confirmed_by_both": 6
+    }
+  }
+}

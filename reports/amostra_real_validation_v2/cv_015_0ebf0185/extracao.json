@@ -1,0 +1,951 @@
+{
+  "resume_id": "cv_015_0ebf0185",
+  "source_index": 15,
+  "ner_result": {
+    "model": "models\\ner\\augmented\\best_model",
+    "device": "cpu",
+    "text_length": 1357,
+    "entity_count": 15,
+    "entities": [
+      {
+        "label": "NAME",
+        "text": "Pavithra M",
+        "start": 0,
+        "end": 10,
+        "confidence": 0.9341398358345032
+      },
+      {
+        "label": "COMPANIES_WORKED_AT",
+        "text": "\"",
+        "start": 11,
+        "end": 12,
+        "confidence": 0.35591956973075867
+      },
+      {
+        "label": "COMPANIES_WORKED_AT",
+        "text": "Infosys",
+        "start": 12,
+        "end": 19,
+        "confidence": 0.7198161035776138
+      },
+      {
+        "label": "LOCATION",
+        "text": "Bengaluru",
+        "start": 33,
+        "end": 42,
+        "confidence": 0.747747004032135
+      },
+      {
+        "label": "EMAIL_ADDRESS",
+        "text": "indeed.com/r/Pavithra-M/26f392ec8251143b",
+        "start": 76,
+        "end": 116,
+        "confidence": 0.9285216201906619
+      },
+      {
+        "label": "LOCATION",
+        "text": "Bengaluru",
+        "start": 142,
+        "end": 151,
+        "confidence": 0.577276885509491
+      },
+      {
+        "label": "COMPANIES_WORKED_AT",
+        "text": "Info",
+        "start": 182,
+        "end": 186,
+        "confidence": 0.564438670873642
+      },
+      {
+        "label": "COLLEGE_NAME",
+        "text": "E\n\nSSLC\n\nState board",
+        "start": 581,
+        "end": 601,
+        "confidence": 0.46097267866134645
+      },
+      {
+        "label": "SKILLS",
+        "text": "BE PHOTOSHOP (Less than 1 year), ANDROID (Less than 1 year), APPLICATION SOFTWARE\n(Less than 1 year), C++ (Less than 1 year), CSS (Less than 1 year)\n\nADDITIONAL",
+        "start": 614,
+        "end": 774,
+        "confidence": 0.9046168019995093
+      },
+      {
+        "label": "SKILLS",
+        "text": "FORMATION\n\nTechnical skills:\n\n• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux",
+        "start": 777,
+        "end": 983,
+        "confidence": 0.9475008768913074
+      },
+      {
+        "label": "EMAIL_ADDRESS",
+        "text": "indeed",
+        "start": 998,
+        "end": 1004,
+        "confidence": 0.6492865085601807
+      },
+      {
+        "label": "EMAIL_ADDRESS",
+        "text": "r/Pavithra-M/26f392ec8251143b",
+        "start": 1009,
+        "end": 1038,
+        "confidence": 0.690857824526335
+      },
+      {
+        "label": "SKILLS",
+        "text": "Microsoft Office.",
+        "start": 1106,
+        "end": 1123,
+        "confidence": 0.6402205228805542
+      },
+      {
+        "label": "SKILLS",
+        "text": "ID",
+        "start": 1127,
+        "end": 1129,
+        "confidence": 0.5811936259269714
+      },
+      {
+        "label": "SKILLS",
+        "text": "Eclipse, Net",
+        "start": 1132,
+        "end": 1144,
+        "confidence": 0.6122074723243713
+      }
+    ]
+  },
+  "hybrid_skills": {
+    "skills": [
+      "ADOBE PHOTOSHOP",
+      "ANDROID",
+      "APPLICATION SOFTWARE",
+      "C++",
+      "CSS",
+      "Programing Languages: C",
+      "C++ and JAVA.",
+      "MySQL",
+      "SQL server (SQLyog)",
+      "Web tools: HTML",
+      "CSS.",
+      "Windows (XP",
+      "Ubuntu",
+      "fedora",
+      "Linux.",
+      "Application software: Microsoft Office.",
+      "IDE: Eclipse",
+      "Netbeans.",
+      "Workshops attended",
+      "Basic editing tools using MS office.",
+      "Android workshop.",
+      "Adobe Photoshop.",
+      "Angular JS.",
+      "Project and Internship",
+      "1. \"JAVA 8 applications for Login Credentials with DB connectivity\"",
+      "BE PHOTOSHOP",
+      "ADDITIONAL",
+      "FORMATION",
+      "Linux",
+      "Microsoft Office.",
+      "Eclipse",
+      "Net"
+    ],
+    "skill_details": [
+      {
+        "skill": "ADOBE PHOTOSHOP",
+        "normalized": "adobe photoshop",
+        "sources": [
+          "section"
+        ],
+        "evidence": [
+          "ADOBE PHOTOSHOP (Less than 1 year), ANDROID (Less than 1 year), APPLICATION SOFTWARE\n(Less than 1 year), C++ (Less than 1 year), CSS (Less than 1 year)"
+        ],
+        "ner_confidence": null
+      },
+      {
+        "skill": "ANDROID",
+        "normalized": "android",
+        "sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "ADOBE PHOTOSHOP (Less than 1 year), ANDROID (Less than 1 year), APPLICATION SOFTWARE\n(Less than 1 year), C++ (Less than 1 year), CSS (Less than 1 year)",
+          "BE PHOTOSHOP (Less than 1 year), ANDROID (Less than 1 year), APPLICATION SOFTWARE\n(Less than 1 year), C++ (Less than 1 year), CSS (Less than 1 year)\n\nADDITIONAL"
+        ],
+        "ner_confidence": 0.9046168019995093
+      },
+      {
+        "skill": "APPLICATION SOFTWARE",
+        "normalized": "application software",
+        "sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "ADOBE PHOTOSHOP (Less than 1 year), ANDROID (Less than 1 year), APPLICATION SOFTWARE\n(Less than 1 year), C++ (Less than 1 year), CSS (Less than 1 year)",
+          "BE PHOTOSHOP (Less than 1 year), ANDROID (Less than 1 year), APPLICATION SOFTWARE\n(Less than 1 year), C++ (Less than 1 year), CSS (Less than 1 year)\n\nADDITIONAL"
+        ],
+        "ner_confidence": 0.9046168019995093
+      },
+      {
+        "skill": "C++",
+        "normalized": "c++",
+        "sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "ADOBE PHOTOSHOP (Less than 1 year), ANDROID (Less than 1 year), APPLICATION SOFTWARE\n(Less than 1 year), C++ (Less than 1 year), CSS (Less than 1 year)",
+          "BE PHOTOSHOP (Less than 1 year), ANDROID (Less than 1 year), APPLICATION SOFTWARE\n(Less than 1 year), C++ (Less than 1 year), CSS (Less than 1 year)\n\nADDITIONAL"
+        ],
+        "ner_confidence": 0.9046168019995093
+      },
+      {
+        "skill": "CSS",
+        "normalized": "css",
+        "sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "ADOBE PHOTOSHOP (Less than 1 year), ANDROID (Less than 1 year), APPLICATION SOFTWARE\n(Less than 1 year), C++ (Less than 1 year), CSS (Less than 1 year)",
+          "BE PHOTOSHOP (Less than 1 year), ANDROID (Less than 1 year), APPLICATION SOFTWARE\n(Less than 1 year), C++ (Less than 1 year), CSS (Less than 1 year)\n\nADDITIONAL"
+        ],
+        "ner_confidence": 0.9046168019995093
+      },
+      {
+        "skill": "Programing Languages: C",
+        "normalized": "programing languages: c",
+        "sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M",
+          "FORMATION\n\nTechnical skills:\n\n• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux"
+        ],
+        "ner_confidence": 0.9475008768913074
+      },
+      {
+        "skill": "C++ and JAVA.",
+        "normalized": "c++ and java.",
+        "sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M",
+          "FORMATION\n\nTechnical skills:\n\n• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux"
+        ],
+        "ner_confidence": 0.9475008768913074
+      },
+      {
+        "skill": "MySQL",
+        "normalized": "mysql",
+        "sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M",
+          "FORMATION\n\nTechnical skills:\n\n• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux"
+        ],
+        "ner_confidence": 0.9475008768913074
+      },
+      {
+        "skill": "SQL server (SQLyog)",
+        "normalized": "sql server (sqlyog)",
+        "sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M",
+          "FORMATION\n\nTechnical skills:\n\n• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux"
+        ],
+        "ner_confidence": 0.9475008768913074
+      },
+      {
+        "skill": "Web tools: HTML",
+        "normalized": "web tools: html",
+        "sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M",
+          "FORMATION\n\nTechnical skills:\n\n• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux"
+        ],
+        "ner_confidence": 0.9475008768913074
+      },
+      {
+        "skill": "CSS.",
+        "normalized": "css.",
+        "sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M",
+          "FORMATION\n\nTechnical skills:\n\n• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux"
+        ],
+        "ner_confidence": 0.9475008768913074
+      },
+      {
+        "skill": "Windows (XP",
+        "normalized": "windows (xp",
+        "sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M",
+          "FORMATION\n\nTechnical skills:\n\n• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux"
+        ],
+        "ner_confidence": 0.9475008768913074
+      },
+      {
+        "skill": "Ubuntu",
+        "normalized": "ubuntu",
+        "sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M",
+          "FORMATION\n\nTechnical skills:\n\n• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux"
+        ],
+        "ner_confidence": 0.9475008768913074
+      },
+      {
+        "skill": "fedora",
+        "normalized": "fedora",
+        "sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M",
+          "FORMATION\n\nTechnical skills:\n\n• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux"
+        ],
+        "ner_confidence": 0.9475008768913074
+      },
+      {
+        "skill": "Linux.",
+        "normalized": "linux.",
+        "sources": [
+          "section"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M"
+        ],
+        "ner_confidence": null
+      },
+      {
+        "skill": "Application software: Microsoft Office.",
+        "normalized": "application software: microsoft office.",
+        "sources": [
+          "section"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M"
+        ],
+        "ner_confidence": null
+      },
+      {
+        "skill": "IDE: Eclipse",
+        "normalized": "ide: eclipse",
+        "sources": [
+          "section"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M"
+        ],
+        "ner_confidence": null
+      },
+      {
+        "skill": "Netbeans.",
+        "normalized": "netbeans.",
+        "sources": [
+          "section"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M"
+        ],
+        "ner_confidence": null
+      },
+      {
+        "skill": "Workshops attended",
+        "normalized": "workshops attended",
+        "sources": [
+          "section"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M"
+        ],
+        "ner_confidence": null
+      },
+      {
+        "skill": "Basic editing tools using MS office.",
+        "normalized": "basic editing tools using ms office.",
+        "sources": [
+          "section"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M"
+        ],
+        "ner_confidence": null
+      },
+      {
+        "skill": "Android workshop.",
+        "normalized": "android workshop.",
+        "sources": [
+          "section"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M"
+        ],
+        "ner_confidence": null
+      },
+      {
+        "skill": "Adobe Photoshop.",
+        "normalized": "adobe photoshop.",
+        "sources": [
+          "section"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M"
+        ],
+        "ner_confidence": null
+      },
+      {
+        "skill": "Angular JS.",
+        "normalized": "angular js.",
+        "sources": [
+          "section"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M"
+        ],
+        "ner_confidence": null
+      },
+      {
+        "skill": "Project and Internship",
+        "normalized": "project and internship",
+        "sources": [
+          "section"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M"
+        ],
+        "ner_confidence": null
+      },
+      {
+        "skill": "1. \"JAVA 8 applications for Login Credentials with DB connectivity\"",
+        "normalized": "1. \"java 8 applications for login credentials with db connectivity\"",
+        "sources": [
+          "section"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M"
+        ],
+        "ner_confidence": null
+      },
+      {
+        "skill": "BE PHOTOSHOP",
+        "normalized": "be photoshop",
+        "sources": [
+          "ner"
+        ],
+        "evidence": [
+          "BE PHOTOSHOP (Less than 1 year), ANDROID (Less than 1 year), APPLICATION SOFTWARE\n(Less than 1 year), C++ (Less than 1 year), CSS (Less than 1 year)\n\nADDITIONAL"
+        ],
+        "ner_confidence": 0.9046168019995093
+      },
+      {
+        "skill": "ADDITIONAL",
+        "normalized": "additional",
+        "sources": [
+          "ner"
+        ],
+        "evidence": [
+          "BE PHOTOSHOP (Less than 1 year), ANDROID (Less than 1 year), APPLICATION SOFTWARE\n(Less than 1 year), C++ (Less than 1 year), CSS (Less than 1 year)\n\nADDITIONAL"
+        ],
+        "ner_confidence": 0.9046168019995093
+      },
+      {
+        "skill": "FORMATION",
+        "normalized": "formation",
+        "sources": [
+          "ner"
+        ],
+        "evidence": [
+          "FORMATION\n\nTechnical skills:\n\n• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux"
+        ],
+        "ner_confidence": 0.9475008768913074
+      },
+      {
+        "skill": "Linux",
+        "normalized": "linux",
+        "sources": [
+          "ner"
+        ],
+        "evidence": [
+          "FORMATION\n\nTechnical skills:\n\n• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux"
+        ],
+        "ner_confidence": 0.9475008768913074
+      },
+      {
+        "skill": "Microsoft Office.",
+        "normalized": "microsoft office.",
+        "sources": [
+          "ner"
+        ],
+        "evidence": [
+          "Microsoft Office."
+        ],
+        "ner_confidence": 0.6402205228805542
+      },
+      {
+        "skill": "Eclipse",
+        "normalized": "eclipse",
+        "sources": [
+          "ner"
+        ],
+        "evidence": [
+          "Eclipse, Net"
+        ],
+        "ner_confidence": 0.6122074723243713
+      },
+      {
+        "skill": "Net",
+        "normalized": "net",
+        "sources": [
+          "ner"
+        ],
+        "evidence": [
+          "Eclipse, Net"
+        ],
+        "ner_confidence": 0.6122074723243713
+      }
+    ],
+    "sections_found": [
+      {
+        "heading": "SKILLS",
+        "text": "ADOBE PHOTOSHOP (Less than 1 year), ANDROID (Less than 1 year), APPLICATION SOFTWARE\n(Less than 1 year), C++ (Less than 1 year), CSS (Less than 1 year)",
+        "start_line": 33,
+        "end_line": 37
+      },
+      {
+        "heading": "Technical skills",
+        "text": "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: Microsoft Office.\n\n• IDE: Eclipse, Netbeans.\nWorkshops attended:\n\n• Basic editing tools using MS office.\n• Android workshop.\n• Adobe Photoshop.\n• Angular JS.\n\nProject and Internship:\n\n1. \"JAVA 8 applications for Login Credentials with DB connectivity\"",
+        "start_line": 40,
+        "end_line": 65
+      }
+    ],
+    "ner_skill_blocks": [
+      {
+        "text": "BE PHOTOSHOP (Less than 1 year), ANDROID (Less than 1 year), APPLICATION SOFTWARE\n(Less than 1 year), C++ (Less than 1 year), CSS (Less than 1 year)\n\nADDITIONAL",
+        "confidence": 0.9046168019995093,
+        "start": 614,
+        "end": 774
+      },
+      {
+        "text": "FORMATION\n\nTechnical skills:\n\n• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux",
+        "confidence": 0.9475008768913074,
+        "start": 777,
+        "end": 983
+      },
+      {
+        "text": "Microsoft Office.",
+        "confidence": 0.6402205228805542,
+        "start": 1106,
+        "end": 1123
+      },
+      {
+        "text": "ID",
+        "confidence": 0.5811936259269714,
+        "start": 1127,
+        "end": 1129
+      },
+      {
+        "text": "Eclipse, Net",
+        "confidence": 0.6122074723243713,
+        "start": 1132,
+        "end": 1144
+      }
+    ],
+    "context_blocks": [
+      {
+        "text": "\"Infosys\" internship\n\nInfosys\n\nAbout: a detailed analysis of diseases and user interface based on that\ngiving clear idea which diseases has affected at what region and\ntreatment availability for that particular diseases. It was completed in\n\"Infosys\" internship\n• Event management.\n• Good communication skills.\n• Leadership qualities.\n• Team collaboration.\n• Creative thinking.",
+        "source": "experience",
+        "heading": "WORK EXPERIENCE",
+        "start_line": 8,
+        "end_line": 23
+      }
+    ],
+    "semantic_inputs": [
+      {
+        "text": "ADOBE PHOTOSHOP",
+        "source": "skill",
+        "extraction_sources": [
+          "section"
+        ],
+        "evidence": [
+          "ADOBE PHOTOSHOP (Less than 1 year), ANDROID (Less than 1 year), APPLICATION SOFTWARE\n(Less than 1 year), C++ (Less than 1 year), CSS (Less than 1 year)"
+        ]
+      },
+      {
+        "text": "ANDROID",
+        "source": "skill",
+        "extraction_sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "ADOBE PHOTOSHOP (Less than 1 year), ANDROID (Less than 1 year), APPLICATION SOFTWARE\n(Less than 1 year), C++ (Less than 1 year), CSS (Less than 1 year)",
+          "BE PHOTOSHOP (Less than 1 year), ANDROID (Less than 1 year), APPLICATION SOFTWARE\n(Less than 1 year), C++ (Less than 1 year), CSS (Less than 1 year)\n\nADDITIONAL"
+        ]
+      },
+      {
+        "text": "APPLICATION SOFTWARE",
+        "source": "skill",
+        "extraction_sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "ADOBE PHOTOSHOP (Less than 1 year), ANDROID (Less than 1 year), APPLICATION SOFTWARE\n(Less than 1 year), C++ (Less than 1 year), CSS (Less than 1 year)",
+          "BE PHOTOSHOP (Less than 1 year), ANDROID (Less than 1 year), APPLICATION SOFTWARE\n(Less than 1 year), C++ (Less than 1 year), CSS (Less than 1 year)\n\nADDITIONAL"
+        ]
+      },
+      {
+        "text": "C++",
+        "source": "skill",
+        "extraction_sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "ADOBE PHOTOSHOP (Less than 1 year), ANDROID (Less than 1 year), APPLICATION SOFTWARE\n(Less than 1 year), C++ (Less than 1 year), CSS (Less than 1 year)",
+          "BE PHOTOSHOP (Less than 1 year), ANDROID (Less than 1 year), APPLICATION SOFTWARE\n(Less than 1 year), C++ (Less than 1 year), CSS (Less than 1 year)\n\nADDITIONAL"
+        ]
+      },
+      {
+        "text": "CSS",
+        "source": "skill",
+        "extraction_sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "ADOBE PHOTOSHOP (Less than 1 year), ANDROID (Less than 1 year), APPLICATION SOFTWARE\n(Less than 1 year), C++ (Less than 1 year), CSS (Less than 1 year)",
+          "BE PHOTOSHOP (Less than 1 year), ANDROID (Less than 1 year), APPLICATION SOFTWARE\n(Less than 1 year), C++ (Less than 1 year), CSS (Less than 1 year)\n\nADDITIONAL"
+        ]
+      },
+      {
+        "text": "Programing Languages: C",
+        "source": "skill",
+        "extraction_sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M",
+          "FORMATION\n\nTechnical skills:\n\n• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux"
+        ]
+      },
+      {
+        "text": "C++ and JAVA.",
+        "source": "skill",
+        "extraction_sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M",
+          "FORMATION\n\nTechnical skills:\n\n• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux"
+        ]
+      },
+      {
+        "text": "MySQL",
+        "source": "skill",
+        "extraction_sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M",
+          "FORMATION\n\nTechnical skills:\n\n• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux"
+        ]
+      },
+      {
+        "text": "SQL server (SQLyog)",
+        "source": "skill",
+        "extraction_sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M",
+          "FORMATION\n\nTechnical skills:\n\n• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux"
+        ]
+      },
+      {
+        "text": "Web tools: HTML",
+        "source": "skill",
+        "extraction_sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M",
+          "FORMATION\n\nTechnical skills:\n\n• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux"
+        ]
+      },
+      {
+        "text": "CSS.",
+        "source": "skill",
+        "extraction_sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M",
+          "FORMATION\n\nTechnical skills:\n\n• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux"
+        ]
+      },
+      {
+        "text": "Windows (XP",
+        "source": "skill",
+        "extraction_sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M",
+          "FORMATION\n\nTechnical skills:\n\n• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux"
+        ]
+      },
+      {
+        "text": "Ubuntu",
+        "source": "skill",
+        "extraction_sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M",
+          "FORMATION\n\nTechnical skills:\n\n• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux"
+        ]
+      },
+      {
+        "text": "fedora",
+        "source": "skill",
+        "extraction_sources": [
+          "section",
+          "ner"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M",
+          "FORMATION\n\nTechnical skills:\n\n• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux"
+        ]
+      },
+      {
+        "text": "Linux.",
+        "source": "skill",
+        "extraction_sources": [
+          "section"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M"
+        ]
+      },
+      {
+        "text": "Application software: Microsoft Office.",
+        "source": "skill",
+        "extraction_sources": [
+          "section"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M"
+        ]
+      },
+      {
+        "text": "IDE: Eclipse",
+        "source": "skill",
+        "extraction_sources": [
+          "section"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M"
+        ]
+      },
+      {
+        "text": "Netbeans.",
+        "source": "skill",
+        "extraction_sources": [
+          "section"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M"
+        ]
+      },
+      {
+        "text": "Workshops attended",
+        "source": "skill",
+        "extraction_sources": [
+          "section"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M"
+        ]
+      },
+      {
+        "text": "Basic editing tools using MS office.",
+        "source": "skill",
+        "extraction_sources": [
+          "section"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M"
+        ]
+      },
+      {
+        "text": "Android workshop.",
+        "source": "skill",
+        "extraction_sources": [
+          "section"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M"
+        ]
+      },
+      {
+        "text": "Adobe Photoshop.",
+        "source": "skill",
+        "extraction_sources": [
+          "section"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M"
+        ]
+      },
+      {
+        "text": "Angular JS.",
+        "source": "skill",
+        "extraction_sources": [
+          "section"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M"
+        ]
+      },
+      {
+        "text": "Project and Internship",
+        "source": "skill",
+        "extraction_sources": [
+          "section"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M"
+        ]
+      },
+      {
+        "text": "1. \"JAVA 8 applications for Login Credentials with DB connectivity\"",
+        "source": "skill",
+        "extraction_sources": [
+          "section"
+        ],
+        "evidence": [
+          "• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux.\n\nhttps://www.indeed.com/r/Pavithra-M/26f392ec8251143b?isid=rex-download&ikw=download-top&co=IN\n\n\n• Application software: M"
+        ]
+      },
+      {
+        "text": "BE PHOTOSHOP",
+        "source": "skill",
+        "extraction_sources": [
+          "ner"
+        ],
+        "evidence": [
+          "BE PHOTOSHOP (Less than 1 year), ANDROID (Less than 1 year), APPLICATION SOFTWARE\n(Less than 1 year), C++ (Less than 1 year), CSS (Less than 1 year)\n\nADDITIONAL"
+        ]
+      },
+      {
+        "text": "ADDITIONAL",
+        "source": "skill",
+        "extraction_sources": [
+          "ner"
+        ],
+        "evidence": [
+          "BE PHOTOSHOP (Less than 1 year), ANDROID (Less than 1 year), APPLICATION SOFTWARE\n(Less than 1 year), C++ (Less than 1 year), CSS (Less than 1 year)\n\nADDITIONAL"
+        ]
+      },
+      {
+        "text": "FORMATION",
+        "source": "skill",
+        "extraction_sources": [
+          "ner"
+        ],
+        "evidence": [
+          "FORMATION\n\nTechnical skills:\n\n• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux"
+        ]
+      },
+      {
+        "text": "Linux",
+        "source": "skill",
+        "extraction_sources": [
+          "ner"
+        ],
+        "evidence": [
+          "FORMATION\n\nTechnical skills:\n\n• Programing Languages: C, C++ and JAVA.\n\n• Databases: MySQL, SQL server (SQLyog)\n\n• Web tools: HTML, CSS.\n\n• Operating Systems: Windows (XP, 8, 8.1, 10), Ubuntu, fedora, Linux"
+        ]
+      },
+      {
+        "text": "Microsoft Office.",
+        "source": "skill",
+        "extraction_sources": [
+          "ner"
+        ],
+        "evidence": [
+          "Microsoft Office."
+        ]
+      },
+      {
+        "text": "Eclipse",
+        "source": "skill",
+        "extraction_sources": [
+          "ner"
+        ],
+        "evidence": [
+          "Eclipse, Net"
+        ]
+      },
+      {
+        "text": "Net",
+        "source": "skill",
+        "extraction_sources": [
+          "ner"
+        ],
+        "evidence": [
+          "Eclipse, Net"
+        ]
+      },
+      {
+        "text": "\"Infosys\" internship\n\nInfosys\n\nAbout: a detailed analysis of diseases and user interface based on that\ngiving clear idea which diseases has affected at what region and\ntreatment availability for that particular diseases. It was completed in\n\"Infosys\" internship\n• Event management.\n• Good communication skills.\n• Leadership qualities.\n• Team collaboration.\n• Creative thinking.",
+        "source": "experience",
+        "heading": "WORK EXPERIENCE",
+        "start_line": 8,
+        "end_line": 23
+      }
+    ],
+    "statistics": {
+      "sections_found": 2,
+      "ner_blocks_found": 5,
+      "unique_skills": 32,
+      "skills_from_section": 25,
+      "skills_from_ner": 20,
+      "skills_confirmed_by_both": 13
+    }
+  }
+}

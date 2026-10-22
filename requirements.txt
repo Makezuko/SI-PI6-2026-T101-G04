@@ -9,3 +9,5 @@ Flask>=3,<4
 supabase>=2,<3
 python-dotenv>=1,<2
 pypdf>=6,<7
+Flask-Session>=0.8,<1
+cachelib>=0.13

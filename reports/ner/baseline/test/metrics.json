@@ -1,0 +1,33 @@
+{
+  "model": "models\\ner\\baseline\\best_model",
+  "split": "test",
+  "evaluation_scope": "document_consolidated",
+  "documents": 33,
+  "windows": 99,
+  "precision": 0.18027210884353742,
+  "recall": 0.1062124248496994,
+  "f1": 0.13366960907944517,
+  "accuracy": 0.9139084156302473,
+  "window_test_loss": 0.3293319046497345,
+  "entity_support": {
+    "COLLEGE_NAME": 47,
+    "COMPANIES_WORKED_AT": 127,
+    "DEGREE": 39,
+    "DESIGNATION": 80,
+    "EMAIL_ADDRESS": 35,
+    "GRADUATION_YEAR": 28,
+    "LOCATION": 54,
+    "NAME": 34,
+    "SKILLS": 48,
+    "YEARS_OF_EXPERIENCE": 7
+  },
+  "consolidation": {
+    "windows": 99,
+    "documents": 33,
+    "evaluated_tokens": 35137,
+    "duplicate_token_occurrences_removed": 8448,
+    "ignored_special_tokens": 198,
+    "tokens_without_gold_label": 0,
+    "conflicting_gold_labels": 0
+  }
+}

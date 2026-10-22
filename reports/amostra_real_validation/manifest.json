@@ -1,0 +1,86 @@
+{
+  "purpose": "Desenvolvimento da comparação semântica",
+  "source_file": "data\\processed\\splits\\validation.json",
+  "source_file_sha256": "121b4b9d5e8232cc0c358c3d5c6d7d3206964c5b63502e2b0bcec0cd0657d4e1",
+  "split": "validation",
+  "seed": 42,
+  "total_resumes": 33,
+  "sample_size": 5,
+  "ner_model_directory": "models\\ner\\augmented\\best_model",
+  "annotation_note": "As entidades anotadas do dataset não foram usadas como entrada do NER ou do extrator.",
+  "selected_resumes": [
+    {
+      "resume_id": "cv_001_23ef2a5f",
+      "source_index": 1,
+      "text_sha256": "23ef2a5fbba665741cf2f99a81be5a8dd2c7bde0d8ba5d7cf541accbca1986a8"
+    },
+    {
+      "resume_id": "cv_007_ccf4e61f",
+      "source_index": 7,
+      "text_sha256": "ccf4e61fc6aae7cdd05f867ff58f5e3060b4ca44bed6dc2d6030d288ca73c584"
+    },
+    {
+      "resume_id": "cv_014_962e2cda",
+      "source_index": 14,
+      "text_sha256": "962e2cdad2ca56f2f7ed99d55ed0f533a9d4cadace4ec38aebce58a2f3f66c1f"
+    },
+    {
+      "resume_id": "cv_015_0ebf0185",
+      "source_index": 15,
+      "text_sha256": "0ebf01859ae34285285492321cc30f19193b95ba727228806d5cbd74f81a0754"
+    },
+    {
+      "resume_id": "cv_017_956f5a8e",
+      "source_index": 17,
+      "text_sha256": "956f5a8e3844fb1151b973e6275034cc9ed3897401a99f7aca8f6dcc406b379e"
+    }
+  ],
+  "results": [
+    {
+      "resume_id": "cv_001_23ef2a5f",
+      "status": "ok",
+      "skills_count": 27,
+      "context_blocks_count": 1,
+      "semantic_inputs_count": 28,
+      "embedding_count": 29,
+      "embedding_dimension": 768
+    },
+    {
+      "resume_id": "cv_007_ccf4e61f",
+      "status": "ok",
+      "skills_count": 2,
+      "context_blocks_count": 1,
+      "semantic_inputs_count": 3,
+      "embedding_count": 3,
+      "embedding_dimension": 768
+    },
+    {
+      "resume_id": "cv_014_962e2cda",
+      "status": "ok",
+      "skills_count": 12,
+      "context_blocks_count": 1,
+      "semantic_inputs_count": 13,
+      "embedding_count": 14,
+      "embedding_dimension": 768
+    },
+    {
+      "resume_id": "cv_015_0ebf0185",
+      "status": "ok",
+      "skills_count": 33,
+      "context_blocks_count": 1,
+      "semantic_inputs_count": 34,
+      "embedding_count": 34,
+      "embedding_dimension": 768
+    },
+    {
+      "resume_id": "cv_017_956f5a8e",
+      "status": "ok",
+      "skills_count": 9,
+      "context_blocks_count": 1,
+      "semantic_inputs_count": 10,
+      "embedding_count": 10,
+      "embedding_dimension": 768
+    }
+  ],
+  "embedding_model": "sentence-transformers/all-mpnet-base-v2"
+}

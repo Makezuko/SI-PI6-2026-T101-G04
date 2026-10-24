@@ -1,0 +1,56 @@
+﻿id,requisito,cosseno_top1,cosseno_so_skills,margem_top1_top2,posicao_correta,origem,evidencia
+R1,Docker,0.9999999999992015,0.9999999999992015,0.12890686214236668,1,skill,Docker
+R2,Maven,0.9999999999994704,0.9999999999994704,0.5432027234101211,1,skill,Maven
+R3,Tomcat,0.9999999999990103,0.9999999999990103,0.520844208512812,1,skill,Tomcat
+R4,Automate software builds and test execution with Jenkins,0.5786133718869758,0.5786133718869758,0.002241535683449869,3,skill,Devops pipelines: Cloud bees Enterprise Jenkins
+R5,Create and configure server environments automatically using Chef,0.680147173433714,0.38428949344219315,0.29585767999152085,1,experience,"Deployed chef for configuration management infrastructure
+
+Cisco Bangalore -  Bengaluru, Karnataka -
+
+September 2016 to Present
+
+Role: Build & release.
+Environment: Java 1.7, Subversion 1.8, Ant 1.9.4, GIT 2.1, Puppet, Jira 6.3, Nexus, Shell scripting,
+web logic 11g and Tomcat Servers 8.
+Responsibilities:
+• Coordinate with the Development, Database Administration, QA, and IT Operations teams to
+ensure there are no resource conflicts.
+• Installed and configured Jenkins for Automating build, deployments and test execution and
+providing a complete automation solution using jenkins.
+• Deployed chef for configuration management infrastructure, Implemented auto environment
+creation using chef.
+• Designing and implementing fully automated server build, management, monitoring and
+deployment solutions spanning multiple platforms, tools and technologies including Jenkins
+Nodes/Agents, SSH, deployment and testing.
+• Created repositories according the structure required with branches, tags and trunks.
+• Responsible for maintaining Multiple DevOps tools & configuring across all projects Subversion
+(SVN), GIT, Maven, Jenkins, ANT, Artifactory, Chef.
+• Configured application servers (WebLogic) to deploy the code.
+• Experience in deploying applications on Tomcat and Web logic servers"
+R6,Deploy applications to WebLogic application servers,0.5820211558139453,0.31680774422187424,0.26521341159207107,1,experience,", Artifactory, Chef.
+• Configured application servers (WebLogic) to deploy the code.
+• Experience in deploying applications on Tomcat and Web logic servers.
+• Managed and document all post deployment issues utilizing the Post Deployments Issue Log.
+
+Declaration
+I hereby declare that the statements made herein are true, complete and correct to the best of
+my knowledge and belief. I have not suppressed any material fact or factual information herein.
+
+Place: Bangalore
+Date:
+
+software engineer
+
+cisco -
+
+June 2014 to Present
+
+build & release engineer
+
+Devops Engineer
+
+Cisco Bangalore -  Bengaluru, Karnataka -
+
+2014 to Present"
+R7,Manage Kubernetes clusters,0.4356788874316448,0.4356788874316448,0.03307719676830856,,skill,Containers: Docker
+R8,Develop data analysis solutions using Pandas,0.20246287481513256,0.20246287481513256,0.021029203539583208,,skill,software engineer

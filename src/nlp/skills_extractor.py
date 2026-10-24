@@ -131,6 +131,12 @@ CATEGORY_PREFIXES = {
     "technologies",
     "tools",
     "web technologies",
+    "ci tools",
+    "containers",
+    "devops",
+    "devops pipeline",
+    "devops pipelines",
+    "scm tools",
 }
 
 
@@ -330,13 +336,12 @@ def find_skill_sections(
     """
     Localiza seções explícitas de competências.
 
-    A coleta começa quando uma linha corresponde a um título de Skills
-    e termina quando outro título principal é encontrado.
+    A coleta começa quando uma linha corresponde a um título
+    de Skills e termina quando outro título principal é encontrado.
+    Categorias internas, como Programming Languages: Python,
+    não devem iniciar uma nova seção.
     """
-    repaired_text = repair_common_encoding(
-        text
-    )
-
+    repaired_text = repair_common_encoding(text)
     lines = repaired_text.splitlines()
 
     sections = []
@@ -345,112 +350,79 @@ def find_skill_sections(
     current_lines = []
     section_start_line = None
 
-    def close_section(
-        end_line: int,
-    ) -> None:
+    def close_section(end_line: int) -> None:
         nonlocal collecting
         nonlocal current_heading
         nonlocal current_lines
         nonlocal section_start_line
 
-        if (
-            collecting
-            and current_lines
-        ):
-            block = "\n".join(
-                current_lines
-            ).strip()
+        if collecting and current_lines:
+            block = "\n".join(current_lines).strip()
 
             if block:
-                sections.append(
-                    {
-                        "heading": (
-                            current_heading
-                        ),
-                        "text": block,
-                        "start_line": (
-                            section_start_line
-                        ),
-                        "end_line": end_line,
-                    }
-                )
+                sections.append({
+                    "heading": current_heading,
+                    "text": block,
+                    "start_line": section_start_line,
+                    "end_line": end_line,
+                })
 
         collecting = False
         current_heading = None
         current_lines = []
         section_start_line = None
 
-    for line_index, line in enumerate(
-        lines
-    ):
+    for line_index, line in enumerate(lines):
         stripped_line = line.strip()
 
         if not stripped_line:
-            # Mantém uma quebra simples dentro da seção.
             if collecting:
                 current_lines.append("")
             continue
 
-        heading_part, inline_content = (
-            split_heading_and_content(
-                stripped_line
-            )
+        heading_part, inline_content = split_heading_and_content(
+            stripped_line
         )
 
-        normalized_heading = (
-            normalize_heading(
-                heading_part
-            )
-        )
+        normalized_heading = normalize_heading(heading_part)
 
+        # Dentro de Skills, categorias com conteúdo não são novas seções.
         if (
-            normalized_heading
-            in SKILL_SECTION_HEADINGS
+            collecting
+            and inline_content
+            and normalized_heading in CATEGORY_PREFIXES
         ):
-            close_section(
-                line_index - 1
-            )
+            current_lines.append(stripped_line)
+            continue
+
+        # Reconhece títulos de seções de competências.
+        if normalized_heading in SKILL_SECTION_HEADINGS:
+            close_section(line_index - 1)
 
             collecting = True
-            current_heading = (
-                heading_part.strip()
-            )
-
+            current_heading = heading_part.strip()
             current_lines = []
-
-            section_start_line = (
-                line_index
-            )
+            section_start_line = line_index
 
             if inline_content:
-                current_lines.append(
-                    inline_content
-                )
+                current_lines.append(inline_content)
 
             continue
 
+        # Encerra a coleta quando começa outra seção principal.
         if (
             collecting
-            and normalized_heading
-            in STOP_SECTION_HEADINGS
+            and normalized_heading in STOP_SECTION_HEADINGS
         ):
-            close_section(
-                line_index - 1
-            )
-
+            close_section(line_index - 1)
             continue
 
         if collecting:
-            current_lines.append(
-                stripped_line
-            )
+            current_lines.append(stripped_line)
 
-    close_section(
-        len(lines) - 1
-    )
+    close_section(len(lines) - 1)
 
     return sections
-
 
 def remove_category_prefix(
     candidate: str,
@@ -565,45 +537,67 @@ def clean_skill_candidate(
 
     return skill
 
+def split_skill_block_details(
+    block: str,
+) -> list[dict[str, str | None]]:
+    """
+    Extrai habilidades individuais, preservando categoria
+    e texto original usado como evidência.
+    """
+    repaired_block = repair_common_encoding(block)
+    details: list[dict[str, str | None]] = []
+
+    for line in repaired_block.splitlines():
+        original_line = line.strip()
+
+        if not original_line:
+            continue
+
+        heading, inline_content = split_heading_and_content(
+            original_line
+        )
+        normalized_heading = normalize_heading(heading)
+
+        category: str | None = None
+
+        if (
+            inline_content
+            and normalized_heading in CATEGORY_PREFIXES
+        ):
+            category = heading.strip()
+            content = inline_content
+        else:
+            content = original_line
+
+        raw_candidates = re.split(
+            r"[•●▪◦\n,;|]+",
+            content,
+        )
+
+        for raw_candidate in raw_candidates:
+            cleaned = clean_skill_candidate(raw_candidate)
+
+            if cleaned is None:
+                continue
+
+            details.append({
+                "skill": cleaned,
+                "category": category,
+                "evidence_text": original_line,
+            })
+
+    return details
+
 
 def split_skill_block(
     block: str,
 ) -> list[str]:
-    """
-    Divide um bloco de competências em itens individuais.
-    """
-    repaired_block = (
-        repair_common_encoding(
-            block
-        )
-    )
-
-    # Cada marcador é convertido para quebra de linha.
-    repaired_block = re.sub(
-        r"[•●▪◦]+",
-        "\n",
-        repaired_block,
-    )
-
-    # Separa usando delimitadores normalmente empregados em currículos.
-    raw_candidates = re.split(
-        r"[\n,;|]+",
-        repaired_block,
-    )
-
-    skills = []
-
-    for raw_candidate in raw_candidates:
-        cleaned = clean_skill_candidate(
-            raw_candidate
-        )
-
-        if cleaned is not None:
-            skills.append(
-                cleaned
-            )
-
-    return skills
+    """Mantém a função antiga compatível com o restante do projeto."""
+    return [
+        item["skill"]
+        for item in split_skill_block_details(block)
+        if item["skill"] is not None
+    ]
 
 
 def normalize_skill_key(
@@ -724,14 +718,95 @@ CONTEXT_STOP_HEADINGS = (
         "referências",
     }
 )
-
-
-def extract_context_blocks(text: str) -> list[dict[str, Any]]:
+def segment_experience_block(
+    block: dict[str, Any],
+) -> list[dict[str, Any]]:
     """
-    Preserva blocos de experiências e projetos.
+    Divide uma experiência em evidências menores usando marcadores
+    de lista, preservando o cabeçalho original como metadado.
 
-    Não usa os filtros de skills: frases longas são úteis aqui.
-    As linhas de origem usam numeração a partir de 1.
+    Se não encontrar marcadores, mantém o bloco original.
+    """
+    lines = block["text"].splitlines()
+
+    header_lines = []
+    evidence_blocks = []
+    current_lines = []
+    current_start = None
+    first_bullet_found = False
+
+    bullet_pattern = re.compile(
+        r"^\s*(?:[•●▪◦]|\*|-)\s+(.+?)\s*$"
+    )
+
+    def save_current(end_line: int) -> None:
+        nonlocal current_lines, current_start
+
+        evidence_text = " ".join(
+            line.strip()
+            for line in current_lines
+            if line.strip()
+        ).strip()
+
+        if evidence_text:
+            evidence_blocks.append({
+                "text": evidence_text,
+                "source": "experience",
+                "heading": block.get("heading"),
+                "evidence_type": "responsibility",
+                "context_header": "\n".join(header_lines).strip(),
+                "start_line": current_start,
+                "end_line": end_line,
+                "parent_start_line": block.get("start_line"),
+                "parent_end_line": block.get("end_line"),
+            })
+
+        current_lines = []
+        current_start = None
+
+    base_line = block.get("start_line") or 0
+
+    for index, raw_line in enumerate(lines):
+        line_number = base_line + index + 1
+        line = raw_line.strip()
+
+        if not line:
+            continue
+
+        match = bullet_pattern.match(raw_line)
+
+        if match:
+            if current_lines:
+                save_current(line_number - 1)
+
+            first_bullet_found = True
+            current_start = line_number
+            current_lines = [match.group(1).strip()]
+
+        elif not first_bullet_found:
+            header_lines.append(line)
+
+        else:
+            # Linhas sem marcador que continuam a responsabilidade anterior.
+            current_lines.append(line)
+
+    if current_lines:
+        save_current(block.get("end_line") or base_line + len(lines))
+
+    # Sem marcadores de lista, não descartamos a experiência original.
+    if not evidence_blocks:
+        return [block]
+
+    return evidence_blocks
+
+def extract_context_blocks(
+    text: str,
+) -> list[dict[str, Any]]:
+    """
+    Extrai experiências e projetos.
+
+    Experiências com listas de responsabilidades são segmentadas.
+    Projetos e blocos sem marcadores são preservados como estão.
     """
     blocks = []
     current_source = None
@@ -746,13 +821,20 @@ def extract_context_blocks(text: str) -> list[dict[str, Any]]:
         block_text = "\n".join(current_lines).strip()
 
         if current_source is not None and block_text:
-            blocks.append({
+            block = {
                 "text": block_text,
                 "source": current_source,
                 "heading": current_heading,
                 "start_line": start_line,
                 "end_line": end_line,
-            })
+            }
+
+            if current_source == "experience":
+                blocks.extend(
+                    segment_experience_block(block)
+                )
+            else:
+                blocks.append(block)
 
         current_source = None
         current_heading = None
@@ -782,6 +864,7 @@ def extract_context_blocks(text: str) -> list[dict[str, Any]]:
             current_lines.append(line)
 
     close_block(len(lines))
+
     return blocks
 
 
@@ -801,6 +884,7 @@ def prepare_semantic_inputs(
             "source": "skill",
             "extraction_sources": item["sources"],
             "evidence": item["evidence"],
+            "categories": item.get("categories", []),
         })
 
     for block in context_blocks:
@@ -839,6 +923,7 @@ def extract_skills(
         source: str,
         evidence: str,
         confidence: float | None,
+        category: str | None = None,
     ) -> None:
         """
         Valida, normaliza e adiciona uma competência ao resultado.
@@ -865,6 +950,7 @@ def extract_skills(
                 "normalized": key,
                 "sources": [],
                 "evidence": [],
+                "categories": [],
                 "ner_confidence": None,
             }
 
@@ -881,6 +967,8 @@ def extract_skills(
             record["evidence"].append(
                 shortened_evidence
             )
+        if category and category not in record["categories"]:
+            record["categories"].append(category)
 
         if confidence is not None:
             previous_confidence = record[
@@ -895,33 +983,35 @@ def extract_skills(
                     "ner_confidence"
                 ] = confidence
 
-    # Primeiro adiciona as competências encontradas em seções explícitas.
+        # Primeiro adiciona as competências encontradas em seções explícitas.
     for section in sections:
-        section_skills = split_skill_block(
+        section_skills = split_skill_block_details(
             section["text"]
         )
 
-        for skill in section_skills:
+        for item in section_skills:
             add_candidate(
-                skill=skill,
+                skill=item["skill"] or "",
                 source="section",
-                evidence=section["text"],
+                evidence=item["evidence_text"] or section["text"],
                 confidence=None,
+                category=item["category"],
             )
 
     # Depois adiciona as competências encontradas pelo modelo NER.
     # A função add_candidate elimina fragmentos inválidos e duplicidades.
     for block in ner_blocks:
-        block_skills = split_skill_block(
+        block_skills = split_skill_block_details(
             block["text"]
         )
 
-        for skill in block_skills:
+        for item in block_skills:
             add_candidate(
-                skill=skill,
+                skill=item["skill"] or "",
                 source="ner",
-                evidence=block["text"],
+                evidence=item["evidence_text"] or block["text"],
                 confidence=block["confidence"],
+                category=item["category"],
             )
 
     # Converte o OrderedDict para uma lista pronta para serialização em JSON.

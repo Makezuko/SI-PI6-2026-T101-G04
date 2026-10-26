@@ -9,6 +9,7 @@
   </div>
   <div style="display:flex;gap:12px;align-items:center">
     <div class="job-meta-badge"><b>{{ candidates|length }}</b> candidatos cadastrados</div>
+    <a href="{{ url_for('editar_vaga', job_id=job.id) }}" class="btn btn-ghost" id="btn-editar-vaga">Editar Vaga</a>
     <a href="{{ url_for('adicionar_curriculos', job_id=job.id) }}" class="btn btn-primary">+ Adicionar / Analisar Currículos</a>
   </div>
 </div>

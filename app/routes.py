@@ -4,7 +4,8 @@ from flask import abort, g, redirect, render_template, request, session, url_for
 from supabase_auth.errors import AuthApiError
 
 from app import app
-from app.repositories import LegacyProfileError, create_job, ensure_profile, get_job, list_jobs
+from app.repositories import LegacyProfileError, create_job, ensure_profile, get_job, list_jobs, update_job
+from app.requisitos import NIVEIS, STATUS_VAGA, TIPOS, build_requirements, rows_from_form
 from app.supabase_client import create_supabase_client
 
 
@@ -168,31 +169,92 @@ def dashboard():
                            total_resumes='—', avg_match_rate='—')
 
 
+def read_job_form(known_ids=()):
+    form = request.form
+    values = {
+        'title': form.get('title', '').strip(),
+        'description': form.get('description', '').strip(),
+        'status': form.get('status', 'Aberta').strip(),
+        'requirements': [],
+    }
+    requirements = error = None
+    try:
+        if 'req_text' in form:
+            values['requirements'] = rows_from_form(form)
+            requirements = build_requirements(values['requirements'], known_ids)
+    except ValueError as exc:
+        error = str(exc)
+    return values, requirements, error
+
+
 @app.route('/nova-vaga', methods=['GET', 'POST'])
 @login_required
 def nova_vaga():
+    values = {'title': '', 'description': '', 'status': 'Aberta', 'requirements': []}
+    error = None
     if request.method == 'POST':
-        try:
-            create_job(g.supabase, g.profile['id'],
-                       request.form.get('title', ''), request.form.get('description', ''))
-        except ValueError as error:
-            abort(400, description=str(error))
-        except Exception as error:
-            app.logger.warning('Falha ao gravar vaga: %s', type(error).__name__)
-            abort(503, description='Não foi possível confirmar a gravação. Confira o dashboard antes de reenviar.')
-        return redirect(url_for('dashboard'))
-    return render_template('nova_vaga.html', active_page='vagas')
+        values, requirements, error = read_job_form()
+        if not error:
+            try:
+                job = create_job(g.supabase, g.profile['id'],
+                                 values['title'], values['description'], requirements)
+            except ValueError as exc:
+                error = str(exc)
+            except Exception as exc:
+                app.logger.warning('Falha ao gravar vaga: %s', type(exc).__name__)
+                abort(503, description='Não foi possível confirmar a gravação. Confira o dashboard antes de reenviar.')
+            else:
+                return redirect(url_for('vagas', job_id=job['id']))
+        return render_template('nova_vaga.html', active_page='vagas', form=values, error=error,
+                               tipos=TIPOS, niveis=NIVEIS, status_options=STATUS_VAGA), 400
+    return render_template('nova_vaga.html', active_page='vagas', form=values, error=None,
+                           tipos=TIPOS, niveis=NIVEIS, status_options=STATUS_VAGA)
 
 
 @app.route('/vagas')
 @app.route('/vagas/<job_id>')
 @login_required
 def vagas(job_id=None):
+    jobs = database_jobs()
     if job_id is None:
-        return redirect(url_for('nova_vaga'))
+        return redirect(url_for('vagas', job_id=jobs[0]['id'])) if jobs else redirect(url_for('nova_vaga'))
     job = database_job(job_id)
     return render_template('vagas.html', active_page='candidatos', job=job,
-                           jobs=database_jobs(), candidates=[])
+                           jobs=jobs, candidates=[])
+
+
+@app.route('/vagas/<job_id>/editar', methods=['GET', 'POST'])
+@login_required
+def editar_vaga(job_id):
+    job = database_job(job_id)
+    previous_items = job['requirements_data']['items']
+    values = {
+        'title': job['title'],
+        'description': job['description'],
+        'status': job['status'],
+        'requirements': previous_items,
+    }
+    error = None
+    if request.method == 'POST':
+        values, requirements, error = read_job_form([item['id'] for item in previous_items])
+        if not error:
+            try:
+                update_job(g.supabase, job['id'], values['title'], values['description'],
+                           values['status'], requirements)
+            except ValueError as exc:
+                error = str(exc)
+            except LookupError:
+                app.logger.warning('Edição sem linhas alteradas: falta a política de UPDATE?')
+                abort(503, description='Não foi possível salvar a vaga. Confira se a migração sql/002_editar_vagas.sql foi executada no Supabase.')
+            except Exception as exc:
+                app.logger.warning('Falha ao atualizar vaga: %s', type(exc).__name__)
+                abort(503, description='Não foi possível confirmar a alteração. Reabra a vaga antes de reenviar.')
+            else:
+                return redirect(url_for('vagas', job_id=job['id']))
+        return render_template('editar_vaga.html', active_page='candidatos', form=values, error=error,
+                               job=job, tipos=TIPOS, niveis=NIVEIS, status_options=STATUS_VAGA), 400
+    return render_template('editar_vaga.html', active_page='candidatos', form=values, error=None,
+                           job=job, tipos=TIPOS, niveis=NIVEIS, status_options=STATUS_VAGA)
 
 
 @app.route('/candidatos')

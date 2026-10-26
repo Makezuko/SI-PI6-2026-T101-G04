@@ -22,7 +22,7 @@ class FakeQuery:
         self.client, self.table_name = client, table
         self.filters, self.payload, self.columns = {}, None, None
         self.limit_value, self.bounds, self.desc = None, None, False
-        self.returning = 'representation'
+        self.returning, self.update_payload = 'representation', None
 
     def select(self, columns): self.columns = columns; return self
     def eq(self, key, value): self.filters[key] = value; return self
@@ -31,6 +31,10 @@ class FakeQuery:
     def range(self, start, end): self.bounds = (start, end); return self
     def insert(self, value, returning='representation'):
         self.payload, self.returning = value, returning
+        return self
+    def update(self, value):
+        assert set(value) <= {'titulo', 'descricao', 'requisitos', 'status'}
+        self.update_payload = value
         return self
 
     def execute(self):
@@ -57,6 +61,11 @@ class FakeQuery:
             return SimpleNamespace(data=[] if self.returning == 'minimal' else [dict(value)])
         for key, value in self.filters.items():
             visible = [r for r in visible if str(r.get(key)) == str(value)]
+        if self.update_payload is not None:
+            if db.get('fail_update'):
+                raise RuntimeError('database unavailable')
+            for row in visible: row.update(self.update_payload)
+            return SimpleNamespace(data=[dict(r) for r in visible])
         if self.desc: visible = sorted(visible, key=lambda r:r['id'], reverse=True)
         if self.bounds: visible = visible[self.bounds[0]:self.bounds[1]+1]
         if self.limit_value is not None: visible = visible[:self.limit_value]
@@ -197,5 +206,52 @@ class WebFiltersTestCase(unittest.TestCase):
     def test_logout_clears_local_session(self):
         self.login();self.client.get('/logout')
         with self.client.session_transaction() as sess:self.assertNotIn('sb_access_token',sess)
+    def test_vagas_redirects_to_first_job(self):
+        self.login();self.create()
+        response=self.client.get('/vagas')
+        self.assertEqual(response.status_code,302)
+        self.assertEqual(response.headers['Location'],'/vagas/1')
+    def test_edit_job_prefilled_and_updates(self):
+        self.login();self.create()
+        get_res=self.client.get('/vagas/1/editar')
+        self.assertEqual(get_res.status_code,200)
+        self.assertIn('Vaga de teste',get_res.data.decode())
+        post_res=self.post('/vagas/1/editar',{'title':'Vaga Atualizada','description':'Python avançado','status':'Encerrada'})
+        self.assertEqual(post_res.status_code,302)
+        row=self.db['jobs'][0]
+        self.assertEqual(row['titulo'],'Vaga Atualizada')
+        self.assertEqual(row['status'],'Encerrada')
+        self.assertEqual(row['descricao'],'Python avançado')
+    def test_edit_other_owner_job_forbidden(self):
+        self.login();self.create()
+        second=app.test_client();self.login(second,'bia@example.test','password2')
+        self.assertEqual(second.get('/vagas/1/editar').status_code,404)
+        self.assertEqual(self.post('/vagas/1/editar',{'title':'Hacked','description':'X','status':'Aberta'},second).status_code,404)
+        self.assertEqual(self.db['jobs'][0]['titulo'],'Vaga de teste')
+    def test_create_and_edit_job_with_classified_requirements(self):
+        self.login()
+        res=self.post('/nova-vaga',{
+            'title':'Vaga Completa','description':'Texto da vaga',
+            'req_id':['',''],'req_text':['Python','Trabalho em equipe'],
+            'req_tipo':['tecnico','comportamental'],'req_nivel':['obrigatorio','desejavel'],
+        })
+        self.assertEqual(res.status_code,302)
+        job=self.db['jobs'][-1]
+        import json
+        reqs=json.loads(job['requisitos'])
+        self.assertEqual(reqs['status'],'revisado')
+        self.assertEqual(len(reqs['items']),2)
+        self.assertEqual(reqs['items'][0]['tipo'],'tecnico')
+        self.assertEqual(reqs['items'][1]['tipo'],'comportamental')
+        res_edit=self.post(f"/vagas/{job['id']}/editar",{
+            'title':'Vaga Completa','description':'Texto da vaga','status':'Aberta',
+            'req_id':[reqs['items'][0]['id'],''],'req_text':['Python Avançado','Comunicação'],
+            'req_tipo':['tecnico','comportamental'],'req_nivel':['obrigatorio','obrigatorio'],
+        })
+        self.assertEqual(res_edit.status_code,302)
+        updated=json.loads(self.db['jobs'][-1]['requisitos'])
+        self.assertEqual(updated['items'][0]['id'],'R1')
+        self.assertEqual(updated['items'][0]['text'],'Python Avançado')
+        self.assertEqual(updated['items'][1]['id'],'R3')
 
 if __name__=='__main__': unittest.main()

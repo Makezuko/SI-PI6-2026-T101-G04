@@ -11,7 +11,10 @@
 {% endblock %}
 
 {% block content %}
-<div style="max-width:700px">
+<div style="max-width:860px">
+  {% if error %}
+  <div class="auth-error" style="margin-bottom:16px;">{{ error }}</div>
+  {% endif %}
   <form method="POST" action="{{ url_for('nova_vaga') }}" id="nova-vaga-form">
     <div class="panel">
       <div class="panel-head"><h2>Informações da Vaga</h2></div>
@@ -19,30 +22,220 @@
       <div style="padding:24px">
         <div class="field">
           <label for="title">Título da Vaga</label>
-          <input type="text" id="title" name="title" placeholder="Ex: Desenvolvedor Backend Python" required>
+          <input type="text" id="title" name="title" value="{{ form.title if form else '' }}" placeholder="Ex: Desenvolvedor Backend Python" required>
         </div>
 
         <div class="field" style="margin-bottom:0">
           <label for="description">Descrição Completa / Requisitos</label>
           <textarea id="description" name="description"
             placeholder="Cole aqui a descrição completa da vaga, incluindo responsabilidades, requisitos técnicos, experiências desejadas e perfil comportamental..."
-            required></textarea>
+            required>{{ form.description if form else '' }}</textarea>
           <p class="field-hint">Cole o texto completo da vaga. A IA irá interpretar automaticamente todos os requisitos técnicos e comportamentais e criar um perfil de referência para a triagem dos currículos.</p>
         </div>
       </div>
+    </div>
 
-      <div class="form-actions">
+    <div class="panel" style="margin-top:20px">
+      <div class="panel-head">
+        <h2>Requisitos da Vaga (Técnicos e Comportamentais)</h2>
+        <div style="display:flex;align-items:center;gap:14px">
+          <span class="count" id="req-count"></span>
+          <button type="button" class="btn btn-ghost" id="req-add" style="padding:7px 14px;font-size:12.5px">+ Adicionar requisito</button>
+        </div>
+      </div>
+      <div style="padding:20px 24px 24px">
+        <div class="req-cols" aria-hidden="true"><span>Requisito</span><span>Tipo</span><span>Nível</span><span></span></div>
+        <div id="req-list">
+          {% if form and form.requirements %}
+            {% for r in form.requirements %}
+            <div class="req-row" data-req-row>
+              <input type="hidden" name="req_id" value="{{ r.id or '' }}">
+              <input type="text" name="req_text" class="req-text" value="{{ r.text or '' }}" maxlength="300"
+                     placeholder="Ex.: Python, SQL avançado, comunicação clara" aria-label="Descrição do requisito">
+              <select name="req_tipo" class="req-tipo" aria-label="Tipo do requisito">
+                <option value="" {{ 'selected' if not r.tipo else '' }}>Tipo…</option>
+                {% for key, label in tipos.items() %}
+                <option value="{{ key }}" {{ 'selected' if r.tipo == key else '' }}>{{ label }}</option>
+                {% endfor %}
+              </select>
+              <select name="req_nivel" class="req-nivel" aria-label="Nível do requisito">
+                {% for key, label in niveis.items() %}
+                <option value="{{ key }}" {{ 'selected' if (r.nivel or 'obrigatorio') == key else '' }}>{{ label }}</option>
+                {% endfor %}
+              </select>
+              <button type="button" class="req-remove" data-req-remove title="Remover requisito" aria-label="Remover requisito">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            {% endfor %}
+          {% else %}
+            {% for _ in range(3) %}
+            <div class="req-row" data-req-row>
+              <input type="hidden" name="req_id" value="">
+              <input type="text" name="req_text" class="req-text" value="" maxlength="300"
+                     placeholder="Ex.: Python, SQL avançado, comunicação clara" aria-label="Descrição do requisito">
+              <select name="req_tipo" class="req-tipo" aria-label="Tipo do requisito">
+                <option value="" selected>Tipo…</option>
+                {% for key, label in tipos.items() %}
+                <option value="{{ key }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+              <select name="req_nivel" class="req-nivel" aria-label="Nível do requisito">
+                {% for key, label in niveis.items() %}
+                <option value="{{ key }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+              <button type="button" class="req-remove" data-req-remove title="Remover requisito" aria-label="Remover requisito">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            {% endfor %}
+          {% endif %}
+        </div>
+        <template id="req-row-template">
+          <div class="req-row" data-req-row>
+            <input type="hidden" name="req_id" value="">
+            <input type="text" name="req_text" class="req-text" value="" maxlength="300"
+                   placeholder="Ex.: Python, SQL avançado, comunicação clara" aria-label="Descrição do requisito">
+            <select name="req_tipo" class="req-tipo" aria-label="Tipo do requisito">
+              <option value="" selected>Tipo…</option>
+              {% for key, label in tipos.items() %}
+              <option value="{{ key }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+            <select name="req_nivel" class="req-nivel" aria-label="Nível do requisito">
+              {% for key, label in niveis.items() %}
+              <option value="{{ key }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+            <button type="button" class="req-remove" data-req-remove title="Remover requisito" aria-label="Remover requisito">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+        </template>
+        <p class="field-hint" style="margin-top:14px">Defina os requisitos específicos da vaga. <b>Técnico</b>: linguagens, ferramentas e conhecimentos técnicos. <b>Comportamental</b>: postura, comunicação e trabalho em equipe. Linhas vazias são ignoradas.</p>
+      </div>
+
+      <div class="form-actions" style="display:flex;justify-content:flex-end;gap:10px;padding:18px 24px;border-top:1px solid var(--line);">
+        <a href="{{ url_for('vagas') }}" class="btn btn-ghost">Cancelar</a>
         <button type="submit" class="btn btn-primary" id="btn-save-job">Salvar e Processar Vaga</button>
       </div>
     </div>
   </form>
 </div>
 
+<style>
+.req-cols, .req-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 160px 140px 34px;
+  gap: 10px;
+  align-items: center;
+}
+.req-cols {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #94a3b8;
+  margin-bottom: 8px;
+  padding: 0 2px;
+}
+.req-row {
+  margin-bottom: 10px;
+}
+.req-row input[type="text"], .req-row select {
+  width: 100%;
+  font-family: inherit;
+  font-size: 13.5px;
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  padding: 10px 12px;
+  background: #fff;
+}
+.req-row select {
+  cursor: pointer;
+}
+.req-row input[type="text"]:focus, .req-row select:focus {
+  outline: 2px solid var(--brand-400);
+  outline-offset: 1px;
+  border-color: var(--brand-400);
+}
+.req-remove {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #94a3b8;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.req-remove:hover {
+  background: var(--low-soft);
+  color: var(--low);
+}
+@media (max-width: 720px) {
+  .req-cols { display: none; }
+  .req-row { grid-template-columns: 1fr 1fr 34px; }
+  .req-row .req-text { grid-column: 1 / -1; }
+}
+</style>
+
 <script>
-  document.getElementById('nova-vaga-form').addEventListener('submit', function () {
-    const btn = document.getElementById('btn-save-job');
-    btn.disabled = true;
-    btn.textContent = 'Processando os requisitos da vaga com IA...';
-  });
+  (function () {
+    var list = document.getElementById('req-list');
+    var template = document.getElementById('req-row-template');
+    var counter = document.getElementById('req-count');
+    var rows = function () { return list.querySelectorAll('[data-req-row]'); };
+
+    function refresh() {
+      var filled = 0;
+      rows().forEach(function (row) {
+        var hasText = row.querySelector('.req-text').value.trim() !== '';
+        row.querySelector('.req-tipo').required = hasText;
+        if (hasText) filled++;
+      });
+      counter.textContent = filled + (filled === 1 ? ' requisito' : ' requisitos');
+    }
+
+    function addRow() {
+      list.appendChild(template.content.cloneNode(true));
+      refresh();
+      var all = rows();
+      all[all.length - 1].querySelector('.req-text').focus();
+    }
+
+    document.getElementById('req-add').addEventListener('click', addRow);
+    list.addEventListener('click', function (event) {
+      var button = event.target.closest('[data-req-remove]');
+      if (!button) return;
+      var row = button.closest('[data-req-row]');
+      if (rows().length > 1) {
+        row.remove();
+      } else {
+        row.querySelector('[name=req_id]').value = '';
+        row.querySelector('.req-text').value = '';
+        row.querySelector('.req-tipo').value = '';
+        row.querySelector('.req-nivel').value = 'obrigatorio';
+      }
+      refresh();
+    });
+    list.addEventListener('input', refresh);
+    list.addEventListener('change', refresh);
+    list.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter' && event.target.classList.contains('req-text')) {
+        event.preventDefault();
+        addRow();
+      }
+    });
+
+    document.getElementById('nova-vaga-form').addEventListener('submit', function () {
+      var btn = document.getElementById('btn-save-job');
+      btn.disabled = true;
+      btn.textContent = 'Processando os requisitos da vaga com IA...';
+    });
+    refresh();
+  })();
 </script>
 {% endblock %}

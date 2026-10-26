@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Editar {{ job.title }} · TalentMatch AI{% endblock %}
+
+{% block topbar %}
+<div class="topbar">
+  <div style="display:flex;align-items:center">
+    <a href="{{ url_for('vagas') }}" class="back-btn" aria-label="Voltar para a lista de vagas">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    </a>
+    <div>
+      <div class="eyebrow">Editar vaga</div>
+      <h1 class="h1">{{ job.title }}</h1>
+    </div>
+  </div>
+  <a href="{{ url_for('vagas', job_id=job.id) }}" class="btn btn-ghost">Ver ranking →</a>
+</div>
+{% endblock %}
+
+{% block content %}
+{% with action=url_for('editar_vaga', job_id=job.id), form_id='editar-vaga-form', submit_label='Salvar Alterações',
+        cancel_url=url_for('vagas'), show_status=true %}
+  {% include "_form_vaga.html" %}
+{% endwith %}
+{% endblock %}

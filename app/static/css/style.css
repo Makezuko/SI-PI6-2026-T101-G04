@@ -1,4 +1,4 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 :root{
   --brand-50:#eaf1f8; --brand-100:#cddff0; --brand-200:#9dc0e0; --brand-300:#6da0d1;
@@ -411,3 +411,36 @@ tr.job-row.closed td:first-child{ box-shadow:inset 3px 0 0 #cbd5e1; }
   font-size: 14px;
   font-weight: 600;
 }
+
+/* ---------- Cadastro/edição de vaga e requisitos ---------- */
+.job-form{ max-width:860px; }
+.job-form .panel + .panel{ margin-top:20px; }
+.field select{ width:100%; font-family:inherit; font-size:13.5px; color:var(--ink); border:1px solid var(--line-strong);
+  border-radius:9px; padding:11px 13px; background:#fff; cursor:pointer; }
+.field select:focus{ outline:2px solid var(--brand-400); outline-offset:1px; border-color:var(--brand-400); }
+.req-head-actions{ display:flex; align-items:center; gap:14px; }
+.req-head-actions .btn{ padding:7px 14px; font-size:12.5px; }
+.req-cols, .req-row{ display:grid; grid-template-columns:minmax(0,1fr) 170px 140px 34px; gap:10px; align-items:center; }
+.req-cols{ font-size:11.5px; font-weight:500; color:#94a3b8; margin-bottom:8px; padding:0 2px; }
+.req-row{ margin-bottom:10px; }
+.req-row input[type="text"], .req-row select{ width:100%; font-family:inherit; font-size:13.5px; color:var(--ink);
+  border:1px solid var(--line-strong); border-radius:9px; padding:10px 12px; background:#fff; }
+.req-row select{ cursor:pointer; }
+.req-row input[type="text"]:focus, .req-row select:focus{ outline:2px solid var(--brand-400); outline-offset:1px; border-color:var(--brand-400); }
+.req-remove{ width:34px; height:34px; border-radius:9px; border:1px solid transparent; background:transparent; color:#94a3b8;
+  display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
+.req-remove:hover{ background:var(--low-soft); color:var(--low); }
+.req-panel .field-hint b{ color:var(--ink-soft); font-weight:600; }
+@media (max-width:720px){
+  .req-cols{ display:none; }
+  .req-row{ grid-template-columns:1fr 1fr 34px; }
+  .req-row .req-text{ grid-column:1 / -1; }
+}
+
+/* ---------- Lista de vagas ---------- */
+.req-chip{ display:inline-block; font-size:11.5px; font-weight:600; padding:3px 9px; border-radius:12px; margin:0 6px 4px 0; }
+.req-chip.tecnico{ background:var(--brand-50); color:var(--brand-700); }
+.req-chip.comportamental{ background:var(--mid-soft); color:var(--mid); }
+td.row-actions{ white-space:nowrap; }
+td.row-actions .link-cell + .link-cell{ margin-left:16px; }
+.filters input[type="search"]{ flex:1; min-width:200px; }

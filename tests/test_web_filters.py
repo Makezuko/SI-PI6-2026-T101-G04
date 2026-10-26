@@ -22,7 +22,7 @@ class FakeQuery:
         self.client, self.table_name = client, table
         self.filters, self.payload, self.columns = {}, None, None
         self.limit_value, self.bounds, self.desc = None, None, False
-        self.returning = 'representation'
+        self.returning, self.update_payload = 'representation', None
 
     def select(self, columns): self.columns = columns; return self
     def eq(self, key, value): self.filters[key] = value; return self
@@ -31,6 +31,11 @@ class FakeQuery:
     def range(self, start, end): self.bounds = (start, end); return self
     def insert(self, value, returning='representation'):
         self.payload, self.returning = value, returning
+        return self
+    def update(self, value):
+        # Mesmas colunas liberadas por sql/002_editar_vagas.sql.
+        assert set(value) <= {'titulo', 'descricao', 'requisitos', 'status'}
+        self.update_payload = value
         return self
 
     def execute(self):
@@ -57,6 +62,13 @@ class FakeQuery:
             return SimpleNamespace(data=[] if self.returning == 'minimal' else [dict(value)])
         for key, value in self.filters.items():
             visible = [r for r in visible if str(r.get(key)) == str(value)]
+        if self.update_payload is not None:
+            if db.get('no_update_policy'):  # RLS sem política de UPDATE: nenhuma linha afetada.
+                return SimpleNamespace(data=[])
+            if db.get('fail_update'):
+                raise RuntimeError('database unavailable')
+            for row in visible: row.update(self.update_payload)
+            return SimpleNamespace(data=[dict(r) for r in visible])
         if self.desc: visible = sorted(visible, key=lambda r:r['id'], reverse=True)
         if self.bounds: visible = visible[self.bounds[0]:self.bounds[1]+1]
         if self.limit_value is not None: visible = visible[:self.limit_value]
@@ -198,4 +210,126 @@ class WebFiltersTestCase(unittest.TestCase):
         self.login();self.client.get('/logout')
         with self.client.session_transaction() as sess:self.assertNotIn('sb_access_token',sess)
 
+    # ---- Requisitos estruturados, listagem e edição de vagas ----
+    TECH={'text':'Python','tipo':'tecnico','nivel':'obrigatorio'}
+    SOFT={'text':'Trabalho em equipe','tipo':'comportamental','nivel':'desejavel'}
+
+    def payload(self, rows, title='Vaga X', description='Descrição da vaga', **extra):
+        data={'title':title,'description':description,**extra}
+        data['req_id']=[r.get('id','') for r in rows]
+        data['req_text']=[r['text'] for r in rows]
+        data['req_tipo']=[r.get('tipo','') for r in rows]
+        data['req_nivel']=[r.get('nivel','obrigatorio') for r in rows]
+        return data
+    def stored(self, index=0): return json.loads(self.db['jobs'][index]['requisitos'])
+
+    def test_create_with_structured_requirements(self):
+        self.login()
+        blank={'text':'','tipo':'','nivel':'obrigatorio'}
+        response=self.post('/nova-vaga',self.payload([self.TECH,self.SOFT,blank]))
+        self.assertEqual(response.status_code,302)
+        data=self.stored()
+        self.assertEqual(data['status'],'revisado')
+        self.assertEqual([(i['id'],i['text'],i['tipo'],i['nivel']) for i in data['items']],
+            [('R1','Python','tecnico','obrigatorio'),('R2','Trabalho em equipe','comportamental','desejavel')])
+    def test_requirement_without_type_rejected_keeping_input(self):
+        self.login()
+        response=self.post('/nova-vaga',self.payload([{'text':'Liderança'}],title='Minha vaga'))
+        self.assertEqual(response.status_code,400)
+        page=response.data.decode()
+        self.assertIn('Classifique',page)
+        self.assertIn('Minha vaga',page)
+        self.assertIn('Liderança',page)
+        self.assertFalse(self.db['jobs'])
+    def test_misaligned_requirement_fields_rejected(self):
+        self.login()
+        data=self.payload([self.TECH]);data['req_tipo']=[]
+        self.assertEqual(self.post('/nova-vaga',data).status_code,400)
+        self.assertFalse(self.db['jobs'])
+    def test_job_list_page(self):
+        self.login()
+        page=self.client.get('/vagas').data.decode()
+        self.assertIn('Nenhuma vaga cadastrada',page)
+        self.post('/nova-vaga',self.payload([self.TECH,self.SOFT],title='Backend Python'))
+        response=self.client.get('/vagas')
+        self.assertEqual(response.status_code,200)
+        page=response.data.decode()
+        for expected in ['Backend Python','Técnicos: 1','Comportamentais: 1','/vagas/1/editar','id="jobs-search"']:
+            self.assertIn(expected,page)
+    def test_list_hides_other_owner_jobs(self):
+        self.login();self.post('/nova-vaga',self.payload([self.TECH],title='Vaga da Ana'))
+        second=app.test_client();self.login(second,'bia@example.test','password2')
+        self.assertNotIn(b'Vaga da Ana',second.get('/vagas').data)
+    def test_legacy_draft_listed_as_pending(self):
+        self.login();self.create()
+        self.assertIn('Requisitos pendentes',self.client.get('/vagas').data.decode())
+    def test_edit_form_prefilled(self):
+        self.login();self.post('/nova-vaga',self.payload([self.TECH,self.SOFT]))
+        response=self.client.get('/vagas/1/editar')
+        self.assertEqual(response.status_code,200)
+        page=response.data.decode()
+        for expected in ['value="Python"','value="Trabalho em equipe"','name="req_id" value="R2"','id="status"']:
+            self.assertIn(expected,page)
+    def test_edit_updates_job_and_keeps_ids_stable(self):
+        self.login();self.post('/nova-vaga',self.payload([self.TECH,self.SOFT]))
+        r1={**self.TECH,'id':'R1','text':'Python 3'}
+        new={'text':'Comunicação clara','tipo':'comportamental','nivel':'obrigatorio'}
+        # R2 é removido e um requisito novo é adicionado: o novo não pode reaproveitar o R2.
+        response=self.post('/vagas/1/editar',self.payload([r1,new],title='Novo título',description='Nova descrição',status='Encerrada'))
+        self.assertEqual(response.status_code,302)
+        row=self.db['jobs'][0]
+        self.assertEqual((row['titulo'],row['descricao'],row['status']),('Novo título','Nova descrição','Encerrada'))
+        self.assertEqual([(i['id'],i['text']) for i in self.stored()['items']],[('R1','Python 3'),('R3','Comunicação clara')])
+        self.assertEqual(row['criado_por'],self.db['profiles'][0]['id'])
+    def test_edit_without_requirement_fields_keeps_requirements(self):
+        self.login();self.post('/nova-vaga',self.payload([self.TECH]))
+        before=self.db['jobs'][0]['requisitos']
+        response=self.post('/vagas/1/editar',{'title':'Outro','description':'Texto','status':'Aberta'})
+        self.assertEqual(response.status_code,302)
+        self.assertEqual(self.db['jobs'][0]['requisitos'],before)
+        self.assertEqual(self.db['jobs'][0]['titulo'],'Outro')
+    def test_edit_invalid_input_not_saved(self):
+        self.login();self.post('/nova-vaga',self.payload([self.TECH],title='Original'))
+        for data in [self.payload([self.TECH],status='Hackeada'),
+                     self.payload([self.TECH],title=''),
+                     self.payload([{'text':'x'*301,'tipo':'tecnico'}]),
+                     self.payload([{'text':'Sem tipo'}])]:
+            self.assertEqual(self.post('/vagas/1/editar',data).status_code,400)
+        self.assertEqual(self.db['jobs'][0]['titulo'],'Original')
+        self.assertEqual(self.stored()['items'][0]['text'],'Python')
+    def test_edit_other_owner_forbidden(self):
+        self.login();self.post('/nova-vaga',self.payload([self.TECH],title='Original'))
+        second=app.test_client();self.login(second,'bia@example.test','password2')
+        self.assertEqual(second.get('/vagas/1/editar').status_code,404)
+        self.assertEqual(self.post('/vagas/1/editar',self.payload([self.TECH],title='Invadida'),second).status_code,404)
+        self.assertEqual(self.db['jobs'][0]['titulo'],'Original')
+    def test_edit_unknown_job_404(self):
+        self.login()
+        for identifier in ['999','abc','-1']:
+            self.assertEqual(self.client.get('/vagas/'+identifier+'/editar').status_code,404)
+    def test_edit_without_update_policy_is_not_reported_as_success(self):
+        self.login();self.post('/nova-vaga',self.payload([self.TECH],title='Original'))
+        self.db['no_update_policy']=True
+        response=self.post('/vagas/1/editar',self.payload([self.TECH],title='Novo'))
+        self.assertEqual(response.status_code,503)
+        self.assertIn('002_editar_vagas',response.data.decode())
+        self.assertEqual(self.db['jobs'][0]['titulo'],'Original')
+    def test_edit_database_failure_not_success(self):
+        self.login();self.post('/nova-vaga',self.payload([self.TECH]))
+        self.db['fail_update']=True
+        self.assertEqual(self.post('/vagas/1/editar',self.payload([self.TECH],title='Novo')).status_code,503)
+    def test_edit_requires_login_and_same_origin(self):
+        self.assertEqual(self.client.get('/vagas/1/editar').status_code,302)
+        self.login();self.post('/nova-vaga',self.payload([self.TECH],title='Original'))
+        response=self.client.post('/vagas/1/editar',data=self.payload([self.TECH],title='X'),headers={'Origin':'https://other.test'})
+        self.assertEqual(response.status_code,403)
+        self.assertEqual(self.db['jobs'][0]['titulo'],'Original')
+    def test_requirement_text_is_escaped(self):
+        self.login()
+        evil='<script>alert(1)</script>'
+        self.post('/nova-vaga',self.payload([{'text':evil,'tipo':'tecnico'}]))
+        self.assertNotIn(evil,self.client.get('/vagas/1/editar').data.decode())
+        self.assertNotIn(evil,self.client.get('/vagas').data.decode())
+
 if __name__=='__main__': unittest.main()
+

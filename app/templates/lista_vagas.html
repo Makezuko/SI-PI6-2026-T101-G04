@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Vagas · TalentMatch AI{% endblock %}
+
+{% block topbar %}
+<div class="topbar">
+  <div>
+    <h1 class="h1">Vagas</h1>
+    <p class="h1-sub">Gerencie as vagas cadastradas e os requisitos de cada uma.</p>
+  </div>
+  <a href="{{ url_for('nova_vaga') }}" class="btn btn-primary" id="btn-nova-vaga">+ Nova Vaga</a>
+</div>
+{% endblock %}
+
+{% block content %}
+{% if jobs %}
+<div class="filters">
+  <input type="search" id="jobs-search" placeholder="Buscar vaga pelo título..." aria-label="Buscar vaga pelo título">
+  <select id="jobs-status" aria-label="Filtrar por status">
+    <option value="">Todos os status</option>
+    <option value="Aberta">Abertas</option>
+    <option value="Encerrada">Encerradas</option>
+  </select>
+</div>
+
+<div class="panel">
+  <div class="panel-head">
+    <h2>Vagas cadastradas</h2>
+    <span class="count" id="jobs-count">{{ jobs|length }} vagas</span>
+  </div>
+  <table id="jobs-table">
+    <tr><th>Título da vaga</th><th>Criada em</th><th>Requisitos</th><th>Status</th><th></th></tr>
+    {% for job in jobs %}
+    <tr class="job-row {{ 'open' if job.status == 'Aberta' else 'closed' }}" data-job-row
+        data-title="{{ job.title|lower }}" data-status="{{ job.status }}">
+      <td>
+        <div class="job-title-cell">
+          <div class="job-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+          </div>
+          <span class="job-title">{{ job.title }}</span>
+        </div>
+      </td>
+      <td>{{ job.created_at }}</td>
+      <td>
+        {% if job.requirements_status == 'revisado' %}
+          <span class="req-chip tecnico">Técnicos: {{ job.technical|length }}</span>
+          <span class="req-chip comportamental">Comportamentais: {{ job.behavioral|length }}</span>
+        {% else %}
+          <span class="status-badge pendente"><span></span>Requisitos pendentes</span>
+        {% endif %}
+      </td>
+      <td>
+        <span class="status-dot {{ 'open' if job.status == 'Aberta' else 'closed' }}">
+          <span></span>{{ job.status }}
+        </span>
+      </td>
+      <td class="row-actions">
+        <a href="{{ url_for('editar_vaga', job_id=job.id) }}" class="link-cell">Editar</a>
+        <a href="{{ url_for('vagas', job_id=job.id) }}" class="link-cell">Ver ranking →</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  <div class="empty-state" id="jobs-empty" hidden>
+    <div class="empty-state-title">Nenhuma vaga encontrada</div>
+    <div class="empty-state-desc">Ajuste a busca ou o filtro de status.</div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var search = document.getElementById('jobs-search');
+    var status = document.getElementById('jobs-status');
+    var rows = document.querySelectorAll('[data-job-row]');
+    function apply() {
+      var term = search.value.trim().toLowerCase(), wanted = status.value, shown = 0;
+      rows.forEach(function (row) {
+        var visible = row.dataset.title.indexOf(term) !== -1 && (!wanted || row.dataset.status === wanted);
+        row.hidden = !visible;
+        if (visible) shown++;
+      });
+      document.getElementById('jobs-count').textContent = shown + (shown === 1 ? ' vaga' : ' vagas');
+      document.getElementById('jobs-empty').hidden = shown !== 0;
+    }
+    search.addEventListener('input', apply);
+    status.addEventListener('change', apply);
+  })();
+</script>
+{% else %}
+<div class="panel">
+  <div class="empty-state">
+    <div class="empty-state-title">Nenhuma vaga cadastrada</div>
+    <div class="empty-state-desc" style="margin-bottom:16px">Cadastre a primeira vaga e defina seus requisitos.</div>
+    <a href="{{ url_for('nova_vaga') }}" class="btn btn-primary">+ Nova Vaga</a>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -43,6 +43,12 @@ As consultas dependem das políticas RLS configuradas no Supabase. Não desative
 
 Por enquanto, as telas de login, vagas e candidatos ainda usam dados de demonstração; elas não leem nem gravam no banco.
 
+## Vagas e requisitos
+
+Em **Vagas** é possível listar, criar e editar vagas, cada uma com requisitos **técnicos** e **comportamentais** (obrigatórios ou desejáveis). Os requisitos ficam em `vagas.requisitos` como JSON e cada um tem um código estável (`R1`, `R2`…) para a futura comparação com currículos.
+
+Para editar vagas, execute **uma vez** no SQL Editor do Supabase (depois de `sql/001_auth_vagas.sql`) o arquivo `sql/002_editar_vagas.sql`. Como o banco é compartilhado, basta uma pessoa do grupo rodar. Sem essa migração, a criação e a listagem funcionam, mas salvar uma edição retorna erro 503.
+
 ## Executar
 
 Com o ambiente virtual ativado:

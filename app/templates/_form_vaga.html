@@ -1,0 +1,140 @@
+{# Formulário compartilhado de criar/editar vaga, com editor de requisitos.
+   Variáveis: form, error, tipos, niveis, status_options, action, form_id,
+   submit_label, cancel_url, show_status. #}
+{% macro req_row(r) %}
+<div class="req-row" data-req-row>
+  <input type="hidden" name="req_id" value="{{ r.id or '' }}">
+  <input type="text" name="req_text" class="req-text" value="{{ r.text or '' }}" maxlength="300"
+         placeholder="Ex.: Python, SQL avançado, comunicação clara" aria-label="Descrição do requisito">
+  <select name="req_tipo" class="req-tipo" aria-label="Tipo do requisito">
+    <option value="" {{ 'selected' if not r.tipo else '' }}>Tipo…</option>
+    {% for key, label in tipos.items() %}
+    <option value="{{ key }}" {{ 'selected' if r.tipo == key else '' }}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <select name="req_nivel" class="req-nivel" aria-label="Nível do requisito">
+    {% for key, label in niveis.items() %}
+    <option value="{{ key }}" {{ 'selected' if (r.nivel or 'obrigatorio') == key else '' }}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <button type="button" class="req-remove" data-req-remove title="Remover requisito" aria-label="Remover requisito">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
+</div>
+{% endmacro %}
+
+<div class="job-form">
+  {% if error %}
+  <div class="auth-error" role="alert" id="job-form-error">{{ error }}</div>
+  {% endif %}
+  <form method="POST" action="{{ action }}" id="{{ form_id }}">
+    <div class="panel">
+      <div class="panel-head"><h2>Informações da Vaga</h2></div>
+      <div style="padding:24px">
+        <div class="field">
+          <label for="title">Título da Vaga</label>
+          <input type="text" id="title" name="title" value="{{ form.title }}" maxlength="200"
+                 placeholder="Ex: Desenvolvedor Backend Python" required>
+        </div>
+        <div class="field" {% if not show_status %}style="margin-bottom:0"{% endif %}>
+          <label for="description">Descrição Completa</label>
+          <textarea id="description" name="description" style="min-height:180px" maxlength="30000"
+            placeholder="Cole aqui a descrição completa da vaga: responsabilidades, contexto da equipe, experiências desejadas..."
+            required>{{ form.description }}</textarea>
+          <p class="field-hint">O texto completo fica salvo com a vaga. Os requisitos usados na triagem são os definidos abaixo.</p>
+        </div>
+        {% if show_status %}
+        <div class="field" style="margin-bottom:0;max-width:240px">
+          <label for="status">Status</label>
+          <select id="status" name="status">
+            {% for option in status_options %}
+            <option value="{{ option }}" {{ 'selected' if form.status == option else '' }}>{{ option }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="panel req-panel">
+      <div class="panel-head">
+        <h2>Requisitos da Vaga</h2>
+        <div class="req-head-actions">
+          <span class="count" id="req-count" aria-live="polite"></span>
+          <button type="button" class="btn btn-ghost" id="req-add">+ Adicionar requisito</button>
+        </div>
+      </div>
+      <div style="padding:20px 24px 24px">
+        <div class="req-cols" aria-hidden="true"><span>Requisito</span><span>Tipo</span><span>Nível</span><span></span></div>
+        <div id="req-list">
+          {% for r in form.requirements %}{{ req_row(r) }}{% endfor %}
+          {% for _ in range(1 if form.requirements else 3) %}{{ req_row({}) }}{% endfor %}
+        </div>
+        <template id="req-row-template">{{ req_row({}) }}</template>
+        <p class="field-hint">Escreva requisitos curtos e específicos, um por linha. <b>Técnico</b>: ferramentas, linguagens e conhecimentos (ex.: “Python”, “SQL”). <b>Comportamental</b>: postura e habilidades interpessoais (ex.: “Trabalho em equipe”). Linhas em branco são ignoradas. Requisitos já salvos mantêm o mesmo código (R1, R2…) mesmo após edições.</p>
+      </div>
+      <div class="form-actions">
+        <a href="{{ cancel_url }}" class="btn btn-ghost" style="margin-right:10px">Cancelar</a>
+        <button type="submit" class="btn btn-primary" id="btn-save-job">{{ submit_label }}</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<script>
+  (function () {
+    var list = document.getElementById('req-list');
+    var template = document.getElementById('req-row-template');
+    var counter = document.getElementById('req-count');
+    var rows = function () { return list.querySelectorAll('[data-req-row]'); };
+
+    function refresh() {
+      var filled = 0;
+      rows().forEach(function (row) {
+        var hasText = row.querySelector('.req-text').value.trim() !== '';
+        // Exige o tipo apenas nas linhas preenchidas; linhas em branco são ignoradas.
+        row.querySelector('.req-tipo').required = hasText;
+        if (hasText) filled++;
+      });
+      counter.textContent = filled + (filled === 1 ? ' requisito' : ' requisitos');
+    }
+
+    function addRow() {
+      list.appendChild(template.content.cloneNode(true));
+      refresh();
+      var all = rows();
+      all[all.length - 1].querySelector('.req-text').focus();
+    }
+
+    document.getElementById('req-add').addEventListener('click', addRow);
+    list.addEventListener('click', function (event) {
+      var button = event.target.closest('[data-req-remove]');
+      if (!button) return;
+      var row = button.closest('[data-req-row]');
+      if (rows().length > 1) {
+        row.remove();
+      } else {
+        row.querySelector('[name=req_id]').value = '';
+        row.querySelector('.req-text').value = '';
+        row.querySelector('.req-tipo').value = '';
+        row.querySelector('.req-nivel').value = 'obrigatorio';
+      }
+      refresh();
+    });
+    list.addEventListener('input', refresh);
+    list.addEventListener('change', refresh);
+    list.addEventListener('keydown', function (event) {
+      // Enter dentro de um requisito adiciona outro, em vez de enviar o formulário.
+      if (event.key === 'Enter' && event.target.classList.contains('req-text')) {
+        event.preventDefault();
+        addRow();
+      }
+    });
+    document.getElementById('{{ form_id }}').addEventListener('submit', function () {
+      var button = document.getElementById('btn-save-job');
+      button.disabled = true;
+      button.textContent = 'Salvando...';
+    });
+    refresh();
+  })();
+</script>

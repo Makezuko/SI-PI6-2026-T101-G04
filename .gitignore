@@ -7,3 +7,5 @@ venv/
 .venv/
 .env
 .env.*
+# Arquivos locais de sessão do Flask, que podem conter tokens
+/instance/

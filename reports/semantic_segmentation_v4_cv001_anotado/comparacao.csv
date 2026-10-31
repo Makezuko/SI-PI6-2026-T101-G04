@@ -1,9 +1,0 @@
-﻿id,requisito,cosseno_top1,cosseno_so_skills,margem_top1_top2,posicao_correta,origem,evidencia
-R1,Docker,0.9999999999996032,0.9999999999996032,0.6201396089026037,1,skill,Docker
-R2,Maven,0.999999999999597,0.999999999999597,0.5432027671810427,1,skill,Maven
-R3,Tomcat,0.9999999999992728,0.9999999999992728,0.44762052561589605,1,skill,Tomcat
-R4,Automate software builds and test execution with Jenkins,0.8332798973888074,0.5229771316438446,0.22484103122639998,1,experience,"Installed and configured Jenkins for Automating build, deployments and test execution and providing a complete automation solution using jenkins."
-R5,Create and configure server environments automatically using Chef,0.8566489761446605,0.3842894411425028,0.35003899319621334,1,experience,"Deployed chef for configuration management infrastructure, Implemented auto environment creation using chef."
-R6,Deploy applications to WebLogic application servers,0.7663799855704414,0.36076348856246865,0.03584744742709889,1,experience,Configured application servers (WebLogic) to deploy the code.
-R7,Manage Kubernetes clusters,0.34786530290907663,0.34786530290907663,0.002275510566423833,,skill,Cloud bees Enterprise Jenkins
-R8,Develop data analysis solutions using Pandas,0.22866024296730963,0.20246279739924788,0.02619744556806175,,experience,"Coordinate with the Development, Database Administration, QA, and IT Operations teams to ensure there are no resource conflicts."

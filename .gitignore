@@ -9,3 +9,6 @@ venv/
 .env.*
 # Arquivos locais de sessão do Flask, que podem conter tokens
 /instance/
+
+# Relatorios gerados (podem conter dados pessoais de curriculos)
+/reports/

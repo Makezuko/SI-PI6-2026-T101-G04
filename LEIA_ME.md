@@ -2,7 +2,7 @@
 ```powershell
 python -m pip install "numpy>=1.24,<3" "matplotlib>=3.7,<4"
 python -m unittest discover -s tests -p "test_semantic_stage.py"
-python analisar_similaridade.py
+python -m scripts.analisar_similaridade
 Start-Process .\reports\semantic_ranking\relatorio.html
 ```
 Registre numpy e matplotlib no requirements.txt se ainda não estiverem presentes. Não remova scikit-learn do projeto se outras etapas o utilizam; esta etapa não o importa mais.

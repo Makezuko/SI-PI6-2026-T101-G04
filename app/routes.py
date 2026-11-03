@@ -169,7 +169,7 @@ def dashboard():
                            total_resumes='—', avg_match_rate='—')
 
 
-def read_job_form(known_ids=()):
+def read_job_form(known_ids=(), next_id=None):
     form = request.form
     values = {
         'title': form.get('title', '').strip(),
@@ -181,7 +181,7 @@ def read_job_form(known_ids=()):
     try:
         if 'req_text' in form:
             values['requirements'] = rows_from_form(form)
-            requirements = build_requirements(values['requirements'], known_ids)
+            requirements = build_requirements(values['requirements'], known_ids, next_id)
     except ValueError as exc:
         error = str(exc)
     return values, requirements, error
@@ -236,7 +236,8 @@ def editar_vaga(job_id):
     }
     error = None
     if request.method == 'POST':
-        values, requirements, error = read_job_form([item['id'] for item in previous_items])
+        values, requirements, error = read_job_form([item['id'] for item in previous_items],
+                                                  job['requirements_data'].get('proximo_id'))
         if not error:
             try:
                 update_job(g.supabase, job['id'], values['title'], values['description'],

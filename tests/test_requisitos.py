@@ -24,7 +24,7 @@ class RequisitosTestCase(unittest.TestCase):
 
     def test_blank_rows_only_gives_pending_empty(self):
         result = build_requirements([row(''), row('   ')])
-        self.assertEqual(result, {'versao': 2, 'status': 'pendente_revisao', 'items': []})
+        self.assertEqual(result, {'versao': 2, 'status': 'pendente_revisao', 'proximo_id': 1, 'items': []})
 
     def test_requires_valid_type_and_level(self):
         with self.assertRaises(ValueError):
@@ -48,6 +48,36 @@ class RequisitosTestCase(unittest.TestCase):
     def test_ids_are_kept_and_never_reused(self):
         result = build_requirements([row('A', id='R1'), row('Novo')], known_ids=['R1', 'R2'])
         self.assertEqual([i['id'] for i in result['items']], ['R1', 'R3'])
+
+    def test_removed_id_is_not_reused_after_serialization(self):
+        """R1=Python, R2=SQL; remove R2, grava, le de volta e adiciona Docker."""
+        first = build_requirements([row('Python'), row('SQL')])
+        self.assertEqual([i['id'] for i in first['items']], ['R1', 'R2'])
+
+        # Remove R2 e salva (a rota passa os ids e o contador gravados).
+        stored = parse_requirements(serialize(first))
+        second = build_requirements(
+            [row('Python', id='R1')],
+            known_ids=[i['id'] for i in stored['items']], next_id=stored.get('proximo_id'))
+        self.assertEqual(second['proximo_id'], 3)
+
+        # Nova edicao, so com o que restou gravado: Docker nao pode virar R2.
+        stored = parse_requirements(serialize(second))
+        third = build_requirements(
+            [row('Python', id='R1'), row('Docker')],
+            known_ids=[i['id'] for i in stored['items']], next_id=stored['proximo_id'])
+        self.assertEqual([i['id'] for i in third['items']], ['R1', 'R3'])
+
+    def test_counter_survives_removing_the_last_item(self):
+        stored = parse_requirements(serialize(build_requirements([row('A'), row('B')])))
+        emptied = build_requirements([], next_id=stored['proximo_id'])
+        self.assertEqual(emptied['proximo_id'], 3)
+        again = build_requirements([row('C')], next_id=parse_requirements(serialize(emptied))['proximo_id'])
+        self.assertEqual(again['items'][0]['id'], 'R3')
+
+    def test_parse_without_counter_derives_it_from_ids(self):
+        parsed = parse_requirements({'items': [{'id': 'R4', 'text': 'x'}]})
+        self.assertEqual(parsed['proximo_id'], 5)
 
     def test_duplicate_or_invalid_submitted_ids_are_reassigned(self):
         result = build_requirements([row('A', id='R1'), row('B', id='R1'), row('C', id='x')])

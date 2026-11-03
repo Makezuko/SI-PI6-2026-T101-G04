@@ -33,7 +33,7 @@ def _id_number(identifier):
     return int(match.group(1)) if match else None
 
 
-def _assign_ids(items, known_ids=()):
+def _assign_ids(items, known_ids=(), next_id=None):
     """Mantém ids válidos e únicos; atribui novos acima de qualquer id já usado."""
     used = {n for n in map(_id_number, known_ids) if n is not None}
     kept = set()
@@ -44,12 +44,21 @@ def _assign_ids(items, known_ids=()):
             used.add(number)
         else:
             item['id'] = None
-    next_number = max(used, default=0) + 1
+    # ``next_id`` e o contador persistido da vaga: nunca diminui, mesmo se o ultimo
+    # requisito foi removido, entao um id removido nao e reaproveitado.
+    next_number = max(max(used, default=0) + 1, next_id if isinstance(next_id, int) else 1)
     for item in items:
         if item['id'] is None:
             item['id'] = f'R{next_number}'
             next_number += 1
     return items
+
+
+def _next_id_counter(items, next_id=None):
+    """Contador a gravar: acima de todo id em uso e do contador anterior."""
+    numbers = [n for n in (_id_number(item['id']) for item in items) if n is not None]
+    previous = next_id if isinstance(next_id, int) and not isinstance(next_id, bool) else 1
+    return max(max(numbers, default=0) + 1, previous)
 
 
 def requirements_status(items):
@@ -64,7 +73,8 @@ def draft_from_description(description):
     lines = (clean_text(line) for line in description.splitlines())
     items = [{'id': f'R{i}', 'text': text, 'tipo': None, 'nivel': 'obrigatorio'}
              for i, text in enumerate((l for l in lines if l), 1)]
-    return {'versao': SCHEMA_VERSION, 'status': 'pendente_revisao', 'items': items}
+    return {'versao': SCHEMA_VERSION, 'status': 'pendente_revisao',
+            'proximo_id': len(items) + 1, 'items': items}
 
 
 def parse_requirements(raw):
@@ -93,8 +103,10 @@ def parse_requirements(raw):
             'tipo': entry.get('tipo') if entry.get('tipo') in TIPOS else None,
             'nivel': entry.get('nivel') if entry.get('nivel') in NIVEIS else 'obrigatorio',
         })
-    _assign_ids(items)
-    return {'versao': SCHEMA_VERSION, 'status': requirements_status(items), 'items': items}
+    stored_next = data.get('proximo_id')
+    _assign_ids(items, next_id=stored_next)
+    return {'versao': SCHEMA_VERSION, 'status': requirements_status(items),
+            'proximo_id': _next_id_counter(items, stored_next), 'items': items}
 
 
 def rows_from_form(form):
@@ -106,7 +118,7 @@ def rows_from_form(form):
             for identifier, text, tipo, nivel in zip(*columns)]
 
 
-def build_requirements(rows, known_ids=()):
+def build_requirements(rows, known_ids=(), next_id=None):
     """Valida as linhas e monta a estrutura a gravar.
 
     Linhas sem texto são ignoradas. ``known_ids`` são os ids já gravados na vaga,
@@ -132,8 +144,9 @@ def build_requirements(rows, known_ids=()):
         items.append({'id': row.get('id'), 'text': text, 'tipo': tipo, 'nivel': nivel})
     if len(items) > MAX_ITEMS:
         raise ValueError(f'Use no máximo {MAX_ITEMS} requisitos por vaga.')
-    _assign_ids(items, known_ids)
-    return {'versao': SCHEMA_VERSION, 'status': requirements_status(items), 'items': items}
+    _assign_ids(items, known_ids, next_id)
+    return {'versao': SCHEMA_VERSION, 'status': requirements_status(items),
+            'proximo_id': _next_id_counter(items, next_id), 'items': items}
 
 
 def serialize(requirements):

@@ -1,0 +1,53 @@
+﻿{
+  "dataset_note": "Piloto de desenvolvimento com o curr├¡culo real cv_001_23ef2a5f. Requisitos experimentais e anota├º├Áes iniciais propostas para revis├úo pela equipe. N├úo representa avalia├º├úo independente nem vaga real.",
+  "requirements": [
+    {
+      "id": "R1",
+      "text": "Docker",
+      "category": "literal",
+      "annotation_reason": "Docker aparece explicitamente nas compet├¬ncias."
+    },
+    {
+      "id": "R2",
+      "text": "Maven",
+      "category": "literal",
+      "annotation_reason": "Maven aparece na lista de compet├¬ncias e na experi├¬ncia."
+    },
+    {
+      "id": "R3",
+      "text": "Tomcat",
+      "category": "literal",
+      "annotation_reason": "Tomcat aparece na lista de compet├¬ncias e na experi├¬ncia."
+    },
+    {
+      "id": "R4",
+      "text": "Automate software builds and test execution with Jenkins",
+      "category": "contextual",
+      "annotation_reason": "A experi├¬ncia descreve configura├º├úo de Jenkins para automatizar builds, deployments e execu├º├úo de testes. Citar apenas Jenkins n├úo comprova essa atividade."
+    },
+    {
+      "id": "R5",
+      "text": "Create and configure server environments automatically using Chef",
+      "category": "paraphrase",
+      "annotation_reason": "A experi├¬ncia descreve cria├º├úo autom├ítica de ambientes e gerenciamento de configura├º├úo usando Chef."
+    },
+    {
+      "id": "R6",
+      "text": "Deploy applications to WebLogic application servers",
+      "category": "contextual",
+      "annotation_reason": "A experi├¬ncia informa configura├º├úo de WebLogic para implanta├º├úo de aplica├º├Áes."
+    },
+    {
+      "id": "R7",
+      "text": "Manage Kubernetes clusters",
+      "category": "related_but_unconfirmed",
+      "annotation_reason": "Docker e DevOps s├úo mencionados, mas n├úo h├í evid├¬ncia suficiente de gerenciamento de Kubernetes."
+    },
+    {
+      "id": "R8",
+      "text": "Develop data analysis solutions using Pandas",
+      "category": "no_evidence",
+      "annotation_reason": "O curr├¡culo n├úo apresenta evid├¬ncia suficiente de an├ílise de dados com Pandas."
+    }
+  ]
+}

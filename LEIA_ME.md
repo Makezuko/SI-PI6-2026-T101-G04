@@ -2,7 +2,7 @@
 ```powershell
 python -m pip install "numpy>=1.24,<3" "matplotlib>=3.7,<4"
 python -m unittest discover -s tests -p "test_semantic_stage.py"
-python analisar_similaridade.py
+python -m scripts.analisar_similaridade
 Start-Process .\reports\semantic_ranking\relatorio.html
 ```
 Registre numpy e matplotlib no requirements.txt se ainda não estiverem presentes. Não remova scikit-learn do projeto se outras etapas o utilizam; esta etapa não o importa mais.
@@ -43,3 +43,31 @@ Para ampliar: vários currículos/vagas; anotações revisadas pela equipe; caso
 Três testes determinísticos: cosseno e entradas inválidas; agrupamento de chunks; métricas com posições conhecidas e ausência de anotação. Geração do relatório conferida com fixture sintética, sem apresentar scores dela como saída real do modelo. Execute no seu ambiente para obter a inferência real.
 
 Referência: https://www.sbert.net/docs/sentence_transformer/usage/semantic_textual_similarity.html
+
+## Reprodução (gerar os embeddings antes da análise)
+O `analisar_similaridade` só lê um JSON de embeddings já pronto; ele não gera embeddings. Como `reports/` não é versionado (pode conter dados pessoais), cada pessoa precisa gerar esse arquivo localmente, nesta ordem, na raiz do projeto com venv ativo:
+
+```powershell
+# 1. Gera reports/resume_embeddings_example.json (currículo sintético, baixa o modelo na 1ª execução)
+python -m scripts.teste_embeddings
+
+# 2. Analisa os embeddings contra os requisitos anotados (examples/)
+python -m scripts.analisar_similaridade --resume reports/resume_embeddings_example.json --requirements examples/requisitos_exemplo.json
+```
+
+Para um currículo real (reports/ do próprio computador):
+```powershell
+# 1. Gera curriculo.txt, extracao.json e embeddings.json de uma amostra da validação
+python -m scripts.preparar_amostra_real --output-dir reports/amostra_real_validation
+# 2. Reprocessa com o extrator atual (v3/v4)
+python -m scripts.reprocessar_cv_existente --resume-dir reports/amostra_real_validation/cv_001_23ef2a5f
+# 3. Analisa usando o embeddings.json gerado e as anotações versionadas
+python -m scripts.analisar_similaridade --resume reports/amostra_real_validation_v3/cv_001_23ef2a5f/embeddings.json --requirements examples/requisitos_cv001_v4_anotacoes.json --output-dir reports/semantic_segmentation_v4_cv001_anotado
+```
+
+## Anotações manuais versionadas (`examples/`)
+As anotações são feitas à mão e **ficam versionadas** em `examples/`; `reports/` guarda só saídas geradas e é ignorado pelo Git.
+- `requisitos_exemplo.json`: 6 requisitos didáticos (currículo sintético).
+- `requisitos_cv001.json`: requisitos do currículo cv_001.
+- `requisitos_cv001_v3_sem_anotacoes.json`: requisitos de cv_001 sem gold (modo "não anotado").
+- `requisitos_cv001_v4_anotacoes.json`: requisitos de cv_001 com `acceptable_input_indices` revisados. Os índices dependem da segmentação v4; refaça a anotação se o extrator mudar.

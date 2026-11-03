@@ -1,9 +1,0 @@
-{
-  "windows": 99,
-  "documents": 33,
-  "evaluated_tokens": 35137,
-  "duplicate_token_occurrences_removed": 8448,
-  "ignored_special_tokens": 198,
-  "tokens_without_gold_label": 0,
-  "conflicting_gold_labels": 0
-}

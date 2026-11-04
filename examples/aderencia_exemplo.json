@@ -1,0 +1,34 @@
+{
+  "dataset_note": "Dados inteiramente sintéticos para demonstrar a fórmula. Não são resultados reais do modelo.",
+  "requirements": [
+    {"id": "R1", "text": "Develop services using Python", "tipo": "tecnico", "nivel": "obrigatorio"},
+    {"id": "R2", "text": "Query relational databases using SQL", "tipo": "tecnico", "nivel": "obrigatorio"},
+    {"id": "R3", "text": "Communicate project progress to the team", "tipo": "comportamental", "nivel": "desejavel"}
+  ],
+  "results": [
+    {
+      "id": "R1", "requirement": "Develop services using Python",
+      "top_similarity": 0.8, "skills_only_similarity": 0.7,
+      "ranking": [
+        {"text": "Developed a Python service in a fictional project.", "source": "project", "similarity": 0.8, "input_index": 0, "chunk_index": 0, "metadata": {}},
+        {"text": "Python", "source": "skill", "similarity": 0.7, "input_index": 1, "chunk_index": 0, "metadata": {}}
+      ]
+    },
+    {
+      "id": "R2", "requirement": "Query relational databases using SQL",
+      "top_similarity": 0.6, "skills_only_similarity": 0.6,
+      "ranking": [
+        {"text": "SQL", "source": "skill", "similarity": 0.6, "input_index": 2, "chunk_index": 0, "metadata": {}},
+        {"text": "Prepared reports in a fictional project.", "source": "project", "similarity": 0.3, "input_index": 3, "chunk_index": 0, "metadata": {}}
+      ]
+    },
+    {
+      "id": "R3", "requirement": "Communicate project progress to the team",
+      "top_similarity": 0.4, "skills_only_similarity": 0.1,
+      "ranking": [
+        {"text": "Presented weekly progress in a fictional team.", "source": "experience", "similarity": 0.4, "input_index": 4, "chunk_index": 0, "metadata": {}},
+        {"text": "Python", "source": "skill", "similarity": 0.1, "input_index": 1, "chunk_index": 0, "metadata": {}}
+      ]
+    }
+  ]
+}

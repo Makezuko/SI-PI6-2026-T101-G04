@@ -4,9 +4,21 @@ from flask import abort, g, redirect, render_template, request, session, url_for
 from supabase_auth.errors import AuthApiError
 
 from app import app
-from app.repositories import LegacyProfileError, create_job, ensure_profile, get_job, list_jobs, update_job
+from app.repositories import (
+    LegacyProfileError,
+    create_job,
+    create_resume,
+    ensure_profile,
+    get_job,
+    get_resume,
+    list_jobs,
+    list_resumes,
+    update_job,
+    update_resume_status,
+)
 from app.requisitos import NIVEIS, STATUS_VAGA, TIPOS, build_requirements, rows_from_form
 from app.supabase_client import create_supabase_client
+from src.data.clean import parse_resume_pdf
 
 
 def remember_tokens(auth_session):
@@ -21,7 +33,6 @@ def finish_login(client, response):
     if not verified:
         raise ValueError('Não foi possível verificar a sessão.')
     profile = ensure_profile(client, verified)
-    # Tokens ficam na sessão do servidor; o cookie contém somente seu identificador.
     session.clear()
     session['auth_user_id'] = str(verified.id)
     app.session_interface.regenerate(session)
@@ -164,9 +175,10 @@ def database_job(job_id):
 @login_required
 def dashboard():
     jobs = database_jobs()
+    total_resumes = sum(job.get('candidate_count', 0) for job in jobs)
     return render_template('dashboard.html', active_page='dashboard', jobs=jobs,
-                           open_jobs_count=sum(job['status']=='Aberta' for job in jobs),
-                           total_resumes='—', avg_match_rate='—')
+                           open_jobs_count=sum(job['status'] == 'Aberta' for job in jobs),
+                           total_resumes=total_resumes if total_resumes else '—', avg_match_rate='—')
 
 
 def read_job_form(known_ids=(), next_id=None):
@@ -219,8 +231,9 @@ def vagas(job_id=None):
     if job_id is None:
         return redirect(url_for('vagas', job_id=jobs[0]['id'])) if jobs else redirect(url_for('nova_vaga'))
     job = database_job(job_id)
+    candidates = list_resumes(g.supabase, job['id'])
     return render_template('vagas.html', active_page='candidatos', job=job,
-                           jobs=jobs, candidates=[])
+                           jobs=jobs, candidates=candidates)
 
 
 @app.route('/vagas/<job_id>/editar', methods=['GET', 'POST'])
@@ -275,21 +288,68 @@ def configuracoes():
 @login_required
 def adicionar_curriculos(job_id):
     job = database_job(job_id)
+    candidates = list_resumes(g.supabase, job['id'])
+
     if request.method == 'POST':
-        abort(501, description='Vaga salva no banco. Upload e análise de currículos ainda aguardam a próxima integração; nenhum candidato foi criado.')
+        uploaded = request.files.getlist('files')
+        valid_files = [f for f in uploaded if f and f.filename and f.filename.strip()]
+        selected_ids = set(request.form.getlist('selected_candidates'))
+
+        if not valid_files and not selected_ids:
+            abort(400, description='Selecione ao menos um arquivo PDF ou currículo existente.')
+
+        for cid in selected_ids:
+            try:
+                update_resume_status(g.supabase, job['id'], cid, 'Analisado')
+            except Exception as error:
+                app.logger.warning('Falha ao atualizar status do candidato %s: %s', cid, type(error).__name__)
+
+        for file_storage in valid_files:
+            lower_name = file_storage.filename.lower()
+            if not lower_name.endswith('.pdf'):
+                abort(400, description=f'Arquivo inválido: {file_storage.filename}. Envie arquivos no formato PDF.')
+            try:
+                parsed = parse_resume_pdf(file_storage, filename=file_storage.filename)
+            except Exception as error:
+                app.logger.warning('Falha ao processar PDF %s: %s', file_storage.filename, type(error).__name__)
+                abort(400, description=f'Não foi possível extrair texto de {file_storage.filename}: {error}')
+
+            try:
+                create_resume(g.supabase, job['id'], parsed['filename'], parsed['raw_text'], parsed['anonymized_text'], status='Analisado')
+            except Exception as error:
+                app.logger.warning('Falha ao gravar currículo: %s', type(error).__name__)
+                abort(503, description='Não foi possível salvar os currículos no banco.')
+
+        return redirect(url_for('vagas', job_id=job['id']))
+
     return render_template('adicionar_curriculos.html', active_page='candidatos',
-                           job=job, jobs=database_jobs(), candidates=[])
+                           job=job, jobs=database_jobs(), candidates=candidates)
 
 
 @app.route('/vagas/<job_id>/candidato/<candidate_id>')
 @login_required
 def candidato_detalhe(job_id, candidate_id):
-    database_job(job_id)
-    abort(404, description='Nenhum candidato foi integrado a esta vaga nesta etapa.')
+    job = database_job(job_id)
+    try:
+        candidate = get_resume(g.supabase, job['id'], candidate_id)
+    except Exception as error:
+        app.logger.warning('Falha ao consultar candidato: %s', type(error).__name__)
+        abort(503, description='Não foi possível consultar os dados do candidato.')
+    if candidate is None:
+        abort(404, description='Candidato não encontrado nesta vaga.')
+    return render_template('candidato.html', active_page='candidatos', job=job, candidate=candidate)
 
 
 @app.route('/vagas/<job_id>/candidato/<candidate_id>/status', methods=['POST'])
 @login_required
 def atualizar_status_candidato(job_id, candidate_id):
-    database_job(job_id)
-    abort(501, description='Persistência de candidatos ainda não integrada.')
+    job = database_job(job_id)
+    new_status = request.form.get('status')
+    try:
+        update_resume_status(g.supabase, job['id'], candidate_id, new_status)
+    except (ValueError, LookupError) as error:
+        abort(400, description=str(error))
+    except Exception as error:
+        app.logger.warning('Falha ao atualizar status: %s', type(error).__name__)
+        abort(503, description='Não foi possível atualizar o status do candidato.')
+    return redirect(url_for('candidato_detalhe', job_id=job['id'], candidate_id=candidate_id))

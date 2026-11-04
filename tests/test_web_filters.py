@@ -39,26 +39,38 @@ class FakeQuery:
 
     def execute(self):
         db, uid = self.client.db, self.client.uid
+        profile_ids = {r['id'] for r in db['profiles'] if r['auth_user_id'] == uid}
+        job_ids = {r['id'] for r in db['jobs'] if r['criado_por'] in profile_ids}
+
         if self.table_name == 'usuarios':
             rows = db['profiles']
             visible = [r for r in rows if r['auth_user_id'] == uid]
-        else:
+        elif self.table_name == 'vagas':
             rows = db['jobs']
-            profile_ids = {r['id'] for r in db['profiles'] if r['auth_user_id'] == uid}
             visible = [r for r in rows if r['criado_por'] in profile_ids]
+        else:
+            rows = db.setdefault('resumes', [])
+            visible = [r for r in rows if r.get('vaga_id') in job_ids]
+
         if self.payload is not None:
             if self.table_name == 'vagas' and db.get('fail_insert'):
+                raise RuntimeError('database unavailable')
+            if self.table_name == 'curriculos' and db.get('fail_insert_resumes'):
                 raise RuntimeError('database unavailable')
             value = dict(self.payload)
             if self.table_name == 'usuarios':
                 assert value['auth_user_id'] == uid
                 assert self.returning == 'minimal', 'Não retornar senha_hash na criação de perfil.'
-            else:
+            elif self.table_name == 'vagas':
                 assert value['criado_por'] in profile_ids
-            value.update(id=len(rows)+1, criado_em='2026-10-22T10:00:00')
+            else:
+                assert value['vaga_id'] in job_ids
+            value.update(id=len(rows)+1, enviado_em='2026-10-22T10:00:00')
             if self.table_name == 'vagas': value['status'] = 'Aberta'
+            if self.table_name == 'curriculos': value.setdefault('status', 'Analisado')
             rows.append(value)
             return SimpleNamespace(data=[] if self.returning == 'minimal' else [dict(value)])
+
         for key, value in self.filters.items():
             visible = [r for r in visible if str(r.get(key)) == str(value)]
         if self.update_payload is not None:
@@ -110,7 +122,7 @@ class WebFiltersTestCase(unittest.TestCase):
         from cachelib import FileSystemCache
         self.previous_cache=app.session_interface.cache
         app.session_interface.cache=FileSystemCache(self.tmp.name, mode=0o600)
-        self.db={'profiles':[], 'jobs':[], 'users':{
+        self.db={'profiles':[], 'jobs':[], 'resumes':[], 'users':{
             'u1':{'email':'ana@example.test','password':'password1'},
             'u2':{'email':'bia@example.test','password':'password2'},
         }}
@@ -176,10 +188,37 @@ class WebFiltersTestCase(unittest.TestCase):
         self.login()
         self.assertEqual(self.post('/nova-vaga',{'title':'','description':''}).status_code,400)
         self.assertFalse(self.db['jobs'])
-    def test_no_fake_upload(self):
+    def test_no_fake_upload_without_files(self):
         self.login();self.create()
-        response=self.post('/vagas/1/adicionar-curriculos',{'selected_candidates':['5']})
-        self.assertEqual(response.status_code,501)
+        response=self.post('/vagas/1/adicionar-curriculos',{})
+        self.assertEqual(response.status_code,400)
+
+    def test_pdf_upload_to_job(self):
+        from test_pdf_upload import make_sample_pdf
+        import io
+        self.login();self.create()
+        pdf_bytes = make_sample_pdf(['Marcos Lima', 'marcos@test.com', 'TECHNICAL SKILLS', 'Python, Docker', 'EXPERIENCE', 'Dev Python'])
+        data = {'files': (io.BytesIO(pdf_bytes), 'marcos_cv.pdf')}
+        response = self.client.post('/vagas/1/adicionar-curriculos', data=data, content_type='multipart/form-data', headers={'Origin': 'http://localhost'})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(len(self.db['resumes']), 1)
+        saved = self.db['resumes'][0]
+        self.assertEqual(saved['nome_arquivo'], 'marcos_cv.pdf')
+        self.assertEqual(saved['vaga_id'], 1)
+        self.assertIn('[E-MAIL OCULTO]', saved['texto_anonimizado'])
+
+        vagas_page = self.client.get('/vagas/1').data.decode('utf-8')
+        self.assertIn('Marcos Lima', vagas_page)
+        self.assertIn('marcos_cv.pdf', vagas_page)
+
+        detalhe_page = self.client.get('/vagas/1/candidato/1').data.decode('utf-8')
+        self.assertIn('Marcos Lima', detalhe_page)
+        self.assertIn('marcos@test.com', detalhe_page)
+
+        status_update = self.post('/vagas/1/candidato/1/status', {'status': 'Aprovado'})
+        self.assertEqual(status_update.status_code, 302)
+        self.assertEqual(self.db['resumes'][0]['status'], 'Aprovado')
+
     def test_original_filters_render(self):
         self.login();self.create()
         page=self.client.get('/vagas/1').data.decode()

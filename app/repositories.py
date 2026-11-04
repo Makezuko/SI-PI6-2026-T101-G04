@@ -16,10 +16,31 @@ class LegacyProfileError(Exception):
     pass
 
 
+def update_profile(client, profile_id, auth_user_id, values):
+    allowed_fields = {'email', 'nome', 'empresa'}
+    if not values or not set(values).issubset(allowed_fields):
+        raise ValueError('Campos de perfil inválidos.')
+    response = (
+        client.table('usuarios')
+        .update(values)
+        .eq('id', profile_id)
+        .eq('auth_user_id', str(auth_user_id))
+        .select(PROFILE_FIELDS)
+        .execute()
+    )
+    if not response.data:
+        raise LookupError('Nenhum perfil foi atualizado. Confira a migração de edição de perfil.')
+    return response.data[0]
+
+
 def ensure_profile(client, user):
     response = client.table('usuarios').select(PROFILE_FIELDS).eq('auth_user_id', str(user.id)).limit(1).execute()
     if response.data:
-        return response.data[0]
+        profile = response.data[0]
+        email = user.email.lower()
+        if (profile.get('email') or '').lower() != email:
+            profile = update_profile(client, profile['id'], user.id, {'email': email})
+        return profile
     metadata = user.user_metadata or {}
     try:
         response = client.table('usuarios').insert({

@@ -41,12 +41,18 @@ def ensure_profile(client, user):
     return response.data[0]
 
 
-def job_for_template(row):
-    date = row.get('criado_em')
+def format_display_date(value):
+    """Formata uma data ISO para DD/MM/AAAA."""
+    if not value:
+        return '—'
     try:
-        display_date = datetime.fromisoformat(date.replace('Z', '+00:00')).strftime('%d/%m/%Y') if date else '—'
+        return datetime.fromisoformat(value.replace('Z', '+00:00')).strftime('%d/%m/%Y')
     except (ValueError, AttributeError):
-        display_date = '—'
+        return '—'
+
+
+def job_for_template(row):
+    display_date = format_display_date(row.get('criado_em'))
     requirements = parse_requirements(row.get('requisitos'))
     items = requirements['items']
     return {
@@ -64,11 +70,7 @@ def job_for_template(row):
 
 
 def resume_for_template(row):
-    date = row.get('enviado_em')
-    try:
-        display_date = datetime.fromisoformat(date.replace('Z', '+00:00')).strftime('%d/%m/%Y') if date else '—'
-    except (ValueError, AttributeError):
-        display_date = '—'
+    display_date = format_display_date(row.get('enviado_em'))
 
     text = row.get('texto_extraido') or ''
     filename = row.get('nome_arquivo') or 'curriculo.pdf'

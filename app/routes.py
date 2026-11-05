@@ -1,6 +1,7 @@
+import re
 from functools import wraps
 
-from flask import abort, g, redirect, render_template, request, session, url_for
+from flask import abort, flash, g, redirect, render_template, request, session, url_for
 from supabase_auth.errors import AuthApiError
 
 from app import app
@@ -14,6 +15,7 @@ from app.repositories import (
     list_jobs,
     list_resumes,
     update_job,
+    update_profile,
     update_resume_status,
 )
 from app.requisitos import NIVEIS, STATUS_VAGA, TIPOS, build_requirements, rows_from_form
@@ -281,7 +283,96 @@ def candidatos():
 @app.route('/configuracoes')
 @login_required
 def configuracoes():
-    return render_template('configuracoes.html', active_page='configuracoes')
+    return redirect(url_for('editar_perfil'))
+
+
+@app.route('/perfil', methods=['GET', 'POST'])
+@login_required
+def editar_perfil():
+    form = {
+        'name': g.profile.get('nome') or '',
+        'email': g.profile.get('email') or '',
+        'company': g.profile.get('empresa') or '',
+    }
+    if request.method == 'POST':
+        form.update({
+            'name': request.form.get('name', '').strip(),
+            'email': request.form.get('email', '').strip().lower(),
+            'company': request.form.get('company', '').strip(),
+        })
+        password = request.form.get('password', '')
+        password_confirm = request.form.get('password_confirm', '')
+        error = None
+
+        if not all(form.values()):
+            error = 'Preencha nome, e-mail e empresa.'
+        elif len(form['name']) > 120 or len(form['company']) > 120:
+            error = 'Nome e empresa devem ter no máximo 120 caracteres.'
+        elif len(form['email']) > 254 or not re.fullmatch(r'[^@\s]+@[^@\s]+\.[^@\s]+', form['email']):
+            error = 'Informe um endereço de e-mail válido.'
+        elif password and password != password_confirm:
+            error = 'As senhas não coincidem.'
+        elif password and (len(password) < 8 or len(password) > 128):
+            error = 'A nova senha deve ter entre 8 e 128 caracteres.'
+
+        if error:
+            return render_template('editar_perfil.html', active_page='configuracoes',
+                                   form=form, error=error), 400
+
+        profile_changes = {}
+        if form['name'] != (g.profile.get('nome') or ''):
+            profile_changes['nome'] = form['name']
+        if form['company'] != (g.profile.get('empresa') or ''):
+            profile_changes['empresa'] = form['company']
+        if form['email'] != (g.profile.get('email') or '').lower():
+            profile_changes['email'] = form['email']
+
+        attributes = {}
+        if 'nome' in profile_changes or 'empresa' in profile_changes:
+            attributes['data'] = {'name': form['name'], 'company': form['company']}
+        if 'email' in profile_changes:
+            attributes['email'] = form['email']
+        if password:
+            attributes['password'] = password
+
+        try:
+            if attributes:
+                response = g.supabase.auth.update_user(attributes)
+                if not response.user:
+                    raise RuntimeError('Supabase não retornou o usuário atualizado.')
+                if 'email' in profile_changes:
+                    effective_email = (response.user.email or g.profile['email']).lower()
+                    profile_changes['email'] = effective_email
+            updated_profile = g.profile
+            if profile_changes:
+                updated_profile = update_profile(
+                    g.supabase, g.profile['id'], session['auth_user_id'], profile_changes,
+                )
+        except AuthApiError:
+            return render_template(
+                'editar_perfil.html', active_page='configuracoes', form=form,
+                error='Não foi possível atualizar o perfil. Confira o e-mail e os requisitos da nova senha.',
+            ), 400
+        except Exception as error:
+            app.logger.warning(
+                'Falha ao atualizar perfil (%s, código=%s): %s',
+                type(error).__name__,
+                getattr(error, 'code', None),
+                getattr(error, 'message', str(error)),
+            )
+            abort(503, description='Não foi possível confirmar a atualização do perfil. Reabra a tela antes de tentar novamente.')
+
+        g.profile = updated_profile
+        session['user_name'] = updated_profile['nome']
+        session['user_email'] = updated_profile['email']
+        session['user_initials'] = ''.join(part[0] for part in updated_profile['nome'].split()[:2]).upper()
+        if updated_profile['email'] != form['email']:
+            flash('Perfil atualizado. Confirme o link enviado ao novo e-mail para concluir a alteração.', 'success')
+        else:
+            flash('Perfil atualizado com sucesso.', 'success')
+        return redirect(url_for('editar_perfil'))
+
+    return render_template('editar_perfil.html', active_page='configuracoes', form=form, error=None)
 
 
 @app.route('/vagas/<job_id>/adicionar-curriculos', methods=['GET', 'POST'])

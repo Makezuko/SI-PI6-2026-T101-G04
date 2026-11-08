@@ -33,7 +33,7 @@ class FakeQuery:
         self.payload, self.returning = value, returning
         return self
     def update(self, value):
-        assert set(value) <= {'titulo', 'descricao', 'requisitos', 'status'}
+        assert set(value) <= {'titulo', 'descricao', 'requisitos', 'status', 'email', 'nome', 'empresa'}
         self.update_payload = value
         return self
 
@@ -77,6 +77,12 @@ class FakeQuery:
             if db.get('fail_update'):
                 raise RuntimeError('database unavailable')
             for row in visible: row.update(self.update_payload)
+            if self.columns:
+                selected_columns = self.columns.split(',')
+                visible = [
+                    {key: row[key] for key in selected_columns if key in row}
+                    for row in visible
+                ]
             return SimpleNamespace(data=[dict(r) for r in visible])
         if self.desc: visible = sorted(visible, key=lambda r:r['id'], reverse=True)
         if self.bounds: visible = visible[self.bounds[0]:self.bounds[1]+1]
@@ -112,6 +118,17 @@ class FakeClient:
         self.uid = 'new-user'
         self.db['users'][self.uid] = {'email':values['email'], 'password':values['password'], 'metadata':values['options']['data']}
         return self.response()
+    def update_user(self, attributes):
+        if self.db.get('fail_auth_update'):
+            raise AuthApiError('invalid', 400, 'validation_failed')
+        info = self.db['users'][self.uid]
+        if 'email' in attributes:
+            info['email'] = attributes['email']
+        if 'password' in attributes:
+            info['password'] = attributes['password']
+        if 'data' in attributes:
+            info['metadata'] = attributes['data']
+        return SimpleNamespace(user=self.user())
     def sign_out(self, *args): pass
 
 
@@ -156,6 +173,59 @@ class WebFiltersTestCase(unittest.TestCase):
         self.assertNotIn('senha_hash',self.db['profiles'][0])
         self.assertNotIn('access-u1',str(response.headers.getlist('Set-Cookie')))
         self.assertEqual(self.client.get('/').status_code,200)
+    def test_edit_profile_page_shows_current_values(self):
+        self.login()
+        response=self.client.get('/perfil')
+        page=response.data.decode()
+        self.assertEqual(response.status_code,200)
+        self.assertIn('name="name" value="ana"',page)
+        self.assertIn('name="email" value="ana@example.test"',page)
+        self.assertIn('name="company" value=""',page)
+        self.assertIn('name="password"',page)
+        self.assertIn('href="/logout"',page)
+        self.assertGreater(page.index('Salvar alterações'), page.index('Alterar senha'))
+        self.assertGreater(page.index('Sair da conta'), page.index('Salvar alterações'))
+        self.assertIn('class="profile-logout-link"',page)
+    def test_configuracoes_opens_profile_page(self):
+        self.login()
+        response=self.client.get('/configuracoes')
+        self.assertEqual(response.status_code,302)
+        self.assertEqual(response.headers['Location'],'/perfil')
+    def test_edit_profile_updates_auth_and_profile(self):
+        self.login()
+        self.db['profiles'][0]['senha_hash']='legacy-hash'
+        response=self.post('/perfil',{
+            'name':'Ana Silva','email':'ana.silva@example.test','company':'Empresa Nova',
+            'password':'newpassword1','password_confirm':'newpassword1',
+        })
+        self.assertEqual(response.status_code,302)
+        self.assertEqual(self.db['users']['u1']['email'],'ana.silva@example.test')
+        self.assertEqual(self.db['users']['u1']['password'],'newpassword1')
+        self.assertEqual(self.db['users']['u1']['metadata'],{'name':'Ana Silva','company':'Empresa Nova'})
+        profile=self.db['profiles'][0]
+        self.assertEqual((profile['nome'],profile['email'],profile['empresa']),
+                         ('Ana Silva','ana.silva@example.test','Empresa Nova'))
+        with self.client.session_transaction() as sess:
+            self.assertEqual(sess['user_name'],'Ana Silva')
+            self.assertEqual(sess['user_email'],'ana.silva@example.test')
+    def test_password_change_does_not_require_profile_database_update(self):
+        self.login()
+        self.db['profiles'][0]['empresa']='Empresa'
+        self.db['fail_update']=True
+        response=self.post('/perfil',{
+            'name':'ana','email':'ana@example.test','company':'Empresa',
+            'password':'newpassword1','password_confirm':'newpassword1',
+        })
+        self.assertEqual(response.status_code,302)
+        self.assertEqual(self.db['users']['u1']['password'],'newpassword1')
+    def test_edit_profile_rejects_mismatched_passwords(self):
+        self.login()
+        response=self.post('/perfil',{
+            'name':'Ana','email':'ana@example.test','company':'Empresa',
+            'password':'newpassword1','password_confirm':'different',
+        })
+        self.assertEqual(response.status_code,400)
+        self.assertEqual(self.db['users']['u1']['password'],'password1')
     def test_create_and_reopen_job(self):
         self.login();response=self.create()
         self.assertEqual(response.status_code,302)

@@ -15,7 +15,8 @@ Este pacote foi preparado para o esquema SQL enviado e os códigos atuais da equ
 
 1. Faça um commit ou cópia dos arquivos locais antes de substituí-los. Copie app/__init__.py, app/supabase_client.py, app/routes.py, app/repositories.py, tests/test_web_filters.py e requirements.backend.txt para os mesmos caminhos no projeto. O arquivo de teste substitui o antigo teste que dependia de candidatos fictícios.
 2. No SQL Editor do Supabase, execute o conteúdo completo de sql/001_auth_vagas.sql. É uma migração, não uma consulta de inspeção. Ela adiciona auth_user_id, nome e empresa a usuarios e status a vagas; torna senha_hash opcional; adiciona grants e políticas apenas para usuarios/vagas. Não apaga dados, não altera IDs existentes e mantém RLS ligado. Currículos/análises continuam bloqueados como antes, até sua integração.
-3. Na raiz, instale:
+3. Para habilitar a tela de edição de perfil, execute também sql/003_editar_perfil.sql no SQL Editor. Ela permite que cada usuário atualize somente seu próprio e-mail, nome e empresa em usuarios, mantendo RLS ativo.
+4. Na raiz, instale:
 
 ```powershell
 .\venv\Scripts\python.exe -m pip install -r requirements.backend.txt
@@ -23,7 +24,7 @@ Este pacote foi preparado para o esquema SQL enviado e os códigos atuais da equ
 
 Se o seu ambiente se chama .venv, use .\.venv\Scripts\python.exe. Mantenha também os requirements.txt existentes: este arquivo é complementar. A versão testada do cliente foi supabase 2.33.0 com Flask 3.1.3 e Flask-Session 0.8.0.
 
-4. No .env já existente, mantenha SUPABASE_URL e SUPABASE_KEY (sb_publishable_) e acrescente FLASK_SECRET_KEY com uma chave aleatória. Gere localmente:
+5. No .env já existente, mantenha SUPABASE_URL e SUPABASE_KEY (sb_publishable_) e acrescente FLASK_SECRET_KEY com uma chave aleatória. Gere localmente:
 
 ```powershell
 .\venv\Scripts\python.exe -c "import secrets; print(secrets.token_hex(32))"
@@ -31,13 +32,13 @@ Se o seu ambiente se chama .venv, use .\.venv\Scripts\python.exe. Mantenha tamb�
 
 Copie a saída para FLASK_SECRET_KEY no seu .env, sem aspas desnecessárias. Não cole a chave no chat nem no Git. SESSION_COOKIE_SECURE=false é adequado para localhost via HTTP; use true quando publicar com HTTPS.
 
-5. Acrescente instance/ ao .gitignore, pois contém as sessões locais. Pode usar:
+6. Acrescente instance/ ao .gitignore, pois contém as sessões locais. Pode usar:
 
 ```powershell
 Add-Content .gitignore "`ninstance/"
 ```
 
-6. Rode:
+7. Rode:
 
 ```powershell
 .\venv\Scripts\python.exe -m unittest discover -s tests -p "test_web_filters.py"

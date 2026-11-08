@@ -96,3 +96,4 @@ As alterações e análises documentadas nesta seção estão relacionadas aos s
 - **[PR #21 — Contexto do sistema e atributos de qualidade](https://github.com/Makezuko/SI-PI6-2026-T101-G04/pull/21):** documentação do contexto do TalentMatch AI e dos atributos de qualidade que orientam as decisões arquiteturais.
 
 **Observação:** o PR #23 apresenta uma melhoria pontual relacionada ao SRP. Os princípios OCP, LSP, ISP e DIP ainda dependem de evidências adicionais de implementação, que deverão ser referenciadas conforme as contribuições dos demais integrantes forem concluídas.
+

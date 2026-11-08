@@ -87,7 +87,12 @@ A melhoria de SRP é localizada. OCP, LSP e ISP não possuem demonstração sufi
 
 ### Pull Requests
 
-- PR desta contribuição: **[inserir link após abertura manual]**.
-- PRs do grupo com evidências adicionais de SOLID ou padrões: **[inserir links após verificar o código e os testes correspondentes]**.
+As alterações e análises documentadas nesta seção estão relacionadas aos seguintes Pull Requests:
 
-Nenhum commit, push ou PR foi realizado automaticamente. A análise não presume implementações presentes em branches ou PRs não examinados.
+- **[PR #23 — Refatoração SRP, testes automatizados e documentação SOLID](https://github.com/Makezuko/SI-PI6-2026-T101-G04/pull/23):** implementação da função `format_display_date()`, reutilização nas funções `job_for_template()` e `resume_for_template()`, criação de sete testes automatizados e análise dos cinco princípios SOLID.
+
+- **[PR #22 — Documentação arquitetural e ADR-0001](https://github.com/Makezuko/SI-PI6-2026-T101-G04/pull/22):** registro da decisão de manter uma aplicação web modular, priorizando a separação de responsabilidades e a evolução gradual da arquitetura.
+
+- **[PR #21 — Contexto do sistema e atributos de qualidade](https://github.com/Makezuko/SI-PI6-2026-T101-G04/pull/21):** documentação do contexto do TalentMatch AI e dos atributos de qualidade que orientam as decisões arquiteturais.
+
+**Observação:** o PR #23 apresenta uma melhoria pontual relacionada ao SRP. Os princípios OCP, LSP, ISP e DIP ainda dependem de evidências adicionais de implementação, que deverão ser referenciadas conforme as contribuições dos demais integrantes forem concluídas.

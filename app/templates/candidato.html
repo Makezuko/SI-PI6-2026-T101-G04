@@ -11,8 +11,7 @@
 {% endblock %}
 
 {% block content %}
-{% set level = 'high' if candidate.score >= 80 else ('mid' if candidate.score >= 60 else 'low') %}
-{% set label = 'Alta aderência' if candidate.score >= 80 else ('Média aderência' if candidate.score >= 60 else 'Baixa aderência') %}
+{% set level = 'mid' %}
 
 <div class="cand-detail">
   <div class="cand-detail-card">
@@ -24,10 +23,10 @@
             <div class="cand-detail-name" style="margin-bottom:0">{{ candidate.name }}</div>
             {% set status_class = candidate.status|lower %}
             <span class="status-badge {{ status_class }}">
-              <span></span>{{ candidate.status }}
+              <span></span>Decisão: {{ candidate.status }} · Análise: {{ candidate.analysis_state }}
             </span>
           </div>
-          <span class="cand-detail-badge {{ level }}" style="margin-top:6px;">{{ candidate.score }}% — {{ label }}</span>
+          <span class="cand-detail-badge {{ level }}" style="margin-top:6px;">{{ '%.2f/100'|format(candidate.score) if candidate.score is not none else candidate.analysis_state }}</span>
         </div>
       </div>
       <a href="{{ url_for('vagas', job_id=job.id) }}" class="cand-detail-close">
@@ -37,9 +36,9 @@
 
     <div class="cand-detail-body">
       <div class="adherence-box">
-        <div class="adherence-top"><span>Índice de Aderência</span><b>{{ candidate.score }}%</b></div>
+        <div class="adherence-top"><span>Índice de compatibilidade semântica</span><b>{{ '%.2f/100'|format(candidate.score) if candidate.score is not none else candidate.analysis_state }}</b></div>
         <div class="adherence-track">
-          <div class="adherence-fill fill-{{ level }}" data-score="{{ candidate.score }}"></div>
+          <div class="adherence-fill fill-{{ level }}" data-score="{{ candidate.score if candidate.score is not none else 0 }}"></div>
           <script>
             const adherenceFill = document.currentScript.previousElementSibling;
             adherenceFill.style.width = `${adherenceFill.dataset.score}%`;
@@ -74,27 +73,20 @@
       </div>
 
       <div>
-        <div class="section-label">Requisitos Atendidos</div>
+        <div class="section-label">Evidências por requisito</div>
         <div class="req-list">
-          {% for item in candidate.met %}
-          <div class="req-item ok">
-            <span class="req-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></span>
-            {{ item }}
+          {% for item in (candidate.analysis.details if candidate.analysis else []) %}
+          <div class="req-item">
+            {{ item.text }} — {{ item.best_evidence.text if item.best_evidence else 'Sem evidência recuperada' }}
+            · Origem: {{ item.best_evidence.source if item.best_evidence else 'Indisponível' }}
+            · Cosseno: {{ '%.4f'|format(item.original_cosine) if item.original_cosine is not none else 'Indisponível' }}
           </div>
           {% endfor %}
         </div>
       </div>
-
       <div>
-        <div class="section-label">Requisitos Ausentes</div>
-        <div class="req-list">
-          {% for item in candidate.missing %}
-          <div class="req-item bad">
-            <span class="req-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span>
-            {{ item }}
-          </div>
-          {% endfor %}
-        </div>
+        <div class="section-label">Limitações</div>
+        <div class="req-list">Proximidade textual não confirma competência ou ausência de requisitos. Requer revisão humana. Qualidade em português não validada.</div>
       </div>
 
       <div>

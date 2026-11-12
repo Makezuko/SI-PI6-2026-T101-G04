@@ -32,6 +32,10 @@ class FakeQuery:
     def insert(self, value, returning='representation'):
         self.payload, self.returning = value, returning
         return self
+    def upsert(self, value, on_conflict):
+        self.conflict_fields = on_conflict.split(',')
+        self.payload = value
+        return self
     def update(self, value):
         assert set(value) <= {'titulo', 'descricao', 'requisitos', 'status', 'email', 'nome', 'empresa'}
         self.update_payload = value
@@ -48,6 +52,9 @@ class FakeQuery:
         elif self.table_name == 'vagas':
             rows = db['jobs']
             visible = [r for r in rows if r['criado_por'] in profile_ids]
+        elif self.table_name == 'analises_aderencia':
+            rows = db.setdefault('analyses', [])
+            visible = [r for r in rows if r.get('vaga_id') in job_ids]
         else:
             rows = db.setdefault('resumes', [])
             visible = [r for r in rows if r.get('vaga_id') in job_ids]
@@ -58,6 +65,11 @@ class FakeQuery:
             if self.table_name == 'curriculos' and db.get('fail_insert_resumes'):
                 raise RuntimeError('database unavailable')
             value = dict(self.payload)
+            if hasattr(self, 'conflict_fields'):
+                for row in visible:
+                    if all(row.get(key) == value.get(key) for key in self.conflict_fields):
+                        row.update(value)
+                        return SimpleNamespace(data=[dict(row)])
             if self.table_name == 'usuarios':
                 assert value['auth_user_id'] == uid
                 assert self.returning == 'minimal', 'Não retornar senha_hash na criação de perfil.'

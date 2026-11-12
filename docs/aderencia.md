@@ -1,5 +1,8 @@
 # SP2TG-27 — Índice de compatibilidade semântica
 
+O fluxo web está descrito em [integração de aderência](integracao-aderencia.md),
+incluindo migração incremental, configuração e roteiro de teste manual.
+
 O índice de 0 a 100 apoia a priorização pelo recrutador a partir das
 similaridades entre requisitos e evidências já recuperadas. Não é porcentagem
 de requisitos atendidos, probabilidade de qualificação ou aprovação. Não há

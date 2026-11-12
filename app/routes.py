@@ -4,8 +4,10 @@ from functools import wraps
 from flask import abort, flash, g, redirect, render_template, request, session, url_for
 from supabase_auth.errors import AuthApiError
 
+from app.analysis import AnalysisError, attach_analysis, process_resume
 from app import app
 from app.repositories import (
+    AnalysisSchemaError,
     LegacyProfileError,
     create_job,
     create_resume,
@@ -21,6 +23,11 @@ from app.repositories import (
 from app.requisitos import NIVEIS, STATUS_VAGA, TIPOS, build_requirements, rows_from_form
 from app.supabase_client import create_supabase_client
 from src.data.clean import parse_resume_pdf
+
+
+@app.errorhandler(AnalysisSchemaError)
+def analysis_schema_error(error):
+    return str(error), 503
 
 
 def remember_tokens(auth_session):
@@ -178,9 +185,13 @@ def database_job(job_id):
 def dashboard():
     jobs = database_jobs()
     total_resumes = sum(job.get('candidate_count', 0) for job in jobs)
+    scores = []
+    for job in jobs:
+        scores.extend(c['score'] for c in attach_analysis(g.supabase, job, list_resumes(g.supabase, job['id'])) if c['score'] is not None)
+    average = f'{sum(scores) / len(scores):.2f}/100' if scores else 'Indisponível'
     return render_template('dashboard.html', active_page='dashboard', jobs=jobs,
                            open_jobs_count=sum(job['status'] == 'Aberta' for job in jobs),
-                           total_resumes=total_resumes if total_resumes else '—', avg_match_rate='—')
+                           total_resumes=total_resumes if total_resumes else '—', avg_match_rate=average)
 
 
 def read_job_form(known_ids=(), next_id=None):
@@ -233,7 +244,7 @@ def vagas(job_id=None):
     if job_id is None:
         return redirect(url_for('vagas', job_id=jobs[0]['id'])) if jobs else redirect(url_for('nova_vaga'))
     job = database_job(job_id)
-    candidates = list_resumes(g.supabase, job['id'])
+    candidates = attach_analysis(g.supabase, job, list_resumes(g.supabase, job['id']))
     return render_template('vagas.html', active_page='candidatos', job=job,
                            jobs=jobs, candidates=candidates)
 
@@ -379,7 +390,7 @@ def editar_perfil():
 @login_required
 def adicionar_curriculos(job_id):
     job = database_job(job_id)
-    candidates = list_resumes(g.supabase, job['id'])
+    candidates = attach_analysis(g.supabase, job, list_resumes(g.supabase, job['id']))
 
     if request.method == 'POST':
         uploaded = request.files.getlist('files')
@@ -389,27 +400,31 @@ def adicionar_curriculos(job_id):
         if not valid_files and not selected_ids:
             abort(400, description='Selecione ao menos um arquivo PDF ou currículo existente.')
 
-        for cid in selected_ids:
-            try:
-                update_resume_status(g.supabase, job['id'], cid, 'Analisado')
-            except Exception as error:
-                app.logger.warning('Falha ao atualizar status do candidato %s: %s', cid, type(error).__name__)
-
+        targets = {c['id']: c for c in candidates if c['id'] in selected_ids}
+        for missing in selected_ids - targets.keys():
+            flash('Currículo selecionado não encontrado nesta vaga ou sem acesso.', 'error')
         for file_storage in valid_files:
-            lower_name = file_storage.filename.lower()
-            if not lower_name.endswith('.pdf'):
-                abort(400, description=f'Arquivo inválido: {file_storage.filename}. Envie arquivos no formato PDF.')
             try:
+                if not file_storage.filename.lower().endswith('.pdf'):
+                    raise AnalysisError('Envie arquivos no formato PDF.')
                 parsed = parse_resume_pdf(file_storage, filename=file_storage.filename)
+                resume = create_resume(g.supabase, job['id'], parsed['filename'], parsed['raw_text'], parsed['anonymized_text'])
+                targets[resume['id']] = resume
+            except AnalysisError as error:
+                flash(str(error), 'error')
             except Exception as error:
-                app.logger.warning('Falha ao processar PDF %s: %s', file_storage.filename, type(error).__name__)
-                abort(400, description=f'Não foi possível extrair texto de {file_storage.filename}: {error}')
-
+                app.logger.warning('Falha no upload: %s', type(error).__name__)
+                flash('Não foi possível extrair ou salvar um arquivo. Confira o cadastro antes de reenviar.', 'error')
+        for resume in targets.values():
             try:
-                create_resume(g.supabase, job['id'], parsed['filename'], parsed['raw_text'], parsed['anonymized_text'], status='Analisado')
+                result = process_resume(g.supabase, job, resume)
+                flash(f"Currículo {resume['id']}: análise salva." if result['score'] is not None else
+                      f"Currículo {resume['id']}: análise incompleta salva; sem índice.", 'success')
+            except AnalysisError as error:
+                flash(f"Currículo {resume['id']}: {error}", 'error')
             except Exception as error:
-                app.logger.warning('Falha ao gravar currículo: %s', type(error).__name__)
-                abort(503, description='Não foi possível salvar os currículos no banco.')
+                app.logger.warning('Falha na análise: %s', type(error).__name__)
+                flash(f"Currículo {resume['id']}: não foi possível concluir e salvar a análise. Confira modelos e migração do banco.", 'error')
 
         return redirect(url_for('vagas', job_id=job['id']))
 
@@ -428,6 +443,7 @@ def candidato_detalhe(job_id, candidate_id):
         abort(503, description='Não foi possível consultar os dados do candidato.')
     if candidate is None:
         abort(404, description='Candidato não encontrado nesta vaga.')
+    candidate = attach_analysis(g.supabase, job, [candidate])[0]
     return render_template('candidato.html', active_page='candidatos', job=job, candidate=candidate)
 
 

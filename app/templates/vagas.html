@@ -16,6 +16,9 @@
 {% endblock %}
 
 {% block content %}
+{% for category, message in get_flashed_messages(with_categories=true) %}
+<div class="req-item" role="status">{{ message }}</div>
+{% endfor %}
 <!-- Seletor de Vaga Integrado no Topo com Dropdown Customizado -->
 <div class="job-select-panel" style="margin-bottom:16px;">
   <div class="job-select-icon">
@@ -130,7 +133,7 @@
        data-skills="{{ c.skills|join(' ')|lower }}" 
        data-status="{{ c.status }}" 
        data-date="{{ c.submitted_at }}" 
-       data-score="{{ c.score }}">
+       data-score="{{ c.score if c.score is not none else '' }}">
       <div class="rank-num">{{ loop.index }}</div>
       <div class="cand-avatar">{{ c.initials }}</div>
       <div class="cand-main">
@@ -138,7 +141,7 @@
           <div class="cand-name" style="margin-bottom:0">{{ c.name }}</div>
           {% set status_class = c.status|lower %}
           <span class="status-badge {{ status_class }}">
-            <span></span>{{ c.status }}
+            <span></span>Decisão: {{ c.status }} · Análise: {{ c.analysis_state }}
           </span>
         </div>
         
@@ -160,14 +163,13 @@
       </div>
       
       <div class="cand-score">
-        {% set level = 'high' if c.score >= 80 else ('mid' if c.score >= 60 else 'low') %}
-        {% set label = 'Alta aderência' if c.score >= 80 else ('Média aderência' if c.score >= 60 else 'Baixa aderência') %}
-        <div class="score-label {{ level }}">{{ label }}</div>
-        <div class="score-pct">{{ c.score }}%</div>
+        {% set level = 'mid' %}
+        <div class="score-label {{ level }}">Índice de compatibilidade semântica</div>
+        <div class="score-pct">{{ '%.2f/100'|format(c.score) if c.score is not none else c.analysis_state }}</div>
         <div class="score-track">
           <div
             class="score-fill fill-{{ level }}"
-            style="width: {{ c.score }}%;"
+            style="width: {{ c.score if c.score is not none else 0 }}%;"
           ></div>
         </div>
       </div>
@@ -283,10 +285,16 @@
     });
 
     visibleRows.sort((a, b) => {
+      if (sortBy.startsWith('score-')) {
+        const pendingA = a.getAttribute('data-score') === '';
+        const pendingB = b.getAttribute('data-score') === '';
+        if (pendingA !== pendingB) return pendingA ? 1 : -1;
+        if (pendingA) return 0;
+      }
       if (sortBy === 'score-desc') {
-        return parseInt(b.getAttribute('data-score'), 10) - parseInt(a.getAttribute('data-score'), 10);
+        return parseFloat(b.getAttribute('data-score')) - parseFloat(a.getAttribute('data-score'));
       } else if (sortBy === 'score-asc') {
-        return parseInt(a.getAttribute('data-score'), 10) - parseInt(b.getAttribute('data-score'), 10);
+        return parseFloat(a.getAttribute('data-score')) - parseFloat(b.getAttribute('data-score'));
       } else if (sortBy === 'name-asc') {
         return a.getAttribute('data-name').localeCompare(b.getAttribute('data-name'));
       } else if (sortBy === 'recent') {

@@ -144,7 +144,7 @@
             <label for="cand-{{ c.id }}" style="font-size:13.5px;font-weight:600;cursor:pointer;margin:0;">{{ c.name }}</label>
             {% set status_class = c.status|lower %}
             <span class="status-badge {{ status_class }}">
-              <span></span>{{ c.status }}
+              <span></span>{{ c.status }} · Análise: {{ c.analysis_state }}
             </span>
           </div>
           <div class="cand-meta-sub" style="margin-bottom:0">

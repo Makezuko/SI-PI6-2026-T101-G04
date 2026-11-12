@@ -2,6 +2,7 @@
 from datetime import datetime
 from pathlib import Path
 import re
+import math
 
 from app.requisitos import STATUS_VAGA, draft_from_description, parse_requirements, serialize
 from src.data.clean import extract_contact_info, extract_education_blocks
@@ -13,6 +14,10 @@ RESUME_FIELDS = 'id,vaga_id,nome_arquivo,texto_extraido,texto_anonimizado,status
 
 
 class LegacyProfileError(Exception):
+    pass
+
+
+class AnalysisSchemaError(RuntimeError):
     pass
 
 
@@ -117,17 +122,17 @@ def resume_for_template(row):
         'job_id': str(row.get('vaga_id', '')),
         'name': name,
         'initials': initials,
-        'score': 80,
+        'score': None,
+        'analysis': None,
+        'analysis_state': 'Pendente',
         'filename': filename,
         'submitted_at': display_date,
         'status': row.get('status') or 'Analisado',
-        'email': contact.get('email') or 'contato@candidato.com',
+        'email': contact.get('email') or 'E-mail não informado',
         'phone': contact.get('phone') or 'Telefone não informado',
         'education': education,
         'last_role': last_role,
         'skills': skills,
-        'met': skills[:4] if skills else ['Requisitos Básicos da Vaga'],
-        'missing': ['Certificações adicionais'],
         'raw_text': text,
         'anonymized_text': row.get('texto_anonimizado') or '',
     }
@@ -220,17 +225,87 @@ def get_resume(client, job_id, resume_id):
     return resume_for_template(response.data[0]) if response.data else None
 
 
-def create_resume(client, job_id, filename, raw_text, anonymized_text, status='Analisado'):
-    response = client.table('curriculos').insert({
+def create_resume(client, job_id, filename, raw_text, anonymized_text, status='Pendente'):
+    from app.analysis import fingerprint
+    digest = fingerprint(raw_text)
+    existing = client.table('curriculos').select(RESUME_FIELDS).eq('vaga_id', int(job_id)).eq('content_hash', digest).limit(1).execute()
+    if existing.data:
+        return resume_for_template(existing.data[0])
+    # Também reconhece uploads antigos, anteriores à coluna content_hash.
+    # Texto pessoal não deve ser enviado como filtro na URL da API.
+    offset = 0
+    while True:
+        legacy = client.table('curriculos').select(RESUME_FIELDS).eq('vaga_id', int(job_id)).order('id').range(offset, offset + 499).execute()
+        rows = legacy.data or []
+        for row in rows:
+            if row.get('texto_extraido') == raw_text:
+                return resume_for_template(row)
+        if len(rows) < 500:
+            break
+        offset += 500
+    values = {
         'vaga_id': int(job_id),
         'nome_arquivo': filename,
         'texto_extraido': raw_text,
         'texto_anonimizado': anonymized_text,
         'status': status,
-    }).execute()
+        'content_hash': digest,
+    }
+    try:
+        response = client.table('curriculos').insert(values).execute()
+    except Exception as error:
+        if str(getattr(error, 'code', '')) != '23505':
+            raise
+        retry = client.table('curriculos').select(RESUME_FIELDS).eq('vaga_id', int(job_id)).eq('content_hash', digest).limit(1).execute()
+        if not retry.data:
+            raise
+        return resume_for_template(retry.data[0])
     if not response.data:
         raise RuntimeError('Gravação do currículo sem retorno. Confira o banco.')
     return resume_for_template(response.data[0])
+
+
+def list_analyses(client, job_id):
+    try:
+        return client.table('analises_aderencia').select(
+            'id,vaga_id,curriculo_id,requirements_hash,text_hash,config_hash,result,analisado_em'
+        ).eq('vaga_id', int(job_id)).order('analisado_em', desc=True).execute().data or []
+    except Exception as error:
+        if str(getattr(error, 'code', '')) in {'42703', '42P01', 'PGRST204', 'PGRST205'}:
+            raise AnalysisSchemaError(
+                'Esquema de análises incompatível. Confira o esquema legado e aplique '
+                'sql/004_integracao_aderencia.sql antes de usar a integração.'
+            ) from error
+        raise
+
+
+def save_analysis(client, job_id, resume_id, payload):
+    from datetime import timezone
+    result = payload.get('result')
+    if not isinstance(result, dict) or 'status' not in result or 'score' not in result:
+        raise ValueError('Resultado deve ser objeto com status e score explícitos.')
+    score = result['score']
+    if result['status'] == 'calculado':
+        if (isinstance(score, bool) or not isinstance(score, (int, float))
+                or not math.isfinite(score) or not 0 <= score <= 100):
+            raise ValueError('Análise calculada exige pontuação numérica finita entre 0 e 100.')
+    elif result['status'] == 'analise_incompleta':
+        if score is not None:
+            raise ValueError('Análise incompleta exige score null, sem pontuação.')
+    else:
+        raise ValueError('Status de análise inválido.')
+    values = dict(payload, vaga_id=int(job_id), curriculo_id=int(resume_id),
+                  pontuacao_aderencia=score,
+                  # ISO UTC explícito: timestamptz conserva o instante;
+                  # timestamp conserva os campos UTC, sem guardar o offset.
+                  # Não reinterpretar datas legadas sem fuso na leitura.
+                  analisado_em=datetime.now(timezone.utc).isoformat())
+    response = client.table('analises_aderencia').upsert(
+        values, on_conflict='vaga_id,curriculo_id,requirements_hash,text_hash,config_hash'
+    ).execute()
+    if not response.data:
+        raise RuntimeError('Não foi possível confirmar a persistência da análise.')
+    return response.data[0]
 
 
 def update_resume_status(client, job_id, resume_id, status):

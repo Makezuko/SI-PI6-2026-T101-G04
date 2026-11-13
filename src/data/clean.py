@@ -146,12 +146,19 @@ def extract_contact_info(text: str) -> dict[str, str | None]:
 
 def anonymize_resume_text(text: str, candidate_name: str | None = None) -> str:
     anonymized = text
-    if candidate_name and candidate_name.strip() and candidate_name.lower() != "candidato":
+    if candidate_name and len(candidate_name.split()) >= 2 and candidate_name.lower() != "candidato":
         escaped_name = re.escape(candidate_name.strip())
-        anonymized = re.sub(rf"\b{escaped_name}\b", "[NOME OCULTO]", anonymized, flags=re.IGNORECASE)
+        # Nome inferido pelo upload é apenas um cabeçalho, nunca regra global.
+        anonymized = re.sub(rf"^{escaped_name}\s*$", "[NOME OCULTO]", anonymized, flags=re.IGNORECASE | re.MULTILINE)
 
     anonymized = re.sub(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b", "[E-MAIL OCULTO]", anonymized)
-    anonymized = re.sub(r"(?:\+?\d{1,3}[\s-]?)?(?:\(?\d{2,3}\)?[\s-]?)?\d{4,5}[\s-]?\d{4}\b", "[TELEFONE OCULTO]", anonymized)
+    def mask_phone(match):
+        value = match.group(0)
+        # Intervalos de experiência não são números de telefone.
+        if re.fullmatch(r'(?:19|20)\d{2}\s*-\s*(?:19|20)\d{2}', value.strip()):
+            return value
+        return '[TELEFONE OCULTO]'
+    anonymized = re.sub(r"(?<![\w.])(?:\+?\d{1,3}[ -]?)?(?:\(?\d{2,3}\)?[ -]?)?\d{4,5}[ -]?\d{4}(?![\w.])", mask_phone, anonymized)
     anonymized = re.sub(r"\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b", "[CPF OCULTO]", anonymized)
     anonymized = re.sub(r"(?:https?://|www\.)\S+", "[LINK OCULTO]", anonymized, flags=re.IGNORECASE)
     anonymized = re.sub(r"\b(?:linkedin\.com|github\.com)/\S+", "[LINK OCULTO]", anonymized, flags=re.IGNORECASE)
@@ -195,7 +202,8 @@ def parse_resume_pdf(
     initials = "".join(part[0] for part in (guessed_name or "CV").split()[:2]).upper()
 
     education_summary = education_blocks[0]["text"].splitlines()[0] if education_blocks else "Não especificada"
-    experience_summary = hybrid_extraction["context_blocks"][0]["text"].splitlines()[0] if hybrid_extraction.get("context_blocks") else "Não especificada"
+    from src.data.privacy import latest_role
+    experience_summary = latest_role(text, ner_entities)
 
     anonymized = anonymize_resume_text(text, guessed_name)
 

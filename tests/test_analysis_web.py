@@ -31,10 +31,13 @@ class AnalysisWebTests(unittest.TestCase):
             'req_id': [''], 'req_text': ['Python'], 'req_tipo': ['tecnico'],
             'req_nivel': ['obrigatorio'],
         })
-        self.predictor = SimpleNamespace(predict=lambda **kw: {'entities': [
-            {'label': 'NAME', 'text': 'Jane Smith'},
-            {'label': 'SKILLS', 'text': 'Python', 'confidence': .9},
-        ]})
+        def predict(**kw):
+            text = kw['text']
+            return {'entities': [dict(label=label, text=value, start=text.index(value),
+                                      end=text.index(value) + len(value), confidence=.9)
+                                 for label, value in [('NAME', 'Jane Smith'), ('SKILLS', 'Python')]
+                                 if value in text]}
+        self.predictor = SimpleNamespace(predict=predict)
         self.models = patch('app.analysis.load_models', return_value=(self.predictor, FakeEmbedder()))
         self.models.start()
         self.addCleanup(self.models.stop)
@@ -68,6 +71,20 @@ class AnalysisWebTests(unittest.TestCase):
         self.assertEqual(len(self.db['resumes']), 1)
         self.assertEqual(self.db['resumes'][0]['status'], 'Aprovado')
         self.assertEqual(len(self.db['analyses']), 1)
+
+    def test_old_privacy_pipeline_is_reprocessed_without_duplicate_resume(self):
+        from app.analysis import configuration, fingerprint
+        self.prepare(); self.upload()
+        old = self.db['analyses'][0]
+        old['config_hash'] = fingerprint(dict(configuration(), pipeline_version='web-1'))
+        old['pipeline_version'] = 'web-1'
+        old['result']['score'] = 45.99
+        self.assertIn('Desatualizada', self.client.get('/vagas/1').data.decode())
+        self.select()
+        self.assertEqual(len(self.db['resumes']), 1)
+        self.assertEqual(len(self.db['analyses']), 2)
+        self.assertEqual(old['result']['score'], 45.99)
+        self.assertNotIn('Desatualizada', self.client.get('/vagas/1').data.decode())
 
     def test_pending_requirements_no_models_and_no_fake_score(self):
         self.prepare()

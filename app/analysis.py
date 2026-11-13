@@ -8,11 +8,12 @@ from threading import RLock
 
 from app.requisitos import parse_requirements
 from src.data.clean import anonymize_resume_text
+from src.data.privacy import anonymize_for_analysis, personal_spans, valid_entity, latest_role
 from src.matching.score import calculate_similarity_index, FORMULA_VERSION, DEFAULT_WEIGHTS
 from src.nlp.skills_extractor import extract_skills
 
 MODEL_LOCK = RLock()
-PIPELINE_VERSION = 'web-1'
+PIPELINE_VERSION = 'web-2-offset-privacy'
 
 
 class AnalysisError(ValueError):
@@ -70,21 +71,21 @@ def analyze(job, resume):
     with MODEL_LOCK:
         predictor, embedder = load_models(config['ner_model'], config['embedding_model'])
         prediction = predictor.predict(text=resume['raw_text'], minimum_confidence=0.0)
-        def anonymize(value):
-            value = anonymize_resume_text(value, resume.get('name'))
-            for entity in prediction['entities']:
-                if entity['label'] in {'NAME', 'EMAIL_ADDRESS', 'LOCATION'} and entity['text']:
-                    value = value.replace(entity['text'], '[DADO PESSOAL OCULTO]')
-            return value
-        text = anonymize(resume['raw_text'])
-        # Predições conservam apenas SKILLS; offsets do texto original não são reutilizados.
-        skills = [dict(entity, text=anonymize(entity['text']))
-                  for entity in prediction['entities'] if entity['label'] == 'SKILLS']
+        raw = resume['raw_text']
+        entities = prediction['entities']
+        text = anonymize_for_analysis(raw, entities)
+        spans = personal_spans(raw, entities)
+        # Valida no original. Não passa offsets antigos ao extrator do texto redigido.
+        skills = [dict(label='SKILLS', text=anonymize_resume_text(entity['text']),
+                       confidence=entity.get('confidence', 0))
+                  for entity in entities if entity['label'] == 'SKILLS'
+                  and valid_entity(raw, entity)
+                  and not any(a < entity['end'] and entity['start'] < b for a, b in spans)]
         inputs = extract_skills(text=text, ner_entities=skills)['semantic_inputs']
         if not inputs:
             raise AnalysisError('Nenhuma evidência profissional extraída; análise permanece pendente.')
-        safe_requirements = [dict(item, text=anonymize(item['text']))
-                             for item in requirements]
+        # Requisitos são textos revisados da vaga, não previsões sobre o candidato.
+        safe_requirements = [dict(item) for item in requirements]
         queries = embedder.encode([{'text': item['text'], 'source': 'requirement'} for item in safe_requirements])
         if len(queries['records']) != len(requirements):
             raise AnalysisError('Divida os requisitos longos em requisitos curtos antes da análise.')
@@ -92,6 +93,7 @@ def analyze(job, resume):
         from src.matching.semantic import compare
         results, _ = compare(safe_requirements, queries['embeddings'], embedded)
     result = calculate_similarity_index(safe_requirements, results)
+    result['last_role'] = latest_role(raw, entities)
     return {**versions(job, resume), **config, 'result': result}
 
 
@@ -104,6 +106,7 @@ def attach_analysis(client, job, candidates):
         valid = [row for row in previous if all(row.get(key) == value for key, value in current.items())]
         record = valid[0] if valid else None
         candidate['analysis'] = record['result'] if record else None
+        candidate['last_role'] = record['result'].get('last_role', 'Não identificado') if record else 'Não identificado'
         candidate['score'] = record['result']['score'] if record else None
         candidate['analysis_state'] = ('Concluída' if candidate['score'] is not None else
                                        'Desatualizada' if previous and not valid else 'Pendente')

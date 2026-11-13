@@ -6,10 +6,12 @@ por `parse_requirements`: todos devem estar classificados, com status derivado
 `revisado`. Não são usadas anotações de avaliação.
 
 O NER usa BIO normalizado (`NAME`, `SKILLS`, `EMAIL_ADDRESS`, `LOCATION`),
-conforme `src/nlp/labels.py` e `ResumeNERPredictor`. São removidos nome,
-contatos e localização pessoal antes da extração híbrida/comparação; empresas,
-cargos e responsabilidades são preservados. A anonimização é heurística e
-não garante remoção de todo dado pessoal. Não há texto integral em logs.
+conforme `src/nlp/labels.py` e `ResumeNERPredictor`. A redação do currículo usa
+offsets validados no texto bruto, nomes com múltiplas palavras, localização em
+campo explicitamente identificado e regras específicas de contato. A
+anonimização é heurística e não garante remoção de todo dado pessoal. Não há
+texto integral em logs. Requisitos revisados da vaga não recebem substituições
+baseadas na identidade do candidato.
 
 `ResumeEmbedder.encode`, `semantic.compare` e `calculate_similarity_index`
 são chamados diretamente. Instâncias são carregadas sob demanda e reutilizadas
@@ -210,3 +212,58 @@ SQL e a reexecução da migração ainda **não foram executadas em PostgreSQL**
 indisponível. Não houve tentativa de conexão ao banco remoto. A equipe deve
 validar em PostgreSQL local/de homologação a aplicação duas vezes, preservação
 das linhas legadas e rejeição dos payloads inválidos pela própria CHECK.
+
+## Correção de fragmentos na anonimização (pipeline web-2-offset-privacy)
+
+A causa encontrada foi a função interna `anonymize` em `app.analysis.analyze`:
+`value.replace(entity['text'], ...)` reutilizava globalmente fragmentos NER,
+inclusive nos requisitos da vaga. Por exemplo `an` gerava
+`ajud[DADO PESSOAL OCULTO]do`, `pl[DADO PESSOAL OCULTO]ejamento` e
+`[DADO PESSOAL OCULTO]alítica`. A corrupção ocorria **antes** de encode/compare
+e os detalhes persistidos exibiam esse texto alterado; não era máscara apenas
+do template. A mesma função tratava skill, experiência e requisito.
+
+`src/data/privacy.py` substitui apenas spans com índices inteiros, limites,
+trecho correspondente e fronteiras válidas. Fragmentos dentro de palavras são
+ignorados, nunca expandidos. Spans pessoais aceitos são consolidados quando
+sobrepostos e redigidos do fim para o início. Não se procura cada entidade em
+outros pontos do texto. SKILLS também são validadas no texto original, excluídas
+se intersectam spans pessoais e entregues ao extrator sem offsets antigos.
+As regras de contato continuam ativas; versões técnicas e intervalos de anos
+são preservados. O nome inferido no upload só pode ocultar uma linha inteira
+com múltiplas palavras, não uma palavra profissional isolada.
+
+Limites: o NER em inglês não foi validado para português e pode omitir nomes,
+errar entidades inteiras ou fornecer spans parciais. Por segurança, fragmentos,
+nomes de um único token e localizações sem campo identificado não são usados
+como evidência suficiente de dado pessoal. Isso preserva palavras profissionais,
+mas pode deixar dados pessoais sem máscara; não é anonimização garantida.
+
+`Último Cargo` não usa mais a primeira responsabilidade. Só é preenchido por
+DESIGNATION validada em cabeçalho de experiência com intervalo de anos explícito,
+sem cargo concorrente sem data ou empate temporal ambíguo. A extração existente
+fornece o `context_header`; sem essa evidência, mostra `Não identificado`.
+O cargo identificado é salvo nos detalhes da nova análise. Não são carregados
+modelos ao simplesmente abrir a listagem/detalhe.
+
+A entidade de cargo precisa corresponder à ocorrência do cabeçalho no texto
+original, não apenas repetir seu texto em outra seção. A identificação temporal
+é conservadora: aceita uma linha com intervalo de anos (por exemplo,
+`2020-2024` ou `2023-Atual`). Datas com meses, intervalos inválidos, múltiplos
+intervalos próximos ou empates sem ordem suficiente retornam `Não identificado`;
+não se infere um título a partir de responsabilidades.
+
+A nova versão do pipeline altera `config_hash`. Resultados web-1 permanecem no
+banco e aparecem desatualizados, sem reutilizar silenciosamente a nota anterior
+(inclusive 45,99). Para recalcular, abrir a vaga → Adicionar / Analisar
+Currículos → selecionar o currículo já cadastrado → Processar Aderência dos
+Selecionados. Não é necessário reenviar PDF; o texto bruto salvo é reutilizado,
+o currículo mantém o ID e uma análise da nova configuração é persistida.
+
+Verificação desta correção em 12/11/2026: **128 testes passaram** com
+`venv/Scripts/python.exe -m unittest discover -s tests -p 'test_*.py'`.
+Incluem fragmentos NER, contatos, versões/qualificações, spans inválidos e
+sobrepostos, requisitos e entradas de embeddings capturadas, identificação
+conservadora de cargo e reprocessamento com histórico preservado. Modelos e
+banco são simulados nos testes de integração; não houve inferência real ou
+alteração no banco remoto. `git diff --check` passou.

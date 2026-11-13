@@ -114,8 +114,8 @@ def resume_for_template(row):
 
     skills = skills_data.get('skills', [])
     education = education_blocks[0]['text'].splitlines()[0] if education_blocks else 'Não especificada'
-    context_blocks = skills_data.get('context_blocks', [])
-    last_role = context_blocks[0]['text'].splitlines()[0] if context_blocks else 'Não especificada'
+    # Responsabilidades não identificam um cargo nem sua ordem temporal.
+    last_role = 'Não identificado'
 
     return {
         'id': str(row['id']),

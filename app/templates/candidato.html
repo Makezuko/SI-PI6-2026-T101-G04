@@ -37,6 +37,16 @@
     <div class="cand-detail-body">
       <div class="adherence-box">
         <div class="adherence-top"><span>Índice de compatibilidade semântica</span><b>{{ '%.2f/100'|format(candidate.score) if candidate.score is not none else candidate.analysis_state }}</b></div>
+        {% if candidate.analysis %}
+        {% set mandatory_items = candidate.analysis.details|selectattr('nivel', 'equalto', 'obrigatorio')|list %}
+        {% set desired_items = candidate.analysis.details|selectattr('nivel', 'equalto', 'desejavel')|list %}
+        {% set mandatory_matches = mandatory_items|selectattr('compatible')|list %}
+        {% set desired_matches = desired_items|selectattr('compatible')|list %}
+        <div class="req-list">
+          Obrigatórios compatíveis: {{ mandatory_matches|length }}/{{ mandatory_items|length }}.
+          Desejáveis compatíveis: {{ desired_matches|length }}/{{ desired_items|length }}.
+        </div>
+        {% endif %}
         <div class="adherence-track">
           <div class="adherence-fill fill-{{ level }}" data-score="{{ candidate.score if candidate.score is not none else 0 }}"></div>
           <script>
@@ -77,11 +87,24 @@
         <div class="req-list">
           {% for item in (candidate.analysis.details if candidate.analysis else []) %}
           <div class="req-item">
-            {{ item.text }} — {{ item.best_evidence.text if item.best_evidence else 'Sem evidência recuperada' }}
+            <strong>{{ item.text }}</strong>
+            · {{ 'Obrigatório' if item.nivel == 'obrigatorio' else 'Desejável' }}
+            · {{ 'Compatível' if item.compatible else 'Incompatível' if item.compatible is not none else 'Sem resultado' }}
+            · {{ '%.2f'|format(item.contribution_points) if item.contribution_points is not none else '—' }}/{{ '%.2f'|format(item.max_points) }} pontos
+            <br>
+            Evidência: {{ item.best_evidence.text if item.best_evidence else 'Sem evidência recuperada' }}
             · Origem: {{ item.best_evidence.source if item.best_evidence else 'Indisponível' }}
-            · Cosseno: {{ '%.4f'|format(item.original_cosine) if item.original_cosine is not none else 'Indisponível' }}
+            · Similaridade: {{ '%.4f'|format(item.original_cosine) if item.original_cosine is not none else 'Indisponível' }}
           </div>
           {% endfor %}
+          {% if not candidate.analysis %}
+          {% for item in job['requirements_data']['items'] %}
+          <div class="req-item">
+            <strong>{{ item.text }}</strong> · {{ 'Obrigatório' if item.nivel == 'obrigatorio' else 'Desejável' }}
+            · Aguardando análise
+          </div>
+          {% endfor %}
+          {% endif %}
         </div>
       </div>
       <div>

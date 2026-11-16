@@ -133,6 +133,7 @@
        data-skills="{{ c.skills|join(' ')|lower }}" 
        data-status="{{ c.status }}" 
        data-date="{{ c.submitted_at }}" 
+       data-mandatory-status="{{ c.mandatory_status or 'pendente' }}"
        data-score="{{ c.score if c.score is not none else '' }}">
       <div class="rank-num">{{ loop.index }}</div>
       <div class="cand-avatar">{{ c.initials }}</div>
@@ -166,6 +167,9 @@
         {% set level = 'mid' %}
         <div class="score-label {{ level }}">Índice de compatibilidade semântica</div>
         <div class="score-pct">{{ '%.2f/100'|format(c.score) if c.score is not none else c.analysis_state }}</div>
+        {% if c.mandatory_status == 'incompativel' %}
+        <div class="score-label low">Requisito obrigatório abaixo de 0,50</div>
+        {% endif %}
         <div class="score-track">
           <div
             class="score-fill fill-{{ level }}"
@@ -285,6 +289,13 @@
     });
 
     visibleRows.sort((a, b) => {
+      const mandatoryOrder = {atendido: 0, pendente: 1, incompleto: 1, incompativel: 2};
+      const statusA = a.getAttribute('data-mandatory-status');
+      const statusB = b.getAttribute('data-mandatory-status');
+      const mandatoryA = Object.prototype.hasOwnProperty.call(mandatoryOrder, statusA) ? mandatoryOrder[statusA] : 1;
+      const mandatoryB = Object.prototype.hasOwnProperty.call(mandatoryOrder, statusB) ? mandatoryOrder[statusB] : 1;
+      if (mandatoryA !== mandatoryB) return mandatoryA - mandatoryB;
+
       if (sortBy.startsWith('score-')) {
         const pendingA = a.getAttribute('data-score') === '';
         const pendingB = b.getAttribute('data-score') === '';

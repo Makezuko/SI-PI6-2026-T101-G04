@@ -31,6 +31,9 @@ def main(argv=None):
         parser.exit(1, f"Não foi possível calcular o índice: {exc}\n")
     if result["status"] == "calculado":
         print(f"Índice de compatibilidade semântica: {result['score']:.2f}/100")
+        if result["mandatory_status"] == "incompativel":
+            print("Fora do grupo de candidatos que atendem aos obrigatórios "
+                  "(ao menos um requisito ficou abaixo de 0,50).")
     else:
         print("Análise incompleta; índice não calculado. Requisitos: "
               + ", ".join(result["incomplete_requirement_ids"]))

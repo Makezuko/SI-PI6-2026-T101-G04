@@ -308,6 +308,10 @@ class WebFiltersTestCase(unittest.TestCase):
         self.assertEqual(status_update.status_code, 302)
         self.assertEqual(self.db['resumes'][0]['status'], 'Aprovado')
 
+        detalhe_aprovado = self.client.get('/vagas/1/candidato/1').data.decode('utf-8')
+        self.assertIn('Marcos Lima', detalhe_aprovado)
+        self.assertIn('marcos@test.com', detalhe_aprovado)
+
     def test_upload_page_advertises_only_pdf_and_reports_other_formats(self):
         import io
         self.login();self.create()

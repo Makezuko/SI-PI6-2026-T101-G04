@@ -148,20 +148,39 @@ def anonymize_resume_text(text: str, candidate_name: str | None = None) -> str:
     anonymized = text
     if candidate_name and len(candidate_name.split()) >= 2 and candidate_name.lower() != "candidato":
         escaped_name = re.escape(candidate_name.strip())
-        # Nome inferido pelo upload é apenas um cabeçalho, nunca regra global.
         anonymized = re.sub(rf"^{escaped_name}\s*$", "[NOME OCULTO]", anonymized, flags=re.IGNORECASE | re.MULTILINE)
 
     anonymized = re.sub(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b", "[E-MAIL OCULTO]", anonymized)
     def mask_phone(match):
         value = match.group(0)
-        # Intervalos de experiência não são números de telefone.
         if re.fullmatch(r'(?:19|20)\d{2}\s*-\s*(?:19|20)\d{2}', value.strip()):
             return value
         return '[TELEFONE OCULTO]'
     anonymized = re.sub(r"(?<![\w.])(?:\+?\d{1,3}[ -]?)?(?:\(?\d{2,3}\)?[ -]?)?\d{4,5}[ -]?\d{4}(?![\w.])", mask_phone, anonymized)
     anonymized = re.sub(r"\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b", "[CPF OCULTO]", anonymized)
+    anonymized = re.sub(r"\bRG:?\s*\d{1,2}\.?\d{3}\.?\d{3}-?[\dX]\b", "[RG OCULTO]", anonymized, flags=re.IGNORECASE)
+    anonymized = re.sub(r"\bCEP:?\s*\d{5}-?\d{3}\b", "[CEP OCULTO]", anonymized, flags=re.IGNORECASE)
     anonymized = re.sub(r"(?:https?://|www\.)\S+", "[LINK OCULTO]", anonymized, flags=re.IGNORECASE)
     anonymized = re.sub(r"\b(?:linkedin\.com|github\.com)/\S+", "[LINK OCULTO]", anonymized, flags=re.IGNORECASE)
+
+    anonymized = re.sub(r"(?i)\b(?:foto(?:\s*3x4)?|photo|picture)\s*:\s*(?:\[[^\]\n]+\]|\S+)", "[FOTO OCULTA]", anonymized)
+    anonymized = re.sub(r"(?i)\[\s*(?:foto(?:\s*3x4)?|photo|picture|imagem|image)\s*\]", "[FOTO OCULTA]", anonymized)
+
+    anonymized = re.sub(r"(?i)\b(?:gênero|genero|sexo|gender|sex)\s*:\s*[A-Za-zÀ-ÿ/-]+", "[GÊNERO OCULTO]", anonymized)
+    anonymized = re.sub(r"(?i)\b(?:pronomes?|pronouns?)\s*:\s*[A-Za-zÀ-ÿ/-]+", "[PRONOMES OCULTOS]", anonymized)
+    anonymized = re.sub(r"(?i)^\s*(?:ele/dele|ela/dela|elu/delu|he/him|she/her|they/them)\s*$", "[PRONOMES OCULTOS]", anonymized, flags=re.MULTILINE)
+
+    anonymized = re.sub(r"(?i)\b(?:idade|age)\s*:\s*\d{1,2}(?:[ \t]*(?:anos?(?:\s+de\s+idade)?|years?(?:\s+old)?))?", "[IDADE OCULTA]", anonymized)
+    anonymized = re.sub(r"(?i)\b\d{1,2}[ \t]*(?:anos(?:\s+de\s+idade)?|years?(?:\s+old)?)\b(?!\s+(?:de\s+(?:experiência|experiencia|atuação|atuacao|carreira|mercado|prática|pratica)|com\b|em\b))", "[IDADE OCULTA]", anonymized)
+    anonymized = re.sub(r"(?i)\b(?:data\s+de\s+nascimento|data\s+nasc\.?|nascimento|nasc\.?|date\s+of\s+birth|dob)\s*:\s*\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b", "[DATA DE NASCIMENTO OCULTA]", anonymized)
+    anonymized = re.sub(r"(?i)\b(?:nascido|nascida|born)\s+(?:em|on)?\s*\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b", "[DATA DE NASCIMENTO OCULTA]", anonymized)
+
+    anonymized = re.sub(r"(?i)\b(?:estado\s+civil|marital\s+status)\s*:\s*[A-Za-zÀ-ÿ\s/-]+(?=[\n,;]|$)", "[ESTADO CIVIL OCULTO]", anonymized)
+    anonymized = re.sub(r"(?i)\b(?:nacionalidade|nationality|naturalidade)\s*:\s*[A-Za-zÀ-ÿ\s/-]+(?=[\n,;]|$)", "[NACIONALIDADE OCULTA]", anonymized)
+    anonymized = re.sub(r"(?i)\b(?:solteir[oa]|casad[oa]|divorciad[oa]|viúv[oa]|união\s+estável)\b", "[ESTADO CIVIL OCULTO]", anonymized)
+    anonymized = re.sub(r"(?i)\b(?:brasileir[oa]|brasileir[oa]s)\b", "[NACIONALIDADE OCULTA]", anonymized)
+
+    anonymized = re.sub(r"(?i)(?<!\bIP\s)(?<!\bMAC\s)(?<!\bMemory\s)\b(?:endereço|endereco|address)\s*:\s*[^\n]+", "[ENDEREÇO OCULTO]", anonymized)
     return anonymized
 
 

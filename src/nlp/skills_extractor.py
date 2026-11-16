@@ -422,6 +422,9 @@ def is_skill_noise(text: str) -> bool:
     if normalized in GENERIC_SKILL_PLACEHOLDERS:
         return True
 
+    if re.search(r"\[[^\[\]]*ocult[oa]s?\]", text, re.IGNORECASE):
+        return True
+
     if re.search(
         r"(?:https?://|www\.)\S+",
         text,

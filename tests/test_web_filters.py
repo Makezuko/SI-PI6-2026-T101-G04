@@ -297,12 +297,13 @@ class WebFiltersTestCase(unittest.TestCase):
         self.assertIn('[E-MAIL OCULTO]', saved['texto_anonimizado'])
 
         vagas_page = self.client.get('/vagas/1').data.decode('utf-8')
-        self.assertIn('Marcos Lima', vagas_page)
-        self.assertIn('marcos_cv.pdf', vagas_page)
+        self.assertIn('Candidato #1', vagas_page)
+        self.assertNotIn('Marcos Lima', vagas_page)
 
         detalhe_page = self.client.get('/vagas/1/candidato/1').data.decode('utf-8')
-        self.assertIn('Marcos Lima', detalhe_page)
-        self.assertIn('marcos@test.com', detalhe_page)
+        self.assertIn('Candidato #1', detalhe_page)
+        self.assertNotIn('Marcos Lima', detalhe_page)
+        self.assertIn('Oculto (disponível após aprovação)', detalhe_page)
 
         status_update = self.post('/vagas/1/candidato/1/status', {'status': 'Aprovado'})
         self.assertEqual(status_update.status_code, 302)

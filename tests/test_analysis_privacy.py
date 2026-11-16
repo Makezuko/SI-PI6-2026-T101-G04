@@ -6,6 +6,7 @@ from types import SimpleNamespace
 os.environ.setdefault('FLASK_SECRET_KEY', 'test-only-secret-not-for-deployment')
 from src.data.privacy import anonymize_for_analysis, latest_role, personal_spans
 from src.data.clean import anonymize_resume_text
+from src.nlp.skills_extractor import is_skill_noise
 from app.repositories import resume_for_template
 from app.analysis import analyze, attach_analysis, versions, configuration, fingerprint
 from app.requisitos import build_requirements
@@ -115,3 +116,197 @@ class PrivacyTests(unittest.TestCase):
         text = 'Ana Ferreira\nProjeto Ana Ferreira: planejamento e atendimento'
         self.assertEqual(anonymize_for_analysis(text, [entity(text, 'Ana Ferreira')]),
                          '[DADO PESSOAL OCULTO]\nProjeto Ana Ferreira: planejamento e atendimento')
+
+    def test_demographic_and_personal_attributes_are_masked(self):
+        text = (
+            "Maria Silva\n"
+            "Brasileira, 28 anos, solteira\n"
+            "Gênero: Feminino\n"
+            "Pronomes: ela/dela\n"
+            "Data de nascimento: 14/08/1996\n"
+            "RG: 12.345.678-9\n"
+            "CEP: 01310-100\n"
+            "Endereço: Avenida Paulista, 1000 - Bela Vista - SP\n"
+            "[foto 3x4]\n"
+            "Python 3.11, .NET 8, 5 anos de experiência, Single Page Application\n"
+            "IP address: 192.168.1.1"
+        )
+        masked = anonymize_resume_text(text)
+        self.assertNotIn("Brasileira", masked)
+        self.assertNotIn("28 anos", masked)
+        self.assertNotIn("solteira", masked)
+        self.assertNotIn("Feminino", masked)
+        self.assertNotIn("ela/dela", masked)
+        self.assertNotIn("14/08/1996", masked)
+        self.assertNotIn("12.345.678-9", masked)
+        self.assertNotIn("01310-100", masked)
+        self.assertNotIn("Avenida Paulista", masked)
+        self.assertNotIn("[foto 3x4]", masked)
+
+        self.assertIn("[NACIONALIDADE OCULTA]", masked)
+        self.assertIn("[IDADE OCULTA]", masked)
+        self.assertIn("[ESTADO CIVIL OCULTO]", masked)
+        self.assertIn("[GÊNERO OCULTO]", masked)
+        self.assertIn("[PRONOMES OCULTOS]", masked)
+        self.assertIn("[DATA DE NASCIMENTO OCULTA]", masked)
+        self.assertIn("[RG OCULTO]", masked)
+        self.assertIn("[CEP OCULTO]", masked)
+        self.assertIn("[ENDEREÇO OCULTO]", masked)
+        self.assertIn("[FOTO OCULTA]", masked)
+
+        self.assertIn("Python 3.11", masked)
+        self.assertIn(".NET 8", masked)
+        self.assertIn("5 anos de experiência", masked)
+        self.assertIn("Single Page Application", masked)
+        self.assertIn("IP address: 192.168.1.1", masked)
+
+    def test_skill_noise_rejects_redaction_markers(self):
+        self.assertTrue(is_skill_noise("[GÊNERO OCULTO]"))
+        self.assertTrue(is_skill_noise("[IDADE OCULTA]"))
+        self.assertTrue(is_skill_noise("[ESTADO CIVIL OCULTO]"))
+        self.assertTrue(is_skill_noise("[FOTO OCULTA]"))
+        self.assertTrue(is_skill_noise("[NACIONALIDADE OCULTA]"))
+        self.assertTrue(is_skill_noise("[ENDEREÇO OCULTO]"))
+        self.assertTrue(is_skill_noise("[DADO PESSOAL OCULTO]"))
+        self.assertFalse(is_skill_noise("Python"))
+        self.assertFalse(is_skill_noise("PostgreSQL"))
+
+    def test_counterfactual_demographic_invariance(self):
+        import hashlib
+
+        def deterministic_embedder(inputs):
+            embeddings = []
+            for item in inputs:
+                digest = hashlib.sha256(item['text'].encode('utf-8')).digest()
+                v0 = float(sum(digest[:16]))
+                v1 = float(sum(digest[16:]))
+                norm = (v0 ** 2 + v1 ** 2) ** 0.5 or 1.0
+                embeddings.append([v0 / norm, v1 / norm])
+            return dict(records=[dict(item, input_index=i, chunk_index=0) for i, item in enumerate(inputs)],
+                        embeddings=embeddings)
+
+        class MockEmbedder:
+            def __init__(self):
+                self.captured = []
+
+            def encode(self, inputs):
+                self.captured.extend(inputs)
+                return deterministic_embedder(inputs)
+
+        job = {'requirements_data': build_requirements([
+            dict(text='Experiência com Python e PostgreSQL', tipo='tecnico', nivel='obrigatorio'),
+            dict(text='Docker e Kubernetes', tipo='tecnico', nivel='desejavel')
+        ])}
+
+        candidate_a_text = (
+            "Mariana Souza\n"
+            "Brasileira, 24 anos, solteira\n"
+            "Gênero: Feminino\n"
+            "Pronomes: ela/dela\n"
+            "Data de nascimento: 05/03/2000\n"
+            "RG: 12.345.678-9\n"
+            "CEP: 01310-100\n"
+            "Endereço: Rua Augusta, 100, São Paulo - SP\n"
+            "[foto 3x4]\n"
+            "EXPERIÊNCIA\n"
+            "Engenheira de Software\n"
+            "2021-2024\n"
+            "- Desenvolvimento de sistemas em Python e PostgreSQL\n"
+            "- Conteinerização de aplicações com Docker e Kubernetes\n"
+            "SKILLS\n"
+            "Python, PostgreSQL, Docker, Kubernetes\n"
+        )
+
+        candidate_b_text = (
+            "Carlos Eduardo Silva\n"
+            "Brasileiro, 52 anos, casado\n"
+            "Gênero: Masculino\n"
+            "Pronomes: ele/dele\n"
+            "Data de nascimento: 12/11/1972\n"
+            "RG: 98.765.432-1\n"
+            "CEP: 20040-002\n"
+            "Endereço: Avenida Rio Branco, 50, Rio de Janeiro - RJ\n"
+            "[foto do perfil]\n"
+            "EXPERIÊNCIA\n"
+            "Engenheiro de Software\n"
+            "2021-2024\n"
+            "- Desenvolvimento de sistemas em Python e PostgreSQL\n"
+            "- Conteinerização de aplicações com Docker e Kubernetes\n"
+            "SKILLS\n"
+            "Python, PostgreSQL, Docker, Kubernetes\n"
+        )
+
+        baseline_text = (
+            "EXPERIÊNCIA\n"
+            "Engenheiro de Software\n"
+            "2021-2024\n"
+            "- Desenvolvimento de sistemas em Python e PostgreSQL\n"
+            "- Conteinerização de aplicações com Docker e Kubernetes\n"
+            "SKILLS\n"
+            "Python, PostgreSQL, Docker, Kubernetes\n"
+        )
+
+        embedder_a = MockEmbedder()
+        embedder_b = MockEmbedder()
+        embedder_base = MockEmbedder()
+
+        model_a = SimpleNamespace(predict=lambda **kw: {'entities': [
+            entity(candidate_a_text, 'Mariana Souza'),
+            entity(candidate_a_text, 'Engenheira de Software', 'DESIGNATION'),
+            entity(candidate_a_text, 'Python', 'SKILLS'),
+            entity(candidate_a_text, 'PostgreSQL', 'SKILLS'),
+            entity(candidate_a_text, 'Docker', 'SKILLS'),
+            entity(candidate_a_text, 'Kubernetes', 'SKILLS')
+        ]})
+        model_b = SimpleNamespace(predict=lambda **kw: {'entities': [
+            entity(candidate_b_text, 'Carlos Eduardo Silva'),
+            entity(candidate_b_text, 'Engenheiro de Software', 'DESIGNATION'),
+            entity(candidate_b_text, 'Python', 'SKILLS'),
+            entity(candidate_b_text, 'PostgreSQL', 'SKILLS'),
+            entity(candidate_b_text, 'Docker', 'SKILLS'),
+            entity(candidate_b_text, 'Kubernetes', 'SKILLS')
+        ]})
+        model_base = SimpleNamespace(predict=lambda **kw: {'entities': [
+            entity(baseline_text, 'Engenheiro de Software', 'DESIGNATION'),
+            entity(baseline_text, 'Python', 'SKILLS'),
+            entity(baseline_text, 'PostgreSQL', 'SKILLS'),
+            entity(baseline_text, 'Docker', 'SKILLS'),
+            entity(baseline_text, 'Kubernetes', 'SKILLS')
+        ]})
+
+        with patch('app.analysis.load_models', return_value=(model_a, embedder_a)):
+            result_a = analyze(job, dict(raw_text=candidate_a_text, name='Mariana Souza'))
+
+        with patch('app.analysis.load_models', return_value=(model_b, embedder_b)):
+            result_b = analyze(job, dict(raw_text=candidate_b_text, name='Carlos Eduardo Silva'))
+
+        with patch('app.analysis.load_models', return_value=(model_base, embedder_base)):
+            result_base = analyze(job, dict(raw_text=baseline_text, name='Candidato'))
+
+        self.assertEqual(result_a['result']['score'], result_b['result']['score'])
+        self.assertEqual(result_a['result']['score'], result_base['result']['score'])
+
+        evidence_texts_a = [item['text'] for item in embedder_a.captured if item.get('source') != 'requirement']
+        evidence_texts_b = [item['text'] for item in embedder_b.captured if item.get('source') != 'requirement']
+        evidence_texts_base = [item['text'] for item in embedder_base.captured if item.get('source') != 'requirement']
+
+        self.assertEqual(evidence_texts_a, evidence_texts_b)
+        self.assertEqual(evidence_texts_a, evidence_texts_base)
+
+    def test_blind_recruitment_masks_identity_until_approval(self):
+        text = 'Ana Ferreira\nana@example.com\n(11) 98765-4321\nPython'
+        pending_row = {'id': 42, 'texto_extraido': text, 'nome_arquivo': 'ana_ferreira_cv.pdf', 'status': 'Pendente'}
+        pending = resume_for_template(pending_row)
+        self.assertEqual(pending['name'], 'Candidato #42')
+        self.assertEqual(pending['initials'], 'C42')
+        self.assertEqual(pending['email'], 'Oculto (disponível após aprovação)')
+        self.assertEqual(pending['phone'], 'Oculto (disponível após aprovação)')
+        self.assertEqual(pending['filename'], 'curriculo_42.pdf')
+
+        approved_row = {'id': 42, 'texto_extraido': text, 'nome_arquivo': 'ana_ferreira_cv.pdf', 'status': 'Aprovado'}
+        approved = resume_for_template(approved_row)
+        self.assertEqual(approved['name'], 'Ana Ferreira')
+        self.assertEqual(approved['initials'], 'AF')
+        self.assertEqual(approved['email'], 'ana@example.com')
+        self.assertEqual(approved['phone'], '(11) 98765-4321')
+        self.assertEqual(approved['filename'], 'ana_ferreira_cv.pdf')

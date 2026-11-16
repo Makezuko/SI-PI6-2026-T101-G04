@@ -114,22 +114,26 @@ def resume_for_template(row):
 
     skills = skills_data.get('skills', [])
     education = education_blocks[0]['text'].splitlines()[0] if education_blocks else 'Não especificada'
-    # Responsabilidades não identificam um cargo nem sua ordem temporal.
     last_role = 'Não identificado'
 
+    status = row.get('status') or 'Analisado'
+    cand_id = str(row.get('id') or '')
+    is_approved = (status == 'Aprovado')
+
     return {
-        'id': str(row['id']),
+        'id': cand_id,
         'job_id': str(row.get('vaga_id', '')),
-        'name': name,
-        'initials': initials,
+        'name': name if is_approved else (f'Candidato #{cand_id}' if cand_id else 'Candidato Anônimo'),
+        'real_name': name,
+        'initials': initials if is_approved else (f'C{cand_id}' if cand_id else 'CV'),
         'score': None,
         'analysis': None,
         'analysis_state': 'Pendente',
-        'filename': filename,
+        'filename': filename if is_approved else (f'curriculo_{cand_id}.pdf' if cand_id else 'curriculo.pdf'),
         'submitted_at': display_date,
-        'status': row.get('status') or 'Analisado',
-        'email': contact.get('email') or 'E-mail não informado',
-        'phone': contact.get('phone') or 'Telefone não informado',
+        'status': status,
+        'email': (contact.get('email') or 'E-mail não informado') if is_approved else 'Oculto (disponível após aprovação)',
+        'phone': (contact.get('phone') or 'Telefone não informado') if is_approved else 'Oculto (disponível após aprovação)',
         'education': education,
         'last_role': last_role,
         'skills': skills,

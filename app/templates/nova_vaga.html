@@ -118,7 +118,7 @@
 
       <div class="form-actions" style="display:flex;justify-content:flex-end;gap:10px;padding:18px 24px;border-top:1px solid var(--line);">
         <a href="{{ url_for('vagas') }}" class="btn btn-ghost">Cancelar</a>
-        <button type="submit" class="btn btn-primary" id="btn-save-job">Salvar e Processar Vaga</button>
+        <button type="submit" class="btn btn-primary" id="btn-save-job">Salvar Vaga</button>
       </div>
     </div>
   </form>
@@ -233,7 +233,7 @@
     document.getElementById('nova-vaga-form').addEventListener('submit', function () {
       var btn = document.getElementById('btn-save-job');
       btn.disabled = true;
-      btn.textContent = 'Processando os requisitos da vaga com IA...';
+      btn.textContent = 'Salvando vaga...';
     });
     refresh();
   })();

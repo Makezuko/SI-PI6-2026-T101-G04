@@ -1,3 +1,4 @@
+
 """
 Geração de embeddings de skills e contextos do currículo.
 
@@ -47,11 +48,15 @@ class ResumeEmbedder:
         if not text.strip():
             return []
 
+        # Tokeniza o texto completo para obter os offsets.
+        # verbose=False evita avisos de sequências longas nesta etapa.
+        # O texto não é truncado: todos os tokens são preservados.
         encoded = self.tokenizer(
             text,
             add_special_tokens=False,
             return_offsets_mapping=True,
             truncation=False,
+            verbose=False,
         )
 
         offsets = encoded["offset_mapping"]
@@ -81,11 +86,14 @@ class ResumeEmbedder:
             chunk_text = text[start:end]
 
             # Confere o tamanho após retokenizar o trecho.
-            token_count = len(self.tokenizer(
-                chunk_text,
-                add_special_tokens=True,
-                truncation=False,
-            )["input_ids"])
+            token_count = len(
+                self.tokenizer(
+                    chunk_text,
+                    add_special_tokens=True,
+                    truncation=False,
+                    verbose=False,
+                )["input_ids"]
+            )
 
             if token_count > self.model.max_seq_length:
                 raise ValueError(

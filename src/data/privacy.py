@@ -42,8 +42,29 @@ def personal_spans(text, entities):
 def anonymize_for_analysis(text, entities):
     for start, end in reversed(personal_spans(text, entities)):
         text = text[:start] + '[DADO PESSOAL OCULTO]' + text[end:]
-    # Contato usa regras específicas, sem identidade inferida do candidato.
     return anonymize_resume_text(text)
+
+
+def sanitize_text_for_embedding(text):
+    cleaned = re.sub(r'\[[^\[\]]*OCULT[OA]S?\]', '', text, flags=re.IGNORECASE)
+    cleaned = re.sub(r'[,;:\s*•-]+\s*$', '', cleaned)
+    cleaned = re.sub(r'^\s*[,;:\s*•-]+', '', cleaned)
+    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+    return cleaned
+
+
+def sanitize_semantic_inputs(inputs):
+    sanitized = []
+    for item in inputs:
+        new_item = dict(item)
+        if 'text' in new_item:
+            cleaned = sanitize_text_for_embedding(new_item['text'])
+            if cleaned:
+                new_item['text'] = cleaned
+                sanitized.append(new_item)
+        else:
+            sanitized.append(new_item)
+    return sanitized
 
 
 def latest_role(text, entities):

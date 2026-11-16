@@ -8,7 +8,7 @@ from threading import RLock
 
 from app.requisitos import parse_requirements
 from src.data.clean import anonymize_resume_text
-from src.data.privacy import anonymize_for_analysis, personal_spans, valid_entity, latest_role
+from src.data.privacy import anonymize_for_analysis, personal_spans, valid_entity, latest_role, sanitize_semantic_inputs
 from src.matching.score import calculate_similarity_index, FORMULA_VERSION, DEFAULT_WEIGHTS
 from src.nlp.skills_extractor import extract_skills
 
@@ -75,16 +75,15 @@ def analyze(job, resume):
         entities = prediction['entities']
         text = anonymize_for_analysis(raw, entities)
         spans = personal_spans(raw, entities)
-        # Valida no original. Não passa offsets antigos ao extrator do texto redigido.
         skills = [dict(label='SKILLS', text=anonymize_resume_text(entity['text']),
                        confidence=entity.get('confidence', 0))
                   for entity in entities if entity['label'] == 'SKILLS'
                   and valid_entity(raw, entity)
                   and not any(a < entity['end'] and entity['start'] < b for a, b in spans)]
         inputs = extract_skills(text=text, ner_entities=skills)['semantic_inputs']
+        inputs = sanitize_semantic_inputs(inputs)
         if not inputs:
             raise AnalysisError('Nenhuma evidência profissional extraída; análise permanece pendente.')
-        # Requisitos são textos revisados da vaga, não previsões sobre o candidato.
         safe_requirements = [dict(item) for item in requirements]
         queries = embedder.encode([{'text': item['text'], 'source': 'requirement'} for item in safe_requirements])
         if len(queries['records']) != len(requirements):

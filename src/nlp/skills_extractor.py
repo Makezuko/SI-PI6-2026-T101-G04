@@ -1,18 +1,17 @@
+
 """
 Extrator híbrido de competências de currículos.
 
-O extrator combina:
+Combina:
+1. Seções explícitas de competências;
+2. Entidades SKILLS previstas pelo NER;
+3. Segmentação por vírgulas, marcadores e quebras de linha;
+4. Reconhecimento de categorias;
+5. Reconstrução de competências fragmentadas;
+6. Normalização, filtragem e deduplicação.
 
-1. seções explícitas do currículo;
-2. blocos Skills previstos pelo NER;
-3. segmentação por vírgulas, marcadores e quebras de linha;
-4. normalização e deduplicação.
-
-A detecção por seção é prioritária porque o NER apresentou baixo F1 para
-Skills e dificuldade para determinar o começo e o fim de blocos extensos.
-
-O Sentence Transformer ainda não é utilizado aqui. Esta etapa apenas
-produz uma lista limpa de competências individuais.
+A extração por seção é prioritária porque o NER ainda apresenta
+dificuldade para reconhecer os limites de competências extensas.
 """
 
 from __future__ import annotations
@@ -25,7 +24,10 @@ from pathlib import Path
 from typing import Any
 
 
-# Títulos que indicam o começo de uma seção de competências.
+# ============================================================
+# 1. CONFIGURAÇÕES
+# ============================================================
+
 SKILL_SECTION_HEADINGS = {
     "skills",
     "technical skills",
@@ -53,11 +55,11 @@ SKILL_SECTION_HEADINGS = {
     "technical summary",
     "skill set",
     "technical skill set",
+    "technical proficiency",
+    "technical proficiency skills",
+    "technical expertise",
 }
 
-# Algumas tecnologias válidas possuem somente uma ou duas letras.
-# Elas precisam ser explicitamente permitidas para que o filtro não
-# descarte, por exemplo, C, R ou Go junto com fragmentos inválidos.
 VALID_SHORT_SKILLS = {
     "c",
     "r",
@@ -76,12 +78,16 @@ VALID_SHORT_SKILLS = {
     "git",
 }
 
-# Títulos que normalmente encerram a seção de competências.
 STOP_SECTION_HEADINGS = {
     "academic background",
     "academic qualifications",
     "achievements",
     "additional information",
+    "additional info",
+    "additional inf",
+    "links",
+    "personal information",
+    "visa information",
     "awards",
     "career objective",
     "certifications",
@@ -111,12 +117,24 @@ STOP_SECTION_HEADINGS = {
     "work history",
 }
 
-
-# Prefixos usados dentro de seções de Skills.
 CATEGORY_PREFIXES = {
     "backend",
     "cloud",
     "ci tools",
+    "continuous build",
+    "artifact repository",
+    "static code analysis",
+    "editors and ides",
+    "library and tool",
+    "libraries and tools",
+    "erp packages",
+    "office productivity",
+    "version control",
+    "version control system",
+    "web designing",
+    "applications",
+    "middleware",
+    "servers",
     "containers",
     "databases",
     "database",
@@ -140,8 +158,6 @@ CATEGORY_PREFIXES = {
     "web technologies",
 }
 
-
-# Expressões que normalmente indicam uma frase, e não uma skill individual.
 NON_SKILL_PHRASES = {
     "responsible for",
     "worked with",
@@ -153,15 +169,130 @@ NON_SKILL_PHRASES = {
     "ability to",
     "worked on",
     "duties included",
+    "environment like",
+    "environments like",
+    "working with",
+    "familiar with",
+}
+
+GENERIC_SKILL_PLACEHOLDERS = {
+    "specialization",
+    "specialisation",
+    "specilization",
+    "especialização",
+    "especializacao",
+    "machine",
+    "ificial",
+    "mysq",
+    "my sq",
+    "additional inf",
+    "additional info",
+    "links",
+    "visa information",
+    "personal information",
+    "engineer",
+    "software engineer",
+    "software developer",
+    "developer",
+    "integration",
+    "year",
+    "years",
+    "pack",
+    "software",
+    "environment",
+    "environments",
+}
+
+# Combinações conhecidas que podem ter sido fragmentadas.
+# A junção só acontece quando o resultado corresponde exatamente
+# a uma expressão desta lista.
+KNOWN_FRAGMENT_COMBINATIONS = {
+    "artificial intelligence": "Artificial Intelligence",
+    "machine learning": "Machine Learning",
+    "deep learning": "Deep Learning",
+    "microsoft access": "Microsoft Access",
+    "microsoft word": "Microsoft Word",
+    "microsoft excel": "Microsoft Excel",
+    "data structures": "Data Structures",
+    "data structures and algorithms": "Data Structures and Algorithms",
+    "data structures & algorithms": "Data Structures & Algorithms",
+    "version control system": "Version Control System",
+    "static code analysis": "Static Code Analysis",
+    "continuous build": "Continuous Build",
+    "artifact repository": "Artifact Repository",
+    "office productivity": "Office Productivity",
+    "library and tool": "Library and Tool",
+    "editors and ides": "Editors and IDEs",
+    "cloud computing": "Cloud Computing",
+}
+
+# Categorias técnicas inferidas a partir do nome da competência.
+# Essa classificação é independente da categoria encontrada no currículo.
+TECHNICAL_CATEGORY_RULES = {
+    "Programming Languages": {
+        "python", "java", "javascript", "typescript",
+        "kotlin", "swift", "go", "golang", "c",
+        "c++", "c#", "f#", "php", "ruby", "scala",
+        "r", "perl", "rust", "objective-c",
+        "pl/sql", "sql",
+    },
+    "Web Technologies": {
+        "html", "css", "xml",
+    },
+    "Frameworks and Libraries": {
+        "django", "flask", "fastapi", "spring",
+        "spring mvc", "react", "angular", "angular js",
+        "vue", "jquery", "bootstrap", "tensorflow",
+        "pytorch", "scikit-learn", "keras",
+        "opencv", "pandas", "numpy",
+    },
+    "Databases": {
+        "mysql", "my sql", "postgresql", "postgres",
+        "sqlite", "mongodb", "redis", "oracle",
+        "sql server", "microsoft access",
+        "elasticsearch", "elastic search",
+    },
+    "Cloud and DevOps": {
+        "aws", "azure", "gcp", "google cloud",
+        "docker", "kubernetes", "jenkins",
+        "terraform", "ansible", "chef",
+        "git", "github", "gitlab", "svn",
+        "maven", "ant", "nexus",
+    },
+    "Operating Systems": {
+        "linux", "unix", "windows",
+        "windows server", "macos",
+    },
+    "Data Science and AI": {
+        "artificial intelligence",
+        "machine learning",
+        "deep learning",
+        "natural language processing",
+        "computer vision",
+        "data science",
+        "data analysis",
+        "data engineering",
+        "neural networks",
+        "tensorflow",
+        "pytorch",
+    },
+    "Development Tools": {
+        "eclipse", "netbeans", "pycharm",
+        "jupyter", "jupyter notebook",
+        "visual studio", "visual studio code",
+        "intellij idea", "notepad++",
+        "putty", "winscp",
+    },
 }
 
 
-def repair_common_encoding(
-    text: str,
-) -> str:
-    """
-    Corrige alguns marcadores frequentemente corrompidos no dataset.
-    """
+# ============================================================
+# 2. NORMALIZAÇÃO E FILTROS
+# ============================================================
+
+def repair_common_encoding(text: str) -> str:
+    """Corrige marcadores frequentemente corrompidos no dataset."""
+
     replacements = {
         "â€¢": "•",
         "â—": "●",
@@ -173,108 +304,24 @@ def repair_common_encoding(
     repaired = text
 
     for old, new in replacements.items():
-        repaired = repaired.replace(
-            old,
-            new,
-        )
+        repaired = repaired.replace(old, new)
 
     return repaired
 
 
-# Termos isolados que não descrevem uma competência.
-GENERIC_SKILL_PLACEHOLDERS = {
-    "specialization",
-    "specialisation",
-    "specilization",
-    "especialização",
-    "especializacao",
-}
+def normalize_skill_key(skill: str) -> str:
+    """Cria uma chave para deduplicação."""
+
+    normalized = skill.casefold()
+    normalized = re.sub(r"\s+", " ", normalized)
+
+    return normalized.strip()
 
 
-def is_skill_noise(text: str) -> bool:
-    """Identifica links, contatos e termos genéricos isolados."""
-    normalized = text.strip().casefold()
+def normalize_heading(text: str) -> str:
+    """Normaliza um possível título de seção."""
 
-    if normalized in GENERIC_SKILL_PLACEHOLDERS:
-        return True
-
-    # Rejeita candidatos que contêm uma URL.
-    if re.search(r"(?:https?://|www\.)\S+", text, re.IGNORECASE):
-        return True
-
-    # Também identifica links de perfil sem protocolo.
-    if re.search(
-        r"\b(?:indeed\.com|linkedin\.com|github\.com)/\S+",
-        text,
-        re.IGNORECASE,
-    ):
-        return True
-
-    # Um endereço de e-mail não é uma competência.
-    if re.search(r"\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b", text, re.IGNORECASE):
-        return True
-
-    return False
-
-
-def is_valid_skill_candidate(skill: str) -> bool:
-    """
-    Verifica se um texto realmente parece representar uma competência.
-
-    Esse filtro é necessário porque o modelo NER ainda possui baixo
-    desempenho para SKILLS e pode produzir fragmentos como ".", "s"
-    ou "LS". Esses fragmentos não devem chegar à etapa de comparação
-    semântica com Sentence Transformers.
-
-    Regras:
-    1. rejeita textos vazios;
-    2. rejeita pontuação isolada;
-    3. aceita tecnologias curtas conhecidas, como C, R, Go e C#;
-    4. rejeita outros textos com menos de três caracteres;
-    5. exige pelo menos uma letra ou número.
-    """
-    if not isinstance(skill, str):
-        return False
-
-    normalized = skill.strip()
-    normalized_lower = normalized.casefold()
-
-    if not normalized:
-        return False
-
-    if is_skill_noise(normalized):
-        return False
-
-    # Aceita explicitamente tecnologias curtas conhecidas.
-    if normalized_lower in VALID_SHORT_SKILLS:
-        return True
-
-    # Rejeita ".", "-", "/", entre outros sinais isolados.
-    if not any(character.isalnum() for character in normalized):
-        return False
-
-    # Fragmentos curtos que não estão na lista segura são descartados.
-    if len(normalized) < 3:
-        return False
-
-    # Uma competência deve possuir ao menos uma letra.
-    # Isso evita aceitar números soltos como "1" ou "2024".
-    if not any(character.isalpha() for character in normalized):
-        return False
-
-    return True
-
-
-def normalize_heading(
-    text: str,
-) -> str:
-    """
-    Normaliza um possível título de seção.
-    """
-    normalized = repair_common_encoding(
-        text
-    )
-
+    normalized = repair_common_encoding(text)
     normalized = normalized.strip()
 
     normalized = re.sub(
@@ -289,131 +336,277 @@ def normalize_heading(
         normalized,
     )
 
+    normalized = re.sub(r"\s+", " ", normalized)
+
+    return normalized.casefold()
+
+
+def normalize_skill_display(skill: str) -> str:
+    """
+    Normaliza a forma exibida da competência.
+
+    Preserva tecnologias como .NET, C++ e C#.
+    """
+
+    skill = repair_common_encoding(skill).strip()
+
+    skill = re.sub(
+        r"^[•●▪◦\-\–\—\s]+",
+        "",
+        skill,
+    )
+
+    # Remove pontuação final sem remover o ponto inicial de .NET.
+    skill = re.sub(r"[,;:|\s.]+$", "", skill)
+
+    skill = re.sub(r"\s+", " ", skill).strip()
+
+    aliases = {
+        "git-hub": "GitHub",
+        "github": "GitHub",
+        "my sql": "MySQL",
+        "mysql": "MySQL",
+        "postgre sql": "PostgreSQL",
+        "postgres": "PostgreSQL",
+        "golang": "Go",
+        "jupiter notebook": "Jupyter Notebook",
+        "pycharm": "PyCharm",
+        "javascript": "JavaScript",
+        "typescript": "TypeScript",
+        "linux": "Linux",
+        "windows": "Windows",
+        "docker": "Docker",
+        "kubernetes": "Kubernetes",
+        "html": "HTML",
+        "css": "CSS",
+        "xml": "XML",
+        "sql": "SQL",
+        "aws": "AWS",
+        "apex": "APEX",
+        "dns": "DNS",
+        "git": "Git",
+        "svn": "SVN",
+        "php": "PHP",
+        "pl/sql": "PL/SQL",
+        "c++": "C++",
+        "c#": "C#",
+        ".net": ".NET",
+        "microsoft access": "Microsoft Access",
+        "microsoft word": "Microsoft Word",
+        "microsoft excel": "Microsoft Excel",
+        "artificial intelligence": "Artificial Intelligence",
+        "machine learning": "Machine Learning",
+        "deep learning": "Deep Learning",
+        "data structures": "Data Structures",
+        "data structures and algorithms": "Data Structures and Algorithms",
+        "data structures & algorithms": "Data Structures & Algorithms",
+    }
+
+    key = normalize_skill_key(skill)
+
+    if key in aliases:
+        return aliases[key]
+
+    return skill
+
+
+def is_skill_noise(text: str) -> bool:
+    """Identifica links, contatos e informações que não são competências."""
+
     normalized = re.sub(
         r"\s+",
         " ",
-        normalized,
+        text.strip().casefold(),
     )
 
-    return normalized.casefold()
+    if normalized in GENERIC_SKILL_PLACEHOLDERS:
+        return True
+
+    if re.search(r"\[[^\[\]]*ocult[oa]s?\]", text, re.IGNORECASE):
+        return True
+
+    if re.search(
+        r"(?:https?://|www\.)\S+",
+        text,
+        re.IGNORECASE,
+    ):
+        return True
+
+    if re.search(
+        r"\b(?:indeed\.com|linkedin\.com|github\.com)/\S+",
+        text,
+        re.IGNORECASE,
+    ):
+        return True
+
+    if re.search(
+        r"\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b",
+        text,
+        re.IGNORECASE,
+    ):
+        return True
+
+    administrative_phrases = {
+        "additional information",
+        "additional info",
+        "visa information",
+        "work permit",
+        "personal information",
+    }
+
+    if normalized in administrative_phrases:
+        return True
+
+    # Informações de visto e autorização de trabalho.
+    if re.search(
+        r"\bvisa\b|\bwork permit\b",
+        normalized,
+    ):
+        return True
+
+    # Exemplos: B1 B2 US VISA till 2025.
+    if re.search(
+        r"\b(?:b1|b2|h1b|l1)\b.*\b(?:visa|till|until|valid)\b",
+        normalized,
+    ):
+        return True
+
+    # Datas isoladas ou expressões como "till 2025".
+    if re.fullmatch(
+        r"(?:till|until|valid until)?\s*\d{4}",
+        normalized,
+    ):
+        return True
+
+    return False
+
+
+def is_valid_skill_candidate(skill: str) -> bool:
+    """
+    Verifica se um texto parece representar uma competência.
+    """
+
+    if not isinstance(skill, str):
+        return False
+
+    normalized = normalize_skill_display(skill)
+    normalized_lower = normalized.casefold()
+
+    if not normalized:
+        return False
+
+    if is_skill_noise(normalized):
+        return False
+
+    if normalized_lower in VALID_SHORT_SKILLS:
+        return True
+
+    if normalized_lower in GENERIC_SKILL_PLACEHOLDERS:
+        return False
+
+    if not any(character.isalnum() for character in normalized):
+        return False
+
+    if len(normalized) < 3:
+        return False
+
+    if not any(character.isalpha() for character in normalized):
+        return False
+
+    return True
+
+
+def infer_technical_category(skill: str) -> str | None:
+    """
+    Infere uma categoria técnica a partir da competência.
+
+    Retorna None quando não há correspondência suficientemente clara.
+    """
+
+    normalized = normalize_skill_key(skill)
+
+    for category, terms in TECHNICAL_CATEGORY_RULES.items():
+        normalized_terms = {
+            normalize_skill_key(term)
+            for term in terms
+        }
+
+        if normalized in normalized_terms:
+            return category
+
+    return None
 
 
 def split_heading_and_content(
     line: str,
 ) -> tuple[str, str]:
-    """
-    Separa linhas como:
+    """Separa linhas como 'Technical Skills: Python, Java'."""
 
-        Technical Skills: Python, Java
-
-    em:
-
-        heading = Technical Skills
-        content = Python, Java
-    """
-    repaired_line = repair_common_encoding(
-        line
-    ).strip()
+    repaired_line = repair_common_encoding(line).strip()
 
     if ":" not in repaired_line:
         return repaired_line, ""
 
-    heading, content = (
-        repaired_line.split(
-            ":",
-            maxsplit=1,
-        )
-    )
+    heading, content = repaired_line.split(":", maxsplit=1)
 
-    return (
-        heading.strip(),
-        content.strip(),
-    )
+    return heading.strip(), content.strip()
 
+
+# ============================================================
+# 3. IDENTIFICAÇÃO DE SEÇÕES
+# ============================================================
 
 def find_skill_sections(
     text: str,
 ) -> list[dict[str, Any]]:
-    """
-    Localiza seções explícitas de competências.
+    """Localiza seções explícitas de competências."""
 
-    A coleta começa quando uma linha corresponde a um título de Skills
-    e termina quando outro título principal é encontrado.
-    """
-    repaired_text = repair_common_encoding(
-        text
-    )
-
+    repaired_text = repair_common_encoding(text)
     lines = repaired_text.splitlines()
 
     sections = []
+
     collecting = False
     current_heading = None
     current_lines = []
     section_start_line = None
 
-    def close_section(
-        end_line: int,
-    ) -> None:
+    def close_section(end_line: int) -> None:
         nonlocal collecting
         nonlocal current_heading
         nonlocal current_lines
         nonlocal section_start_line
 
-        if (
-            collecting
-            and current_lines
-        ):
-            block = "\n".join(
-                current_lines
-            ).strip()
+        if collecting and current_lines:
+            block = "\n".join(current_lines).strip()
 
             if block:
-                sections.append(
-                    {
-                        "heading": (
-                            current_heading
-                        ),
-                        "text": block,
-                        "start_line": (
-                            section_start_line
-                        ),
-                        "end_line": end_line,
-                    }
-                )
+                sections.append({
+                    "heading": current_heading,
+                    "text": block,
+                    "start_line": section_start_line,
+                    "end_line": end_line,
+                })
 
         collecting = False
         current_heading = None
         current_lines = []
         section_start_line = None
 
-    for line_index, line in enumerate(
-        lines
-    ):
+    for line_index, line in enumerate(lines):
         stripped_line = line.strip()
 
         if not stripped_line:
-            # Mantém uma quebra simples dentro da seção.
             if collecting:
                 current_lines.append("")
             continue
 
-        heading_part, inline_content = (
-            split_heading_and_content(
-                stripped_line
-            )
+        heading_part, inline_content = split_heading_and_content(
+            stripped_line
         )
 
-        normalized_heading = (
-            normalize_heading(
-                heading_part
-            )
-        )
+        normalized_heading = normalize_heading(heading_part)
 
-        # Dentro de uma seção de Skills, uma linha como
-        # "Programming Languages: Python, Java" é uma categoria interna,
-        # não o início de outra seção. Preserve a linha para extrair a
-        # categoria e a evidência individual mais adiante.
         if (
             collecting
             and inline_content
@@ -422,79 +615,47 @@ def find_skill_sections(
             current_lines.append(stripped_line)
             continue
 
-        if (
-            normalized_heading
-            in SKILL_SECTION_HEADINGS
-        ):
-            close_section(
-                line_index - 1
-            )
+        if normalized_heading in SKILL_SECTION_HEADINGS:
+            close_section(line_index - 1)
 
             collecting = True
-            current_heading = (
-                heading_part.strip()
-            )
-
+            current_heading = heading_part.strip()
             current_lines = []
-
-            section_start_line = (
-                line_index
-            )
+            section_start_line = line_index
 
             if inline_content:
-                current_lines.append(
-                    inline_content
-                )
+                current_lines.append(inline_content)
 
             continue
 
         if (
             collecting
-            and normalized_heading
-            in STOP_SECTION_HEADINGS
+            and normalized_heading in STOP_SECTION_HEADINGS
         ):
-            close_section(
-                line_index - 1
-            )
-
+            close_section(line_index - 1)
             continue
 
         if collecting:
-            current_lines.append(
-                stripped_line
-            )
+            current_lines.append(stripped_line)
 
-    close_section(
-        len(lines) - 1
-    )
+    close_section(len(lines) - 1)
 
     return sections
 
 
-def remove_category_prefix(
-    candidate: str,
-) -> str:
-    """
-    Remove prefixos internos como:
+# ============================================================
+# 4. LIMPEZA E SEGMENTAÇÃO DE COMPETÊNCIAS
+# ============================================================
 
-        Databases: PostgreSQL
+def remove_category_prefix(candidate: str) -> str:
+    """Remove prefixos de categoria, quando reconhecidos."""
 
-    retornando:
-
-        PostgreSQL
-    """
     if ":" not in candidate:
         return candidate
 
-    prefix, content = candidate.split(
-        ":",
-        maxsplit=1,
-    )
+    prefix, content = candidate.split(":", maxsplit=1)
 
-    if (
-        normalize_heading(prefix)
-        in CATEGORY_PREFIXES
-    ):
+    if normalize_heading(prefix) in CATEGORY_PREFIXES:
         return content.strip()
 
     return candidate
@@ -503,34 +664,10 @@ def remove_category_prefix(
 def clean_skill_candidate(
     candidate: str,
 ) -> str | None:
-    """
-    Limpa e valida uma possível competência individual.
-    """
-    skill = repair_common_encoding(
-        candidate
-    )
+    """Limpa e valida uma possível competência individual."""
 
-    skill = skill.strip()
+    skill = normalize_skill_display(candidate)
 
-    skill = re.sub(
-        r"^[•●▪◦\-\–\—\s]+",
-        "",
-        skill,
-    )
-
-    skill = re.sub(
-        r"[,;:|\s]+$",
-        "",
-        skill,
-    )
-
-    skill = remove_category_prefix(
-        skill
-    )
-
-    # Remove informações de tempo, mantendo somente a competência.
-    #
-    # Exemplo:
     # Python (3 years) -> Python
     skill = re.sub(
         r"\s*\(\s*"
@@ -543,11 +680,8 @@ def clean_skill_candidate(
         flags=re.IGNORECASE,
     )
 
-    skill = re.sub(
-        r"\s+",
-        " ",
-        skill,
-    ).strip()
+    skill = remove_category_prefix(skill)
+    skill = normalize_skill_display(skill)
 
     if not skill:
         return None
@@ -558,86 +692,193 @@ def clean_skill_candidate(
         SKILL_SECTION_HEADINGS
         | STOP_SECTION_HEADINGS
         | CATEGORY_PREFIXES
+        | GENERIC_SKILL_PLACEHOLDERS
     ):
         return None
 
-    # C, R e Go são exemplos válidos, portanto não usamos um limite
-    # mínimo maior que um caractere.
     if len(skill) > 100:
         return None
 
-    words = skill.split()
+    if len(skill.split()) > 10:
+        return None
 
-    # Blocos muito extensos geralmente são frases ou parágrafos.
-    if len(words) > 10:
+    if is_skill_noise(skill):
         return None
 
     for phrase in NON_SKILL_PHRASES:
         if phrase in normalized:
             return None
 
-    if not re.search(
-        r"[A-Za-z0-9+#.]",
-        skill,
-    ):
+    if not re.search(r"[A-Za-z0-9+#.]", skill):
+        return None
+
+    if not is_valid_skill_candidate(skill):
         return None
 
     return skill
+
+
+def merge_known_fragments(
+    candidates: list[str],
+) -> list[str]:
+    """
+    Reconstrói competências conhecidas que foram separadas.
+
+    Exemplo:
+        Artificial, Intelligence -> Artificial Intelligence
+
+    A junção só ocorre quando a combinação está na lista permitida.
+    """
+
+    merged = []
+    index = 0
+
+    while index < len(candidates):
+        current = candidates[index].strip()
+        found = False
+
+        # Tenta combinar até quatro fragmentos consecutivos.
+        for size in range(4, 1, -1):
+            group = candidates[index:index + size]
+
+            if len(group) != size:
+                continue
+
+            combined = " ".join(
+                part.strip()
+                for part in group
+            )
+
+            key = normalize_skill_key(combined)
+
+            if key in KNOWN_FRAGMENT_COMBINATIONS:
+                merged.append(KNOWN_FRAGMENT_COMBINATIONS[key])
+                index += size
+                found = True
+                break
+
+        if not found:
+            merged.append(current)
+            index += 1
+
+    return merged
 
 
 def split_skill_block_details(
     block: str,
 ) -> list[dict[str, str | None]]:
     """
-    Divide um bloco de competências preservando a linha de origem e a categoria.
+    Divide um bloco de competências e preserva categoria/evidência.
 
-    Exemplo:
-        "Programming Languages: Python, Java"
-
-    produz entradas para Python e Java, ambas vinculadas à linha original e
-    à categoria "Programming Languages". A função não tenta separar por
-    espaços nomes ambíguos de tecnologias; esses casos precisam de revisão.
+    A categoria de origem não determina automaticamente a categoria
+    técnica da competência.
     """
+
     repaired_block = repair_common_encoding(block)
+
     details: list[dict[str, str | None]] = []
 
-    # Processar linha a linha permite preservar uma evidência de origem menor
-    # do que a seção inteira do currículo.
-    for line in repaired_block.splitlines():
-        original_line = line.strip()
-        if not original_line:
-            continue
+    raw_lines = [
+        line.strip()
+        for line in repaired_block.splitlines()
+        if line.strip()
+    ]
 
-        heading, inline_content = split_heading_and_content(original_line)
+    category_prefixes = sorted(
+        CATEGORY_PREFIXES,
+        key=len,
+        reverse=True,
+    )
+
+    for original_line in raw_lines:
+        heading, inline_content = split_heading_and_content(
+            original_line
+        )
+
         normalized_heading = normalize_heading(heading)
-        category: str | None = None
 
-        if inline_content and normalized_heading in CATEGORY_PREFIXES:
-            category = heading.strip()
+        source_category: str | None = None
+
+        if (
+            inline_content
+            and normalized_heading in CATEGORY_PREFIXES
+        ):
+            source_category = heading.strip()
             content = inline_content
+
         else:
             content = original_line
 
-        # Os marcadores de lista também separam candidatos. A evidência
-        # preservada continua sendo a linha original, antes da divisão.
-        raw_candidates = re.split(r"[•●▪◦\n,;|]+", content)
-        for raw_candidate in raw_candidates:
+            # Algumas categorias aparecem sem dois-pontos.
+            for prefix in category_prefixes:
+                match = re.match(
+                    rf"^{re.escape(prefix)}\s+(.+)$",
+                    original_line,
+                    flags=re.IGNORECASE,
+                )
+
+                if match:
+                    source_category = prefix
+                    content = match.group(1).strip()
+                    break
+
+        # Em controle de versão, "&" e "and" podem separar produtos.
+        if source_category and normalize_heading(source_category) in {
+            "version control",
+            "version control system",
+        }:
+            content = re.sub(
+                r"\s+(?:&|and)\s+",
+                ", ",
+                content,
+                flags=re.IGNORECASE,
+            )
+
+        raw_candidates = re.split(
+            r"[•●▪◦\n,;|]+",
+            content,
+        )
+
+        # Remove fragmentos vazios antes de tentar reconstruir.
+        raw_candidates = [
+            item.strip()
+            for item in raw_candidates
+            if item.strip()
+        ]
+
+        reconstructed_candidates = merge_known_fragments(
+            raw_candidates
+        )
+
+        for raw_candidate in reconstructed_candidates:
             cleaned = clean_skill_candidate(raw_candidate)
+
             if cleaned is None:
                 continue
+
+            technical_category = infer_technical_category(cleaned)
+
             details.append({
                 "skill": cleaned,
-                "category": category,
+
+                # Campo antigo mantido para compatibilidade.
+                "category": source_category,
+
+                # Categoria encontrada no currículo.
+                "source_category": source_category,
+
+                # Categoria inferida a partir da tecnologia.
+                "technical_category": technical_category,
+
                 "evidence_text": original_line,
             })
 
     return details
 
 
-def split_skill_block(
-    block: str,
-) -> list[str]:
-    """Divide um bloco em habilidades, mantendo a API anterior compatível."""
+def split_skill_block(block: str) -> list[str]:
+    """Mantém compatibilidade com a API anterior."""
+
     return [
         item["skill"]
         for item in split_skill_block_details(block)
@@ -645,81 +886,45 @@ def split_skill_block(
     ]
 
 
-def normalize_skill_key(
-    skill: str,
-) -> str:
-    """
-    Cria uma chave para deduplicação sem alterar o texto exibido.
-    """
-    normalized = skill.casefold()
-
-    normalized = re.sub(
-        r"\s+",
-        " ",
-        normalized,
-    )
-
-    normalized = normalized.strip()
-
-    return normalized
-
+# ============================================================
+# 5. EXTRAÇÃO DE ENTIDADES DO NER
+# ============================================================
 
 def extract_ner_skill_blocks(
-    ner_entities: list[
-        dict[str, Any]
-    ] | None,
+    ner_entities: list[dict[str, Any]] | None,
 ) -> list[dict[str, Any]]:
-    """
-    Seleciona somente entidades SKILLS previstas pelo NER.
-    """
+    """Seleciona somente entidades SKILLS previstas pelo NER."""
+
     if not ner_entities:
         return []
 
     blocks = []
 
     for entity in ner_entities:
-        label = str(
-            entity.get(
-                "label",
-                "",
-            )
-        ).upper()
+        label = str(entity.get("label", "")).upper()
 
         if label != "SKILLS":
             continue
 
-        text = str(
-            entity.get(
-                "text",
-                "",
-            )
-        )
+        entity_text = str(entity.get("text", ""))
 
-        if not text.strip():
+        if not entity_text.strip():
             continue
 
-        blocks.append(
-            {
-                "text": text,
-                "confidence": float(
-                    entity.get(
-                        "confidence",
-                        0.0,
-                    )
-                ),
-                "start": entity.get(
-                    "start"
-                ),
-                "end": entity.get(
-                    "end"
-                ),
-            }
-        )
+        blocks.append({
+            "text": entity_text,
+            "confidence": float(entity.get("confidence", 0.0)),
+            "start": entity.get("start"),
+            "end": entity.get("end"),
+        })
 
     return blocks
 
 
-# Seções que contêm evidências úteis para a comparação semântica.
+# ============================================================
+# 6. EXTRAÇÃO DE CONTEXTO
+# ============================================================
+
 CONTEXT_SECTION_HEADINGS = {
     "experience": "experience",
     "professional experience": "experience",
@@ -745,7 +950,6 @@ CONTEXT_SECTION_HEADINGS = {
     "projetos profissionais": "project",
 }
 
-# Títulos conhecidos que encerram um bloco de contexto.
 CONTEXT_STOP_HEADINGS = (
     SKILL_SECTION_HEADINGS
     | STOP_SECTION_HEADINGS
@@ -768,18 +972,14 @@ CONTEXT_STOP_HEADINGS = (
 def segment_experience_block(
     block: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    """
-    Divide uma experiência profissional em evidências menores.
+    """Divide uma experiência profissional em evidências menores."""
 
-    Marcadores iniciam responsabilidades; quebras de linha sem linha vazia
-    são tratadas como continuação da responsabilidade. Uma linha vazia
-    seguida de texto sem marcador encerra o bloco para não misturar cargos
-    ou seções posteriores com a última responsabilidade.
-    """
     lines = block["text"].splitlines()
+
     header_lines: list[str] = []
     evidence_blocks: list[dict[str, Any]] = []
     current_lines: list[str] = []
+
     current_start: int | None = None
     first_bullet_found = False
     pending_blank_after_bullet = False
@@ -836,8 +1036,10 @@ def segment_experience_block(
         if not line:
             if current_lines:
                 save_current(line_number - 1)
+
             if first_bullet_found:
                 pending_blank_after_bullet = True
+
             continue
 
         heading, _ = split_heading_and_content(line)
@@ -849,9 +1051,11 @@ def segment_experience_block(
         ):
             if current_lines:
                 save_current(line_number - 1)
+
             break
 
         match = bullet_pattern.match(raw_line)
+
         if match:
             if current_lines:
                 save_current(line_number - 1)
@@ -859,6 +1063,7 @@ def segment_experience_block(
             first_bullet_found = True
             current_start = line_number
             current_lines = [match.group(1).strip()]
+
             pending_blank_after_bullet = False
             collecting_next_header = False
 
@@ -866,18 +1071,14 @@ def segment_experience_block(
             header_lines.append(line)
 
         elif pending_blank_after_bullet:
-            # Texto sem marcador após uma linha vazia pode iniciar outro cargo.
-            # Reinicia o cabeçalho para que o próximo bullet tenha o contexto certo.
             header_lines = [line]
             pending_blank_after_bullet = False
             collecting_next_header = True
 
         elif collecting_next_header and not current_lines:
-            # Preserva empresa, cargo, datas e outras linhas do novo cabeçalho.
             header_lines.append(line)
 
         elif current_lines:
-            # Linha contígua: pode ser continuação de um bullet quebrado.
             current_lines.append(line)
 
     if current_lines:
@@ -885,29 +1086,32 @@ def segment_experience_block(
             block.get("end_line") or base_line + len(lines)
         )
 
-    # Sem marcadores, preserva a experiência original em vez de descartá-la.
     if not evidence_blocks:
         return [block]
 
     return evidence_blocks
 
 
-def extract_context_blocks(text: str) -> list[dict[str, Any]]:
-    """
-    Extrai experiências e projetos. Experiências são segmentadas por
-    responsabilidades; projetos continuam como blocos de contexto completos.
-    """
+def extract_context_blocks(
+    text: str,
+) -> list[dict[str, Any]]:
+    """Extrai experiências e projetos."""
+
     blocks: list[dict[str, Any]] = []
+
     current_source = None
     current_heading = None
     current_lines: list[str] = []
     start_line = None
 
     def close_block(end_line: int) -> None:
-        nonlocal current_source, current_heading
-        nonlocal current_lines, start_line
+        nonlocal current_source
+        nonlocal current_heading
+        nonlocal current_lines
+        nonlocal start_line
 
         block_text = "\n".join(current_lines).strip()
+
         if current_source is not None and block_text:
             block = {
                 "text": block_text,
@@ -916,6 +1120,7 @@ def extract_context_blocks(text: str) -> list[dict[str, Any]]:
                 "start_line": start_line,
                 "end_line": end_line,
             }
+
             if current_source == "experience":
                 blocks.extend(segment_experience_block(block))
             else:
@@ -927,15 +1132,18 @@ def extract_context_blocks(text: str) -> list[dict[str, Any]]:
         start_line = None
 
     lines = text.splitlines()
+
     for line_number, line in enumerate(lines, start=1):
         heading, inline_content = split_heading_and_content(line)
         normalized = normalize_heading(heading)
 
         if normalized in CONTEXT_SECTION_HEADINGS:
             close_block(line_number - 1)
+
             current_source = CONTEXT_SECTION_HEADINGS[normalized]
             current_heading = heading.strip()
             start_line = line_number
+
             if inline_content:
                 current_lines.append(inline_content)
 
@@ -946,17 +1154,20 @@ def extract_context_blocks(text: str) -> list[dict[str, Any]]:
             current_lines.append(line)
 
     close_block(len(lines))
+
     return blocks
 
+
+# ============================================================
+# 7. PREPARAÇÃO DOS INPUTS SEMÂNTICOS
+# ============================================================
 
 def prepare_semantic_inputs(
     skill_details: list[dict[str, Any]],
     context_blocks: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """
-    Organiza os textos que serão enviados ao modelo de embeddings.
-    Mantém a distinção entre uma skill e um bloco de contexto.
-    """
+    """Organiza os textos que serão enviados ao modelo de embeddings."""
+
     inputs = []
 
     for item in skill_details:
@@ -966,6 +1177,8 @@ def prepare_semantic_inputs(
             "extraction_sources": item["sources"],
             "evidence": item["evidence"],
             "categories": item.get("categories", []),
+            "source_categories": item.get("source_categories", []),
+            "technical_category": item.get("technical_category"),
         })
 
     for block in context_blocks:
@@ -973,31 +1186,26 @@ def prepare_semantic_inputs(
 
     return inputs
 
+
+# ============================================================
+# 8. EXTRAÇÃO HÍBRIDA
+# ============================================================
+
 def extract_skills(
     text: str,
-    ner_entities: list[
-        dict[str, Any]
-    ] | None = None,
+    ner_entities: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """
     Executa a extração híbrida de competências.
 
-    As competências encontradas em mais de uma fonte são mantidas apenas
+    Competências encontradas em mais de uma fonte são mantidas apenas
     uma vez, mas registram todas as suas origens.
     """
-    sections = find_skill_sections(
-        text
-    )
 
-    ner_blocks = extract_ner_skill_blocks(
-        ner_entities
-    )
+    sections = find_skill_sections(text)
+    ner_blocks = extract_ner_skill_blocks(ner_entities)
 
-    # OrderedDict preserva a ordem em que as skills aparecem.
-    candidates: OrderedDict[
-        str,
-        dict[str, Any],
-    ] = OrderedDict()
+    candidates: OrderedDict[str, dict[str, Any]] = OrderedDict()
 
     def add_candidate(
         skill: str,
@@ -1005,71 +1213,77 @@ def extract_skills(
         evidence: str,
         confidence: float | None,
         category: str | None = None,
+        technical_category: str | None = None,
     ) -> None:
-        """
-        Valida, normaliza e adiciona uma competência ao resultado.
+        """Valida, normaliza e adiciona uma competência."""
 
-        O filtro é aplicado tanto às competências encontradas em seções
-        explícitas quanto às previstas pelo NER. Isso impede que fragmentos
-        como ".", "s" e "LS" cheguem ao resultado final.
-        """
+        cleaned_skill = clean_skill_candidate(skill)
 
-        # Ignora fragmentos que não parecem representar uma skill real.
-        if not is_valid_skill_candidate(skill):
+        if cleaned_skill is None:
             return
 
-        key = normalize_skill_key(
-            skill
-        )
+        key = normalize_skill_key(cleaned_skill)
 
         if not key:
             return
 
         if key not in candidates:
             candidates[key] = {
-                "skill": skill,
+                "skill": cleaned_skill,
                 "normalized": key,
                 "sources": [],
                 "evidence": [],
+
+                # Campo antigo mantido para compatibilidade.
                 "categories": [],
+
+                # Categorias de origem do currículo.
+                "source_categories": [],
+
+                # Categoria técnica inferida.
+                "technical_category": (
+                    technical_category
+                    or infer_technical_category(cleaned_skill)
+                ),
+
                 "ner_confidence": None,
             }
 
         record = candidates[key]
 
         if source not in record["sources"]:
-            record["sources"].append(
-                source
-            )
+            record["sources"].append(source)
 
         shortened_evidence = evidence[:300]
 
         if shortened_evidence not in record["evidence"]:
-            record["evidence"].append(
-                shortened_evidence
-            )
+            record["evidence"].append(shortened_evidence)
 
-        if category and category not in record["categories"]:
-            record["categories"].append(category)
+        if category:
+            if category not in record["categories"]:
+                record["categories"].append(category)
+
+            if category not in record["source_categories"]:
+                record["source_categories"].append(category)
+
+        if (
+            technical_category
+            and record["technical_category"] is None
+        ):
+            record["technical_category"] = technical_category
 
         if confidence is not None:
-            previous_confidence = record[
-                "ner_confidence"
-            ]
+            previous_confidence = record["ner_confidence"]
 
             if (
                 previous_confidence is None
                 or confidence > previous_confidence
             ):
-                record[
-                    "ner_confidence"
-                ] = confidence
+                record["ner_confidence"] = confidence
 
-    # Primeiro adiciona as competências encontradas em seções explícitas.
+    # Primeiro: competências encontradas em seções explícitas.
     for section in sections:
-        section_skills = split_skill_block_details(
-            section["text"]
-        )
+        section_skills = split_skill_block_details(section["text"])
 
         for item in section_skills:
             add_candidate(
@@ -1077,15 +1291,13 @@ def extract_skills(
                 source="section",
                 evidence=item["evidence_text"] or section["text"],
                 confidence=None,
-                category=item["category"],
+                category=item["source_category"],
+                technical_category=item["technical_category"],
             )
 
-    # Depois adiciona as competências encontradas pelo modelo NER.
-    # A função add_candidate elimina fragmentos inválidos e duplicidades.
+    # Depois: competências encontradas pelo NER.
     for block in ner_blocks:
-        block_skills = split_skill_block_details(
-            block["text"]
-        )
+        block_skills = split_skill_block_details(block["text"])
 
         for item in block_skills:
             add_candidate(
@@ -1093,13 +1305,11 @@ def extract_skills(
                 source="ner",
                 evidence=item["evidence_text"] or block["text"],
                 confidence=block["confidence"],
-                category=item["category"],
+                category=item["source_category"],
+                technical_category=item["technical_category"],
             )
 
-    # Converte o OrderedDict para uma lista pronta para serialização em JSON.
-    skill_details = list(
-        candidates.values()
-    )
+    skill_details = list(candidates.values())
 
     context_blocks = extract_context_blocks(text)
 
@@ -1113,57 +1323,41 @@ def extract_skills(
             item["skill"]
             for item in skill_details
         ],
-        "skill_details": (
-            skill_details
-        ),
-        "sections_found": (
-            sections
-        ),
-        "ner_skill_blocks": (
-            ner_blocks
-        ),
+        "skill_details": skill_details,
+        "sections_found": sections,
+        "ner_skill_blocks": ner_blocks,
         "context_blocks": context_blocks,
         "semantic_inputs": semantic_inputs,
         "statistics": {
-            "sections_found": len(
-                sections
-            ),
-            "ner_blocks_found": len(
-                ner_blocks
-            ),
-            "unique_skills": len(
-                skill_details
-            ),
+            "sections_found": len(sections),
+            "ner_blocks_found": len(ner_blocks),
+            "unique_skills": len(skill_details),
             "skills_from_section": sum(
                 1
                 for item in skill_details
-                if "section"
-                in item["sources"]
+                if "section" in item["sources"]
             ),
             "skills_from_ner": sum(
                 1
                 for item in skill_details
-                if "ner"
-                in item["sources"]
+                if "ner" in item["sources"]
             ),
             "skills_confirmed_by_both": sum(
                 1
                 for item in skill_details
-                if {
-                    "section",
-                    "ner",
-                }.issubset(
-                    item["sources"]
-                )
+                if {"section", "ner"}.issubset(item["sources"])
             ),
         },
     }
 
 
+# ============================================================
+# 9. EXECUÇÃO PELO TERMINAL
+# ============================================================
+
 def parse_args() -> argparse.Namespace:
-    """
-    Argumentos da linha de comando.
-    """
+    """Argumentos da linha de comando."""
+
     parser = argparse.ArgumentParser(
         description=__doc__
     )
@@ -1172,25 +1366,19 @@ def parse_args() -> argparse.Namespace:
         "--input",
         type=Path,
         required=True,
-        help=(
-            "Arquivo TXT contendo o currículo."
-        ),
+        help="Arquivo TXT contendo o currículo.",
     )
 
     parser.add_argument(
         "--model-dir",
         type=Path,
-        default=Path(
-            "models/ner/augmented/best_model"
-        ),
+        default=Path("models/ner/augmented/best_model"),
     )
 
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path(
-            "reports/skills_extraction.json"
-        ),
+        default=Path("reports/skills_extraction.json"),
     )
 
     parser.add_argument(
@@ -1203,26 +1391,20 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
-    """
-    Executa NER e extração híbrida em um currículo.
-    """
+    """Executa NER e extração híbrida em um currículo."""
+
     args = parse_args()
 
     if not args.input.exists():
         raise FileNotFoundError(
-            f"Currículo não encontrado: "
-            f"{args.input}"
+            f"Currículo não encontrado: {args.input}"
         )
 
-    text = args.input.read_text(
-        encoding="utf-8"
-    )
+    text = args.input.read_text(encoding="utf-8")
 
     # Importação local evita carregar Torch quando apenas as funções
     # de segmentação são utilizadas nos testes.
-    from src.nlp.inference import (
-        ResumeNERPredictor,
-    )
+    from src.nlp.inference import ResumeNERPredictor
 
     predictor = ResumeNERPredictor(
         model_directory=args.model_dir
@@ -1230,35 +1412,19 @@ def main() -> None:
 
     ner_result = predictor.predict(
         text=text,
-        minimum_confidence=(
-            args.minimum_ner_confidence
-        ),
+        minimum_confidence=args.minimum_ner_confidence,
     )
 
     hybrid_result = extract_skills(
         text=text,
-        ner_entities=ner_result[
-            "entities"
-        ],
+        ner_entities=ner_result["entities"],
     )
 
     complete_result = {
-        "input_file": str(
-            args.input
-        ),
-        "ner_entity_count": (
-            ner_result[
-                "entity_count"
-            ]
-        ),
-        "ner_entities": (
-            ner_result[
-                "entities"
-            ]
-        ),
-        "hybrid_skills": (
-            hybrid_result
-        ),
+        "input_file": str(args.input),
+        "ner_entity_count": ner_result["entity_count"],
+        "ner_entities": ner_result["entities"],
+        "hybrid_skills": hybrid_result,
     }
 
     args.output.parent.mkdir(
@@ -1276,21 +1442,13 @@ def main() -> None:
     )
 
     print(
-        f"Skills encontradas: "
-        f"{len(hybrid_result['skills'])}"
+        f"Skills encontradas: {len(hybrid_result['skills'])}"
     )
 
-    for skill in hybrid_result[
-        "skills"
-    ]:
-        print(
-            f"- {skill}"
-        )
+    for skill in hybrid_result["skills"]:
+        print(f"- {skill}")
 
-    print(
-        f"\nResultado salvo em: "
-        f"{args.output}"
-    )
+    print(f"\nResultado salvo em: {args.output}")
 
 
 if __name__ == "__main__":

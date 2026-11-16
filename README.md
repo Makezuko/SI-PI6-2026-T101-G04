@@ -6,7 +6,7 @@ Aplicação Flask para triagem de currículos. As instruções abaixo são para 
 
 Clone o repositório e entre na pasta:
 ```powershell
-git clone <LINK_DO_REPOSITORIO>
+git clone https://github.com/Makezuko/SI-PI6-2026-T101-G04.git
 cd SI-PI6-2026-T101-G04
 ```
 
@@ -19,16 +19,41 @@ python -m pip install -r requirements.txt
 
 Se o PowerShell impedir a ativação, use `.\.venv\Scripts\python.exe` no lugar de `python` nos próximos comandos.
 
-## Supabase
+## Configuração
 
-Crie um arquivo `.env` na raiz do projeto com a URL e a chave publicável do projeto Supabase:
+Crie um arquivo `.env` na raiz do projeto com as credenciais do Supabase e uma chave secreta local do Flask:
 
 ```env
 SUPABASE_URL=https://SEU-PROJETO.supabase.co
 SUPABASE_KEY=SUA_CHAVE_PUBLICAVEL
+FLASK_SECRET_KEY=UMA_CHAVE_ALEATORIA_LONGA
 ```
 
-Cada integrante precisa configurar seu próprio `.env`. Esse arquivo não deve ser enviado ao Git nem compartilhado. Não use chaves `service_role` ou `sb_secret` na aplicação.
+Cada integrante precisa configurar seu próprio `.env`. Não envie nem compartilhe esse arquivo. Use uma chave publicável do Supabase; não use `service_role` ou `sb_secret` na aplicação. Gere `FLASK_SECRET_KEY` localmente, por exemplo com `python -c "import secrets; print(secrets.token_hex(32))"`.
+
+## Banco Supabase
+
+Antes de usar a aplicação com um projeto Supabase, revise as migrações no diretório `sql/` e aplique as necessárias pelo SQL Editor:
+
+1. [`sql/001_auth_vagas.sql`](sql/001_auth_vagas.sql): autenticação e propriedade das vagas.
+2. [`sql/002_editar_vagas.sql`](sql/002_editar_vagas.sql): edição de vagas.
+3. [`sql/003_editar_perfil.sql`](sql/003_editar_perfil.sql): edição de perfil.
+4. [`sql/004_integracao_aderencia.sql`](sql/004_integracao_aderencia.sql): persistência de currículos e análises.
+
+A migração 004 depende do esquema legado, especialmente da existência e do vínculo de `curriculos.vaga_id`. Antes de aplicá-la, siga a inspeção e as pré-condições descritas em [`docs/integracao-aderencia.md`](docs/integracao-aderencia.md). Não execute migrações sem autorização/revisão e não desative RLS para contornar erros. A aplicação das migrações e as políticas RLS no Supabase real ainda precisam ser confirmadas pela equipe; os testes locais usam um cliente simulado.
+
+## Modelos de IA
+
+O caminho padrão do modelo NER é `models/ner/augmented/best_model`. Esse diretório não é versionado; disponibilize localmente os pesos treinados. O modelo de embeddings padrão é `sentence-transformers/all-mpnet-base-v2` e pode ser baixado/cacheado na primeira análise, o que pode exigir conexão à internet.
+
+Para configurar caminhos ou identificadores diferentes no PowerShell:
+
+```powershell
+$env:NER_MODEL_PATH = 'models/ner/augmented/best_model'
+$env:EMBEDDING_MODEL = 'sentence-transformers/all-mpnet-base-v2'
+```
+
+Defina essas variáveis antes de iniciar o servidor. Falhas ao carregar os modelos são informadas pela aplicação; não há índice substituto.
 
 O cliente é criado em `app/supabase_client.py` e pode ser usado nas rotas:
 
@@ -41,7 +66,11 @@ resultado = supabase.table("vagas").select("*").limit(10).execute()
 
 As consultas dependem das políticas RLS configuradas no Supabase. Não desative o RLS para contornar erros de permissão.
 
-Por enquanto, as telas de login, vagas e candidatos ainda usam dados de demonstração; elas não leem nem gravam no banco.
+## Funcionalidades e limites atuais
+
+As telas de cadastro/login, perfil, vagas e currículos estão ligadas às rotas da aplicação. As vagas e os perfis usam Supabase; currículos e análises também dependem da migração de integração e das permissões correspondentes. A tela de análise aceita arquivos PDF, exige requisitos cadastrados e revisados manualmente e apresenta um índice semântico com evidências para revisão humana.
+
+O índice não é uma probabilidade de contratação nem uma decisão sobre o candidato. O arquivo PDF original não é exibido na tela de detalhes. A qualidade dos modelos em português e a integração com o Supabase real ainda precisam de validação ponta a ponta.
 
 ## Executar
 

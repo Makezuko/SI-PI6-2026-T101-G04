@@ -247,6 +247,13 @@ class WebFiltersTestCase(unittest.TestCase):
         self.assertEqual(json.loads(row['requisitos'])['status'],'pendente_revisao')
         self.assertIn(b'Vaga de teste',self.client.get('/').data)
         self.assertEqual(self.client.get('/vagas/1').status_code,200)
+
+    def test_job_form_shows_save_action_feedback(self):
+        self.login()
+        page=self.client.get('/nova-vaga').data.decode()
+        self.assertIn('Salvar Vaga',page)
+        self.assertIn("btn.textContent = 'Salvando vaga...';",page)
+        self.assertNotIn('Processando os requisitos da vaga com IA...',page)
     def test_persists_after_logout(self):
         self.login();self.create();self.client.get('/logout');self.login()
         self.assertIn(b'Vaga de teste',self.client.get('/').data)
@@ -300,6 +307,23 @@ class WebFiltersTestCase(unittest.TestCase):
         status_update = self.post('/vagas/1/candidato/1/status', {'status': 'Aprovado'})
         self.assertEqual(status_update.status_code, 302)
         self.assertEqual(self.db['resumes'][0]['status'], 'Aprovado')
+
+    def test_upload_page_advertises_only_pdf_and_reports_other_formats(self):
+        import io
+        self.login();self.create()
+        page=self.client.get('/vagas/1/adicionar-curriculos').data.decode()
+        self.assertIn('Formato aceito: PDF.',page)
+        self.assertNotIn('.docx',page)
+        self.assertIn('accept=".pdf"',page)
+        response=self.client.post(
+            '/vagas/1/adicionar-curriculos',
+            data={'files':(io.BytesIO(b'not a PDF'),'curriculo.docx')},
+            content_type='multipart/form-data',
+            headers={'Origin':'http://localhost'},
+        )
+        self.assertEqual(response.status_code,302)
+        self.assertIn('Envie arquivos no formato PDF.',self.client.get('/vagas/1').data.decode())
+        self.assertFalse(self.db['resumes'])
 
     def test_original_filters_render(self):
         self.login();self.create()

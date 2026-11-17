@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% block body_class %}candidate-page{% endblock %}
 {% block title %}{{ candidate.name }} · TalentMatch AI{% endblock %}
 
 {% block topbar %}
@@ -51,9 +52,12 @@
         {% set desired_matches = desired_items|selectattr('compatible')|list %}
         <div class="req-list">
           Pesos experimentais: obrigatório {{ candidate.analysis.weights.obrigatorio }}; desejável/não obrigatório {{ candidate.analysis.weights.desejavel }}.
-          {% if candidate.analysis.undecided %}<strong>Nenhum requisito decidido. Avaliação pendente.</strong>
-          {% elif candidate.analysis.provisional %}<strong>Percentual provisório: mínimo confirmado {{ '%.2f'|format(candidate.score) }}%; máximo possível {{ '%.2f'|format(candidate.analysis.maximum_score) }}%. Revisão humana pendente.</strong>{% endif %}
-          Atendidos: {{ candidate.analysis.counts.atendido }}; não identificados: {{ candidate.analysis.counts.nao_identificado }}; pendentes: {{ candidate.analysis.counts.revisao_necessaria }}.
+          <p>Evidências identificadas em requisitos que representam {{ ('%.2f'|format(candidate.analysis.score))|replace('.', ',') }}% do peso total da vaga.
+          {% set pending = candidate.analysis.counts.revisao_necessaria %}
+          {% if pending == 1 %}Há 1 requisito pendente de revisão.{% elif pending %}Há {{ pending }} requisitos pendentes de revisão.{% else %}Não há requisitos pendentes de revisão.{% endif %}</p>
+          {% if candidate.analysis.undecided %}<strong>Nenhum requisito decidido. Avaliação pendente. Resultado provisório.</strong>
+          {% elif candidate.analysis.provisional %}<strong>Resultado provisório · revisão humana pendente.</strong>{% endif %}
+          {% if candidate.analysis.provisional %}<p class="field-hint">Máximo possível: {{ ('%.2f'|format(candidate.analysis.maximum_score))|replace('.', ',') }}%. Depende da confirmação dos requisitos pendentes.</p>{% endif %}
           Obrigatórios com evidência: {{ mandatory_matches|length }}/{{ mandatory_items|length }}.
           Desejáveis com evidência: {{ desired_matches|length }}/{{ desired_items|length }}.
         </div>
@@ -111,57 +115,16 @@
         <div class="section-label">Evidências por requisito</div>
         {% if candidate.analysis %}
         <p class="field-hint">{{ 'Avaliação contextual local · experimental' if candidate.analysis.contextual_configuration is defined else 'Avaliação por regras legadas · interpretação contextual desativada nesta análise' }}</p>
+        <details class="analysis-technical"><summary>Informações técnicas</summary>
+          {% if candidate.analysis_id %}<p>Análise #{{ candidate.analysis_id }}</p>{% endif %}
+          {% if candidate.analysis.execution_id %}<p>Execução {{ candidate.analysis.execution_id }}</p>{% endif %}
+          <p>Fórmula: {{ candidate.analysis.formula_version }}</p>
+        </details>
         {% endif %}
         {% for warning in requirement_warnings(job.description, job.requirements_data) %}
         <p class="req-list"><strong>{{ warning }}</strong> <a href="{{ url_for('editar_vaga', job_id=job.id) }}">Revisar vaga</a></p>
         {% endfor %}
-        <div class="req-list">
-          {% for item in (candidate.analysis.details if candidate.analysis else []) %}
-          <div class="req-item">
-            <strong>{{ item.text }}</strong>
-            · {{ 'Obrigatório' if item.nivel == 'obrigatorio' else 'Desejável' }}
-            · {{ item.estado }} · Peso {{ item.peso }}
-            · {{ '%.2f'|format(item.contribution_points) if item.contribution_points is not none else '—' }}/{{ '%.2f'|format(item.max_points) }} pontos
-            <br>
-            {% if item.nivel == 'obrigatorio' and item.estado != 'atendido' %}<strong>Atenção: obrigatório {{ 'não identificado' if item.estado == 'nao_identificado' else 'pendente de revisão' }}. Sem rejeição automática.</strong><br>{% endif %}
-            Justificativa: {{ item.justificativa }}<br>
-            {% if item.diagnostic.contextual is defined %}
-            Avaliação contextual experimental: {{ item.diagnostic.contextual.estado }}<br>
-            Base: {{ item.diagnostic.contextual.base }} · Citações: {{ item.diagnostic.contextual.evidence_ids|join(', ') }}<br>
-            Limitações: {{ item.diagnostic.contextual.limitacoes|join('; ') }}<br>
-            {% for evidence in item.diagnostic.retrieved_evidence %}
-            <details><summary>{{ evidence.id }} · {{ evidence.source }} · {{ 'Citada' if evidence.id in item.diagnostic.contextual.evidence_ids else 'Recuperada' }}</summary>
-              {{ evidence.text }}<br>{{ evidence.context_header or '' }}
-            </details>
-            {% endfor %}
-            {% endif %}
-            Fonte da decisão: {{ item.origem }} · Regra: {{ item.diagnostic.rule if item.diagnostic else 'Revisão humana' }}<br>
-            Evidência: {{ item.best_evidence.text if item.best_evidence else 'Sem evidência recuperada' }}
-            · Origem: {{ item.best_evidence.source if item.best_evidence else 'Indisponível' }}
-            · Similaridade: {{ '%.4f'|format(item.original_cosine) if item.original_cosine is not none else 'Indisponível' }}
-            {% if item.diagnostic %}
-            <details><summary>Rastreio da avaliação</summary>
-              Entradas completas: {{ item.diagnostic.total_entries }};
-              candidatos semânticos: {{ item.diagnostic.semantic_candidates }}.
-              {% if item.diagnostic.eligible_entries is defined %}
-              Elegíveis: {{ item.diagnostic.eligible_entries }};
-              contextos negados, hipotéticos ou ambíguos: {{ item.diagnostic.rejected_contexts }}.
-              Termos reconhecidos: {{ item.diagnostic.matched_terms|join(', ') or 'nenhum' }}.
-              Termos pendentes: {{ item.diagnostic.missing_terms|join(', ') or 'nenhum' }}.
-              {% endif %}
-            </details>
-            {% endif %}
-          </div>
-          {% endfor %}
-          {% if not candidate.analysis %}
-          {% for item in job['requirements_data']['items'] %}
-          <div class="req-item">
-            <strong>{{ item.text }}</strong> · {{ 'Obrigatório' if item.nivel == 'obrigatorio' else 'Desejável' }}
-            · Aguardando análise
-          </div>
-          {% endfor %}
-          {% endif %}
-        </div>
+        {% include '_adherence_requirements.html' %}
       </div>
       <div>
         <div class="section-label">Limitações</div>

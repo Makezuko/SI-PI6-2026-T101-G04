@@ -6,6 +6,12 @@ O [fluxo contextual experimental](docs/avaliacao-contextual.md) prepara avaliaç
 de sustentação por modelo local, separada da recuperação semântica. Está desativado
 por padrão; a qualidade das decisões ainda precisa de avaliação humana.
 
+Para o bloqueio de processo/porta e a comprovação de POST, modelo, gravação e tela,
+veja o [diagnóstico operacional](docs/diagnostico-operacional-contextual.md).
+Para reiniciar com identidade do processo verificada, use o mesmo comando abaixo
+com `-Restart`. O [diagnóstico de login](docs/diagnostico-login-contextual.md)
+explica a correção do bloqueio de rede do processo e o rastreio sanitizado de Auth.
+
 Para testar o fluxo com modelos locais preparados, encerre o servidor atual e execute:
 
 ```powershell
@@ -98,7 +104,8 @@ Com o ambiente virtual ativado:
 python -m app.run
 ```
 
-Depois, acesse http://127.0.0.1:5000. Para encerrar, pressione `Ctrl+C` no terminal.
+Depois, acesse http://127.0.0.1:5002. O servidor usa processo único sem debug/reloader.
+Para encerrar, pressione `Ctrl+C` no terminal.
 
 ## Testes
 

@@ -39,15 +39,19 @@ def update_profile(client, profile_id, auth_user_id, values):
 
 
 def ensure_profile(client, user):
+    from app.auth_diagnostics import stage
+    stage('PROFILE_READ')
     response = client.table('usuarios').select(PROFILE_FIELDS).eq('auth_user_id', str(user.id)).limit(1).execute()
     if response.data:
         profile = response.data[0]
         email = user.email.lower()
         if (profile.get('email') or '').lower() != email:
+            stage('PROFILE_UPDATE')
             profile = update_profile(client, profile['id'], user.id, {'email': email})
         return profile
     metadata = user.user_metadata or {}
     try:
+        stage('PROFILE_CREATE')
         response = client.table('usuarios').insert({
             'auth_user_id': str(user.id),
             'email': user.email.lower(),
@@ -56,11 +60,13 @@ def ensure_profile(client, user):
         }, returning='minimal').execute()
     except Exception as error:
         if str(getattr(error, 'code', '')) == '23505':
+            stage('PROFILE_RETRY_READ')
             retry = client.table('usuarios').select(PROFILE_FIELDS).eq('auth_user_id', str(user.id)).limit(1).execute()
             if retry.data:
                 return retry.data[0]
             raise LegacyProfileError('E-mail de um perfil antigo precisa ser vinculado ao Auth pela equipe.') from error
         raise
+    stage('PROFILE_READ_AFTER_CREATE')
     response = client.table('usuarios').select(PROFILE_FIELDS).eq('auth_user_id', str(user.id)).limit(1).execute()
     if not response.data:
         raise RuntimeError('O perfil não foi retornado pelo banco. Confira a migração e o RLS.')

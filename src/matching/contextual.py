@@ -32,6 +32,12 @@ class Adapter(Protocol):
     def generate(self, payload: dict) -> str: ...
 
 
+class ContextualTechnicalError(ValueError):
+    def __init__(self, code):
+        self.code = code
+        super().__init__(code)
+
+
 class LocalTransformersAdapter:
     """Somente pesos locais; sem downloads, serviços ou código remoto."""
     def __init__(self, path):
@@ -64,6 +70,9 @@ class LocalTransformersAdapter:
 
 
 def settings():
+    mode = os.getenv('CONTEXTUAL_EVALUATOR', '')
+    if mode not in {'', 'legacy', 'experimental'}:
+        raise ContextualTechnicalError('CONTEXTUAL_MODE_INVALID')
     return dict(enabled=os.getenv('CONTEXTUAL_EVALUATOR', '') == 'experimental',
                 model=os.getenv('CONTEXTUAL_MODEL_PATH', ''),
                 revision=os.getenv('CONTEXTUAL_MODEL_REVISION', ''),
@@ -119,20 +128,33 @@ def validate(value, evidence):
     return value
 
 
-def evaluate(requirement, evidence, adapter):
+def evaluate(requirement, evidence, adapter, strict=False):
+    from src.matching.telemetry import event
     if not evidence:
         return dict(estado='indeterminado', evidence_ids=[], base='ausencia',
                     justificativa='Nenhuma evidência recuperada; revisão humana pendente.',
                     limitacoes=['Ausência não comprova incapacidade.'])
+    stage = 'MODEL_INFERENCE_ERROR'
+    start = perf_counter()
+    event('MODEL_CALL_START', requirement_id=requirement['id'])
     try:
         if adapter is None:
             raise ValueError('Avaliador indisponível')
         compact = [{key: entry[key] for key in
                     ('id', 'text', 'source', 'context_header', 'heading', 'start_line', 'end_line')
                     if key in entry} for entry in evidence]
-        return validate(json.loads(adapter.generate(dict(
-            requisito=requirement['text'], nivel=requirement['nivel'], evidencias=compact))), evidence)
+        raw = adapter.generate(dict(requisito=requirement['text'], nivel=requirement['nivel'], evidencias=compact))
+        event('MODEL_CALL_END', requirement_id=requirement['id'], seconds=round(perf_counter() - start, 3))
+        stage = 'MODEL_OUTPUT_INVALID'
+        verdict = validate(json.loads(raw), evidence)
+        event('VALIDATION_OK', requirement_id=requirement['id'])
+        return verdict
     except Exception as exc:
+        event('VALIDATION_ERROR' if stage == 'MODEL_OUTPUT_INVALID' else 'MODEL_CALL_ERROR',
+              requirement_id=requirement['id'], error_code=stage,
+              seconds=round(perf_counter() - start, 3))
+        if strict:
+            raise ContextualTechnicalError(stage) from None
         return dict(estado='indeterminado', evidence_ids=[], base='ambiguidade',
                     justificativa='Falha ou saída inválida do avaliador; revisão humana pendente.',
                     limitacoes=['Inferência não validada; nenhuma decisão de atendimento.',
@@ -147,7 +169,7 @@ def evaluate_batch(requirements, rows, entries, adapter, progress=None):
     for req in requirements:
         evidence = retrieve(by_id.get(req['id'], {}), entries, config['top_k'])
         start = perf_counter()
-        verdict = evaluate(req, evidence, adapter)
+        verdict = evaluate(req, evidence, adapter, strict=True)
         elapsed = perf_counter() - start
         if progress is not None:
             progress(req['id'], verdict)

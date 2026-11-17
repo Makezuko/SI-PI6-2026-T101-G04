@@ -2,6 +2,7 @@
 import io
 import json
 import os
+import copy
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
@@ -54,6 +55,31 @@ class AnalysisWebTests(unittest.TestCase):
     def select(self, ids=('1',)):
         return self.post('/vagas/1/adicionar-curriculos', {'selected_candidates': list(ids)})
 
+    def test_existing_resume_embedding_failure_has_trace_and_visible_execution(self):
+        self.prepare()
+        self.upload()
+        before = len(self.db['analyses'])
+        class BrokenEvidence(FakeEmbedder):
+            def encode(self, inputs):
+                if inputs[0]['source'] != 'requirement':
+                    raise ValueError('PRIVATE CURRICULUM SECRET')
+                return super().encode(inputs)
+        with patch.dict(os.environ, {'CONTEXTUAL_EVALUATOR': 'experimental'}), patch(
+                'app.analysis.load_models', return_value=(self.predictor, BrokenEvidence())), patch(
+                'app.analysis.load_contextual_model') as model, self.assertLogs('talentmatch.analysis') as logs:
+            response = self.select()
+            run_id = response.headers['X-Analysis-Execution-ID']
+            page = self.client.get('/vagas/1').data.decode()
+        self.assertEqual(len(self.db['analyses']), before)
+        self.assertEqual(len(self.db['resumes']), 1)
+        model.assert_not_called()
+        self.assertIn(run_id, page)
+        self.assertIn('Falha tecnica', page)
+        trace = '\n'.join(logs.output)
+        self.assertIn('evidence_embeddings', trace)
+        self.assertNotIn('PRIVATE CURRICULUM', trace)
+        self.assertNotIn('ANALYSIS_SAVED', trace)
+
     def test_contextual_mode_reaches_adapter_and_displays_method(self):
         self.prepare()
         adapter = SimpleNamespace(generate=lambda payload: json.dumps(dict(
@@ -75,6 +101,94 @@ class AnalysisWebTests(unittest.TestCase):
             self.upload()
             self.assertFalse(self.db.get('analyses', []))
 
+    def test_existing_post_contextual_save_read_screen_and_correlated_trace(self):
+        self.prepare()
+        self.upload()
+        legacy = copy.deepcopy(self.db['analyses'][0])
+        adapter = SimpleNamespace(generate=lambda payload: json.dumps(dict(
+            estado='sustentado', evidence_ids=[payload['evidencias'][0]['id']],
+            justificativa='Dublê de integração.', limitacoes=[], base='evidencia')))
+        with patch.dict(os.environ, {'CONTEXTUAL_EVALUATOR': 'experimental'}), patch(
+                'app.analysis.load_contextual_model', return_value=adapter), patch(
+                'app.analysis.evaluate_requirements', side_effect=AssertionError('Fallback legado proibido')):
+            stale = self.client.get('/vagas/1/candidato/1').data.decode()
+            self.assertIn('Desatualizada', stale)
+            self.assertNotIn('Avaliação por regras legadas', stale)
+            form = self.client.get('/vagas/1/adicionar-curriculos').data.decode()
+            self.assertIn('name="selected_candidates"', form)
+            with self.assertLogs('talentmatch.analysis', level='INFO') as logs:
+                self.assertEqual(self.select().status_code, 302)
+                page = self.client.get('/vagas/1/candidato/1').data.decode()
+            saved = self.db['analyses'][-1]
+            self.assertEqual(len(self.db['analyses']), 2)
+            self.assertEqual(self.db['analyses'][0], legacy)
+            run_id = saved['result']['execution_id']
+            self.assertIn(run_id, page)
+            self.assertIn('Avaliação contextual local', page)
+            events = [json.loads(line[line.index('{'):]) for line in logs.output]
+            expected = ['ANALYSIS_POST_START', 'ANALYSIS_EFFECTIVE_CONFIG', 'MODEL_CALL_START',
+                        'MODEL_CALL_END', 'VALIDATION_OK', 'ANALYSIS_SAVE_START', 'ANALYSIS_SAVED']
+            positions = [next(i for i, e in enumerate(events) if e['event'] == name) for name in expected]
+            self.assertEqual(positions, sorted(positions))
+            for name in expected:
+                self.assertEqual(next(e for e in events if e['event'] == name)['run_id'], run_id)
+            selected = next(e for e in events if e['event'] == 'ANALYSIS_SELECTED')
+            self.assertEqual(selected['analysis_id'], saved['id'])
+            self.assertEqual(selected['persisted_run_id'], run_id)
+            self.assertEqual(selected['method'], 'contextual')
+            self.assertNotIn('Jane Smith', '\n'.join(logs.output))
+            self.assertNotIn('jane@example.test', '\n'.join(logs.output))
+
+    def test_forged_current_hash_does_not_accept_legacy_result_in_contextual_mode(self):
+        from app.analysis import versions
+        from app.repositories import get_job, get_resume
+        self.prepare(); self.upload()
+        with patch.dict(os.environ, {'CONTEXTUAL_EVALUATOR': 'experimental'}):
+            # Mesmo com hashes forjados, o contrato contextual é exigido na leitura.
+            from test_web_filters import FakeClient
+            client = FakeClient(self.db); client.uid = 'u1'
+            job, resume = get_job(client, '1'), get_resume(client, '1', '1')
+            self.db['analyses'][0].update(versions(job, resume))
+            page = self.client.get('/vagas/1/candidato/1').data.decode()
+            self.assertIn('Desatualizada', page)
+            self.assertNotIn('Avaliação por regras legadas', page)
+
+    def test_inference_and_validation_failures_are_technical_and_not_saved(self):
+        self.prepare(); self.upload()
+        original_count = len(self.db['analyses'])
+        class Broken:
+            def generate(self, payload):
+                raise TimeoutError('sensitive content must never be logged')
+        for adapter, code in [(Broken(), 'MODEL_INFERENCE_ERROR'),
+                              (SimpleNamespace(generate=lambda payload: '{}'), 'MODEL_OUTPUT_INVALID')]:
+            with self.subTest(code=code), patch.dict(os.environ, {'CONTEXTUAL_EVALUATOR': 'experimental'}), patch(
+                    'app.analysis.load_contextual_model', return_value=adapter), self.assertLogs(
+                    'talentmatch.analysis', level='INFO') as logs:
+                self.select()
+                page = self.client.get('/vagas/1').data.decode()
+                self.assertIn(code, page)
+                self.assertEqual(len(self.db['analyses']), original_count)
+                self.assertNotIn('ANALYSIS_SAVED', '\n'.join(logs.output))
+                self.assertNotIn('sensitive content', '\n'.join(logs.output))
+
+    def test_contextual_loader_cache_includes_runtime_revision_and_does_not_cache_failure(self):
+        from app.analysis import load_contextual_model
+        from src.matching.contextual import ContextualTechnicalError
+        load_contextual_model.cache_clear()
+        self.addCleanup(load_contextual_model.cache_clear)
+        with patch('src.matching.contextual.create_adapter', return_value=object()) as factory:
+            load_contextual_model('model', 'r1', 'llama_cpp', 'runtime', 'hash1')
+            load_contextual_model('model', 'r1', 'llama_cpp', 'runtime', 'hash1')
+            self.assertEqual(factory.call_count, 1)
+            load_contextual_model('model', 'r1', 'llama_cpp', 'runtime', 'hash2')
+            self.assertEqual(factory.call_count, 2)
+        with patch('src.matching.contextual.create_adapter', side_effect=RuntimeError('secret')):
+            with self.assertRaisesRegex(ContextualTechnicalError, '^MODEL_LOAD_ERROR$'):
+                load_contextual_model('missing', 'r1')
+        with patch('src.matching.contextual.create_adapter', return_value=object()) as recovered:
+            self.assertIsNotNone(load_contextual_model('missing', 'r1'))
+            recovered.assert_called_once()
+
     def test_new_upload_persistence_recovery_and_no_duplicate(self):
         self.prepare()
         self.assertEqual(self.upload().status_code, 302)
@@ -84,7 +198,7 @@ class AnalysisWebTests(unittest.TestCase):
         self.assertEqual(len(self.db['analyses']), 1)
         page = self.client.get('/vagas/1/candidato/1').data.decode()
         self.assertIn('100.00%', page)
-        self.assertIn('Similaridade: Indisponível', page)
+        self.assertNotIn('Similaridade: Indisponível', page)
         self.assertIn('evidência literal suficiente para python', page)
         self.assertNotIn('Alta aderência', page)
 
@@ -115,7 +229,7 @@ class AnalysisWebTests(unittest.TestCase):
         self.select()
         page = self.client.get('/vagas/1/candidato/1').data.decode()
         self.assertIn('100.00%', page)
-        self.assertIn('Atendidos: 1;', page)
+        self.assertIn('100,00% do peso total da vaga', page)
         self.assertNotIn('formato incompatível', page)
 
     def test_templates_handle_legacy_result_even_with_old_backend_loaded(self):
@@ -155,9 +269,9 @@ class AnalysisWebTests(unittest.TestCase):
         page = self.client.get('/vagas/1/candidato/1').data.decode()
         self.assertIn('Obrigatórios com evidência: 1/1.', page)
         self.assertIn('Desejáveis com evidência: 0/1.', page)
-        self.assertIn('Percentual provisório', page)
-        self.assertIn('Peso 2.0', page)
-        self.assertIn('Peso 1.0', page)
+        self.assertIn('Resultado provisório', page)
+        self.assertIn('Peso: 2.0', page)
+        self.assertIn('Peso: 1.0', page)
         self.assertIn('Collaborate with teams', page)
 
     def test_all_undecided_has_no_displayed_score_or_rank(self):

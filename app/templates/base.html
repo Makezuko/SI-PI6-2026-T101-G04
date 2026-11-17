@@ -6,7 +6,7 @@
 <title>{% block title %}TalentMatch AI{% endblock %}</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
 <div class="app-shell">
   <aside class="sidebar">
     <a class="logo-row" href="{{ url_for('dashboard') }}">

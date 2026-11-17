@@ -1,0 +1,20 @@
+[
+  {
+    "case": "sustentado",
+    "requirement": {"id": "OP1", "text": "Experiência desenvolvendo APIs com Python.", "nivel": "obrigatorio"},
+    "evidence": [{"id": "e1", "source": "experience", "text": "Desenvolvi APIs em Python para consulta de dados em um estágio."}]
+  },
+  {
+    "case": "nao_sustentado",
+    "requirement": {"id": "OP2", "text": "Experiência administrando Kubernetes.", "nivel": "desejavel"},
+    "evidence": [{"id": "e1", "source": "project", "text": "Empacotei um serviço usando Docker. Não há outras informações sobre infraestrutura."}]
+  },
+  {
+    "case": "ambiguo",
+    "requirement": {"id": "OP3", "text": "Conhecimento de inglês avançado.", "nivel": "obrigatorio"},
+    "evidence": [
+      {"id": "e1", "source": "language", "text": "Idiomas: Inglês avançado.", "context_header": "Declaração sem data na primeira seção de idiomas."},
+      {"id": "e2", "source": "language", "text": "Idiomas: Inglês básico.", "context_header": "Declaração sem data na segunda seção de idiomas do mesmo currículo."}
+    ]
+  }
+]

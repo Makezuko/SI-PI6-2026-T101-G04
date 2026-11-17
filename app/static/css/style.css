@@ -235,6 +235,37 @@ tr.job-row.closed td:first-child{ box-shadow:inset 3px 0 0 #cbd5e1; }
 .req-item .req-icon{ width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; color:#fff; }
 .req-item.ok .req-icon{ background:var(--high); }
 .req-item.bad .req-icon{ background:var(--low); }
+/* Results use document flow; .req-item is a horizontal icon row elsewhere. */
+.requirement-results{ display:flex; flex-direction:column; gap:16px; min-width:0; }
+.candidate-page .cand-detail{ max-width:none; }
+.requirement-result{ display:block; padding:18px; border:1px solid var(--line); border-radius:10px; font-size:13px; line-height:1.65; min-width:0; overflow-wrap:anywhere; }
+.requirement-result h3{ margin:0 0 6px; font-size:14px; line-height:1.6; }
+.requirement-result p{ margin:8px 0; }
+.requirement-result .requirement-meta{ color:var(--ink-soft); margin-top:0; }
+.requirement-evidence{ margin:14px 0; padding:12px 14px; background:#f8fafc; border-radius:8px; min-width:0; }
+.requirement-evidence blockquote{ margin:8px 0; white-space:pre-wrap; overflow-wrap:anywhere; }
+.requirement-contribution{ font-weight:600; }
+.requirement-details, .analysis-technical{ min-width:0; overflow-wrap:anywhere; }
+.requirement-details summary, .analysis-technical summary{ cursor:pointer; padding:10px 0; color:var(--ink-soft); }
+.requirement-details summary:focus-visible, .analysis-technical summary:focus-visible{ outline:2px solid var(--brand-500); outline-offset:3px; }
+.analysis-technical{ font-size:12px; }
+.cand-detail-body > *, .cand-detail-id > div{ min-width:0; }
+.cand-detail-body .adherence-box{ overflow-wrap:anywhere; }
+.cand-detail-body .adherence-box p{ margin:4px 0; }
+@media(max-width:600px){
+  .candidate-page .app-shell{ flex-direction:column; }
+  .candidate-page .sidebar{ width:100%; }
+  .candidate-page .sidebar .nav{ display:flex; flex-wrap:wrap; }
+  .candidate-page .content, .candidate-page .topbar{ padding:16px; }
+  .candidate-page .cand-detail-foot form{ flex-wrap:wrap; }
+  .candidate-page .cand-detail-foot .btn{ white-space:normal; }
+  .cand-detail-body{ padding:16px; }
+  .requirement-result{ padding:14px; }
+  .requirement-evidence{ padding:10px; }
+  .cand-detail-head{ padding:16px; }
+  .cand-detail-id > div > div{ flex-wrap:wrap; }
+  .cand-detail .adherence-top{ flex-wrap:wrap; gap:8px; }
+}
 .pdf-mock{ border:1px solid var(--line); border-radius:12px; overflow:hidden; }
 .pdf-toolbar{ display:flex; align-items:center; justify-content:space-between; background:var(--brand-800); color:#cbd5e1;
   font-size:12px; font-family:'Courier New',monospace; padding:10px 16px; }

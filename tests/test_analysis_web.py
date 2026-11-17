@@ -1,5 +1,6 @@
 """Fluxo real Flask/comparador/fórmula, com modelos e Supabase simulados."""
 import io
+import json
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
@@ -61,8 +62,22 @@ class AnalysisWebTests(unittest.TestCase):
         self.assertEqual(len(self.db['analyses']), 1)
         page = self.client.get('/vagas/1/candidato/1').data.decode()
         self.assertIn('100.00/100', page)
-        self.assertIn('Cosseno: 1.0000', page)
+        self.assertIn('Similaridade: 1.0000', page)
         self.assertNotIn('Alta aderência', page)
+
+    def test_detail_counts_required_and_desirable_matches_separately(self):
+        self.prepare()
+        requirements = json.loads(self.db['jobs'][0]['requisitos'])
+        requirements['items'].append({
+            'id': 'R2', 'text': 'Collaborate with teams',
+            'tipo': 'comportamental', 'nivel': 'desejavel',
+        })
+        self.db['jobs'][0]['requisitos'] = json.dumps(requirements)
+        self.upload()
+        page = self.client.get('/vagas/1/candidato/1').data.decode()
+        self.assertIn('Obrigatórios compatíveis: 1/1.', page)
+        self.assertIn('Desejáveis compatíveis: 0/1.', page)
+        self.assertIn('Collaborate with teams', page)
 
     def test_existing_resume_and_manual_decision(self):
         self.prepare(); self.upload()
@@ -138,14 +153,15 @@ class AnalysisWebTests(unittest.TestCase):
         self.assertEqual(other.get('/vagas/1/candidato/1').status_code, 404)
         self.assertEqual(self.post('/vagas/1/adicionar-curriculos', {'selected_candidates': ['1']}, other).status_code, 404)
 
-    def test_sort_decimals_and_pending_last(self):
+    def test_mandatory_passes_rank_before_higher_incompatible_score(self):
         self.prepare(); self.upload(); self.upload('other.pdf', 'SQL'); self.upload('third.pdf', 'Docker')
         self.db['analyses'][0]['result']['score'] = 70.01
         self.db['analyses'][1]['result']['score'] = 70.99
         self.db['analyses'].pop()
         page = self.client.get('/vagas/1').data.decode()
-        self.assertLess(page.index('data-score="70.99"'), page.index('data-score="70.01"'))
         self.assertLess(page.index('data-score="70.01"'), page.index('data-score=""'))
+        self.assertLess(page.index('data-score=""'), page.index('data-score="70.99"'))
+        self.assertIn('data-mandatory-status="incompativel"', page)
         self.assertIn("parseFloat(b.getAttribute('data-score'))", page)
 
     def test_save_failure_never_reports_complete(self):

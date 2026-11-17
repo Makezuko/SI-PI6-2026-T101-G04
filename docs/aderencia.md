@@ -3,40 +3,45 @@
 O fluxo web está descrito em [integração de aderência](integracao-aderencia.md),
 incluindo migração incremental, configuração e roteiro de teste manual.
 
-O índice de 0 a 100 apoia a priorização pelo recrutador a partir das
-similaridades entre requisitos e evidências já recuperadas. Não é porcentagem
-de requisitos atendidos, probabilidade de qualificação ou aprovação. Não há
-classes alto/médio/baixo, limiar de aprovação, eliminação ou justificativa gerada.
+O índice de 0 a 100 soma pontos de similaridade entre requisitos e evidências
+recuperadas. Não é porcentagem de requisitos atendidos nem probabilidade de
+qualificação. A compatibilidade individual é marcada pelo limiar abaixo.
 
-## Fórmula inicial (versão 1.0)
+## Fórmula (versão 2.1)
 
 Para cada requisito `i`, `s_i` é `top_similarity`, a melhor similaridade de
-cosseno do ranking, e `a_i = max(0, s_i)`:
+cosseno do ranking. Similaridade inferior a `0.50` zera os pontos do requisito;
+`0.50` ou mais usa o próprio valor como multiplicador:
 
 ```text
-índice = 100 × soma(w_i × a_i) / soma(w_i)
-contribuição_i = 100 × w_i × a_i / soma(w_i)
+compatível_i = s_i >= 0.50
+contribuição_i = pontos_máximos_i × (s_i se compatível_i, senão 0)
+índice = soma(contribuição_i)
 ```
 
-Pesos iniciais são 1 para ambos os níveis, sem diferenciação por tipo técnico
-ou comportamental. Limitar cossenos negativos a zero é uma escolha inicial da
-regra de agregação, não uma propriedade do modelo. O cosseno original permanece
-nos detalhes. Os valores JSON não são arredondados; a exibição na CLI tem duas
-casas decimais. A soma das contribuições coincide com o índice antes dessa
-formatação, sujeita à representação numérica de ponto flutuante.
+Com a alocação padrão, 90 pontos são divididos igualmente entre os obrigatórios
+e 10 entre os desejáveis, independentemente da quantidade em cada grupo. Se
+somente um grupo existir, ele recebe os 100 pontos. Os pesos opcionais são
+proporções entre os grupos (por exemplo, 80/20), normalizadas para 100.
+O cosseno original e o resultado do limiar são preservados nos detalhes.
+Valores JSON não são arredondados; a CLI exibe duas casas decimais.
 
 `examples/aderencia_exemplo.json` contém três requisitos e rankings pequenos,
 inteiramente sintéticos, sem dados pessoais ou vetores. Suas melhores
-similaridades são `0.8`, `0.6`, `0.4`. Com pesos iguais:
+similaridades são `0.8`, `0.6`, `0.4`:
 
 ```text
-100 × (0.8 + 0.6 + 0.4) / 3 = 60/100
+45 × 0.8 + 45 × 0.6 + 10 × 0 = 63/100
 ```
 
-É uma demonstração da fórmula, não um resultado real do modelo. Os dois
-obrigatórios têm índice 70 e o desejável tem índice 40. Dar peso 2 aos
-obrigatórios e 1 aos desejáveis produz índice geral 64. Esses pesos opcionais
-não foram validados empiricamente.
+O `0.4` do desejável fica abaixo do limiar e contribui com zero. É uma
+demonstração da fórmula, não um resultado real do modelo.
+
+Além da nota, a saída inclui `mandatory_status`. Se algum obrigatório ficar
+abaixo de `0.50`, o currículo fica no grupo incompatível; na lista da vaga,
+esse grupo aparece sempre abaixo dos currículos que atingiram o limiar em todos
+os obrigatórios, mesmo que sua soma de pontos seja maior. O índice é a soma
+dos pontos; o estado dos obrigatórios controla a ordem de priorização.
 
 ## Contratos
 
@@ -50,9 +55,9 @@ result = calculate_similarity_index(requirements, results, weights=None)
 
 `requirements` é lista não vazia de objetos com `id` e `text` textuais não
 vazios e, opcionalmente, `tipo` e `nivel`. `tipo` é texto ou `null`; não altera
-pesos. Níveis reconhecidos são `obrigatorio` e `desejavel`. Nível ausente ou
-`null` usa peso 1, continua no índice geral e gera aviso. Outros níveis geram
-erro. IDs são preservados e devem ser únicos.
+a pontuação. Níveis reconhecidos são `obrigatorio` e `desejavel`. Nível ausente
+ou `null` é tratado como obrigatório e gera aviso. Outros níveis geram erro.
+IDs são preservados e devem ser únicos.
 
 `results` segue o contrato de `compare` em `src/matching/semantic.py`: cada
 objeto tem `id`, `top_similarity` e `ranking`. A associação é por ID, nunca
@@ -72,15 +77,16 @@ Todos os itens do ranking são validados, mesmo em análises incompletas.
 `acceptable_input_indices`, `annotation_reason`, `category`, Hit@k e MRR não
 participam da pontuação.
 
-Pesos são configurados por um objeto como:
+Pesos são proporções de pontos por nível:
 
 ```json
-{"obrigatorio": 2.0, "desejavel": 1.0}
+{"obrigatorio": 90.0, "desejavel": 10.0}
 ```
 
-Configuração parcial usa 1 para o nível omitido. Chaves desconhecidas,
-booleanos, valores não numéricos, não finitos, nulos ou não positivos são
-rejeitados. A função não altera os objetos recebidos.
+Configuração parcial mantém o padrão para o nível omitido. Chaves
+desconhecidas, booleanos, valores não numéricos, não finitos, nulos ou não
+positivos são rejeitados. Se só houver requisitos de um nível, ele recebe
+100 pontos. A função não altera os objetos recebidos.
 
 A saída JSON contém:
 
@@ -89,17 +95,20 @@ A saída JSON contém:
 | `status` | `calculado` ou `analise_incompleta` |
 | `score` | Índice geral 0–100 ou `null` |
 | `score_name` | `indice_compatibilidade_semantica` |
-| `formula_version` | `1.0` |
-| `weights` | Configuração efetiva dos dois níveis |
+| `formula_version` | `2.1` |
+| `weights` | Proporção de pontos configurada por nível |
+| `similarity_threshold` | Limiar inclusivo (`0.50`) |
+| `mandatory_status` | `atendido`, `incompativel` ou `incompleto` |
 | `warnings` | Avisos, incluindo requisitos sem nível |
 | `incomplete_requirement_ids` | IDs com ranking vazio |
 | `indices_by_level` | Índices `obrigatorio` e `desejavel`, ou `null` |
 | `details` | Detalhes na ordem original dos requisitos |
 
-Cada detalhe tem `id`, `text`, `tipo`, `nivel`, `weight`, `original_cosine`,
-`aggregation_value`, `contribution_points` e `best_evidence`. A melhor
-evidência preserva `text`, `source` (origem), `input_index`, `chunk_index`.
-`weight` registra o peso efetivamente utilizado inclusive para itens sem nível.
+Cada detalhe tem `id`, `text`, `tipo`, `nivel`, `compatible`, `max_points`,
+`original_cosine`, `aggregation_value`, `contribution_points` e
+`best_evidence`. A melhor evidência preserva `text`, `source` (origem),
+`input_index`, `chunk_index`. `compatible` é `true` a partir de `0.50`,
+`false` abaixo disso e `null` quando não há ranking.
 
 ## Análises incompletas
 
@@ -110,14 +119,15 @@ denominador para fabricar uma nota parcial. Para um item sem ranking,
 `aggregation_value` e `best_evidence` também são `null`; `top_similarity`
 pode estar ausente ou ser `null` (se numérico, é validado, mas não agregado).
 
-Grupos de nível usam a mesma fórmula dentro do próprio grupo. Grupo vazio
-ou com qualquer ranking vazio retorna `null`. Um grupo completo pode ter
-índice calculado mesmo com análise geral incompleta; esse valor descreve
-somente aquele grupo. Requisitos sem nível não entram em nenhum dos grupos.
+`indices_by_level` contém a soma dos pontos contribuídos por cada grupo; grupo
+vazio ou com qualquer ranking vazio retorna `null`. Um grupo completo pode ter
+pontos calculados mesmo com análise geral incompleta; esse valor descreve
+somente aquele grupo.
 
-Ranking vazio não prova falta de competência; ranking preenchido não prova
-atendimento ao requisito. Uma análise completa também pode ter índice zero
-se todas as melhores similaridades forem negativas ou zero.
+Ranking vazio não prova falta de competência; ranking preenchido também não
+prova atendimento. O limiar de `0.50` é uma regra operacional, não uma
+propriedade garantida pelo modelo, e deve ser avaliado com exemplos
+representativos.
 
 ## Execução no Windows/PowerShell
 
@@ -127,7 +137,7 @@ Na raiz do repositório:
 .\venv\Scripts\python.exe -m scripts.calcular_aderencia --input examples/aderencia_exemplo.json --output reports/aderencia/resultado.json
 ```
 
-Saída do exemplo: `Índice de compatibilidade semântica: 60.00/100`.
+Saída do exemplo: `Índice de compatibilidade semântica: 63.00/100`.
 `--weights` é o caminho para um arquivo JSON com o objeto de pesos:
 
 ```powershell
@@ -157,17 +167,17 @@ Testes sem downloads, modelos ou banco:
 
 Uma correspondência relacionada pode pontuar sem comprovar o requisito:
 Python não confirma Pandas e competências relacionadas não são equivalentes.
-Uma média alta pode esconder um requisito obrigatório com baixa similaridade;
-revise os detalhes e as evidências. É necessário validar o ranking com
-julgamentos humanos em exemplos representativos. Esta entrega não comprova
-precisão geral nem ausência de vieses.
+O grupo de obrigatórios reduz o risco de desejáveis elevarem um currículo que
+falhou em obrigatório acima dos currículos que passaram no limiar. Ainda é
+necessário validar embeddings e o limiar com exemplos representativos; esta
+regra não comprova precisão geral nem ausência de vieses.
 
 Use pontuações para ordenar apenas currículos da mesma vaga, calculados com
 os mesmos requisitos, modelo, versão da fórmula e pesos. Guarde a proveniência
 do modelo junto do resultado do analisador; este módulo não conhece nem
 executa o modelo que produziu as similaridades.
 
-A função e a CLI estão prontas para consumir a comparação existente. A chamada
-no fluxo da aplicação e a apresentação ao recrutador ficam para outra tarefa.
-Upload, extração, modelos, comparação semântica, rotas, banco e interface
-permanecem fora do escopo desta entrega.
+O fluxo web chama esta fórmula depois da extração e da comparação semântica.
+A lista da vaga ordena primeiro os currículos que atingiram o limiar em todos
+os requisitos obrigatórios; a tela de detalhes mostra compatibilidade,
+contribuição e melhor evidência por requisito.

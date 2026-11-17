@@ -105,11 +105,28 @@ def attach_analysis(client, job, candidates):
         valid = [row for row in previous if all(row.get(key) == value for key, value in current.items())]
         record = valid[0] if valid else None
         candidate['analysis'] = record['result'] if record else None
-        candidate['last_role'] = record['result'].get('last_role', 'Não identificado') if record else 'Não identificado'
-        candidate['score'] = record['result']['score'] if record else None
-        candidate['analysis_state'] = ('Concluída' if candidate['score'] is not None else
-                                       'Desatualizada' if previous and not valid else 'Pendente')
-    return sorted(candidates, key=lambda item: (item['score'] is None, -(item['score'] or 0)))
+        result = record['result'] if record else {}
+        candidate['last_role'] = result.get('last_role', 'Não identificado')
+        candidate['score'] = result.get('score')
+        candidate['mandatory_status'] = result.get('mandatory_status')
+        if not record:
+            candidate['analysis_state'] = 'Desatualizada' if previous else 'Pendente'
+        elif result.get('status') == 'analise_incompleta':
+            candidate['analysis_state'] = 'Incompleta'
+        elif candidate['mandatory_status'] == 'incompativel':
+            candidate['analysis_state'] = 'Obrigatório incompatível'
+        elif candidate['mandatory_status'] == 'atendido' and candidate['score'] is not None:
+            candidate['analysis_state'] = 'Concluída'
+        else:
+            candidate['analysis_state'] = 'Desatualizada'
+
+    def ranking_order(candidate):
+        required_status = candidate.get('mandatory_status')
+        bucket = 0 if required_status == 'atendido' else 2 if required_status == 'incompativel' else 1
+        score = candidate.get('score')
+        return bucket, score is None, -(score or 0)
+
+    return sorted(candidates, key=ranking_order)
 
 
 def process_resume(client, job, resume):

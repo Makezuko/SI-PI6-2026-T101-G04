@@ -3,9 +3,10 @@ import math
 from numbers import Real
 
 
-FORMULA_VERSION = "1.0"
+FORMULA_VERSION = "2.1"
 NUMERIC_TOLERANCE = 1e-9
-DEFAULT_WEIGHTS = {"obrigatorio": 1.0, "desejavel": 1.0}
+SIMILARITY_THRESHOLD = 0.50
+DEFAULT_WEIGHTS = {"obrigatorio": 90.0, "desejavel": 10.0}
 
 
 def _number(value, field):
@@ -76,29 +77,8 @@ def _validate_ranking(result):
     return top, ranking
 
 
-def _contributions(details):
-    # Escala comum evita overflow com pesos finitos muito grandes.
-    scale = max(item["weight"] for item in details)
-    normalized = [item["weight"] / scale for item in details]
-    denominator = math.fsum(normalized)
-    contributions = [100 * weight * item["aggregation_value"] / denominator
-            for item, weight in zip(details, normalized)]
-    # Protege o limite superior de um eventual excesso de arredondamento.
-    total = math.fsum(contributions)
-    if total > 100:
-        largest = max(range(len(contributions)), key=contributions.__getitem__)
-        contributions[largest] -= total - 100
-    return contributions
-
-
 def calculate_similarity_index(requirements, results, weights=None):
-    """Retorna índice 0–100 a partir de compare(), sem alterar as entradas.
-
-    Fórmula v1.0: 100 * sum(w * max(0, cosseno)) / sum(w).
-    Cossenos até 1e-9 além dos limites são normalizados. Limitar negativos
-    a zero é uma regra inicial de agregação, não uma propriedade do modelo.
-    Rankings vazios tornam a análise incompleta, sem nota geral parcial.
-    """
+    """Calcula pontos por requisito usando similaridades de compare()."""
     requirements_by_id = _by_id(requirements, "requirements")
     if not requirements_by_id:
         raise ValueError("requirements deve conter pelo menos um requisito.")
@@ -122,12 +102,10 @@ def calculate_similarity_index(requirements, results, weights=None):
         text = _nonempty_text(requirement.get("text"), f"{identifier}: text")
         level = requirement.get("nivel")
         if level is None:
-            weight = 1.0
-            warnings.append(f"{identifier}: requisito sem nível; utilizado peso 1.")
+            level = "obrigatorio"
+            warnings.append(f"{identifier}: requisito sem nível; considerado obrigatório.")
         elif not isinstance(level, str) or level not in configured:
             raise ValueError(f"{identifier}: nível desconhecido: {level!r}.")
-        else:
-            weight = configured[level]
         kind = requirement.get("tipo")
         if kind is not None and not isinstance(kind, str):
             raise ValueError(f"{identifier}: tipo deve ser texto ou null.")
@@ -139,31 +117,66 @@ def calculate_similarity_index(requirements, results, weights=None):
             normalized = min(1.0, max(-1.0, top))
             if normalized != top:
                 warnings.append(f"{identifier}: pequeno excesso numérico do cosseno normalizado.")
-            aggregation_value = max(0.0, normalized)
+            compatible = normalized >= SIMILARITY_THRESHOLD
+            aggregation_value = normalized if compatible else 0.0
         else:
             incomplete.append(identifier)
+            compatible = None
             aggregation_value = None
         details.append({"id": identifier, "text": text, "tipo": kind, "nivel": level,
-                        "weight": weight, "original_cosine": top,
+                        "compatible": compatible, "max_points": None, "original_cosine": top,
                         "aggregation_value": aggregation_value,
                         "contribution_points": None, "best_evidence": evidence})
 
+    groups = {
+        level: [item for item in details if item["nivel"] == level]
+        for level in DEFAULT_WEIGHTS
+    }
+    active_levels = [level for level, items in groups.items() if items]
+    if len(active_levels) == 1:
+        allocations = {active_levels[0]: 100.0}
+    else:
+        scale = max(configured.values())
+        normalized_weights = {level: value / scale for level, value in configured.items()}
+        denominator = math.fsum(normalized_weights.values())
+        allocations = {
+            level: 100.0 * normalized_weights[level] / denominator
+            for level in configured
+        }
+
+    for level, items in groups.items():
+        if items:
+            points_per_item = allocations[level] / len(items)
+            for item in items:
+                item["max_points"] = points_per_item
+
     score = None
     if not incomplete:
-        contributions = _contributions(details)
-        for item, contribution in zip(details, contributions):
-            item["contribution_points"] = contribution
-        score = math.fsum(contributions)
+        for item in details:
+            item["contribution_points"] = item["max_points"] * item["aggregation_value"]
+        total = math.fsum(item["contribution_points"] for item in details)
+        if total > 100:
+            largest = max(details, key=lambda item: item["contribution_points"])
+            largest["contribution_points"] -= total - 100
+        score = math.fsum(item["contribution_points"] for item in details)
     else:
         warnings.append("Análise incompleta: ranking vazio em " + ", ".join(incomplete)
                         + ". Sem índice geral ou contribuições finais; não indica falta de competência.")
-    groups = {}
-    for level in DEFAULT_WEIGHTS:
-        group = [item for item in details if item["nivel"] == level]
-        groups[level] = (math.fsum(_contributions(group)) if group and all(
-            item["aggregation_value"] is not None for item in group) else None)
+    indices_by_level = {}
+    for level, items in groups.items():
+        indices_by_level[level] = (math.fsum(item["contribution_points"] for item in items)
+                                   if items and all(item["contribution_points"] is not None
+                                                    for item in items) else None)
+    mandatory_items = groups["obrigatorio"]
+    mandatory_status = (
+        "incompativel" if any(item["compatible"] is False for item in mandatory_items)
+        else "incompleto" if any(item["compatible"] is None for item in mandatory_items)
+        else "atendido"
+    )
     return {"status": "analise_incompleta" if incomplete else "calculado",
             "score": score, "score_name": "indice_compatibilidade_semantica",
             "formula_version": FORMULA_VERSION, "weights": configured,
+            "similarity_threshold": SIMILARITY_THRESHOLD,
+            "mandatory_status": mandatory_status,
             "warnings": warnings, "incomplete_requirement_ids": incomplete,
-            "indices_by_level": groups, "details": details}
+            "indices_by_level": indices_by_level, "details": details}

@@ -42,8 +42,8 @@ na interface para revisão explícita.
 Execução local PowerShell (configurar ambiente conforme README):
 
 ```powershell
-.\venv\Scripts\python.exe -m flask --app app run
-.\venv\Scripts\python.exe -m unittest discover -s tests -p 'test_*.py'
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\iniciar_contextual.ps1
+.\.venv-contextual\Scripts\python.exe -m unittest discover -s tests -p 'test_*.py'
 git diff --check
 ```
 
@@ -60,5 +60,6 @@ remoto. Não houve push ou merge.
 
 Atualização da correção documental 3.1: 171 testes executados, 168 passaram e
 permaneceram os três erros semânticos acima. O diagnóstico sintético e os limites
-estão em [diagnóstico documental](diagnostico-documental.md). O servidor local
-foi reiniciado; `app/run.py` usa reloader `stat` para a pasta do OneDrive.
+estão em [diagnóstico documental](diagnostico-documental.md). Esse relato de
+testes é histórico. Atualmente, `app/run.py` inicia o servidor em processo único,
+sem debug ou reloader; para o modo contextual, use o inicializador acima.

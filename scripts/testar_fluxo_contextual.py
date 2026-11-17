@@ -27,7 +27,7 @@ def main():
     from src.nlp.skills_extractor import extract_skills
     from src.nlp.embeddings import ResumeEmbedder
     from src.data.privacy import anonymize_for_analysis, sanitize_semantic_inputs, valid_entity
-    from src.matching.semantic import compare
+    from src.matching.semantic import compare, aggregate_requirement_windows
     from src.matching.contextual import create_adapter, evaluate_batch
     text = args.input.read_text(encoding='utf-8')
     requirements = json.loads(args.requirements.read_text(encoding='utf-8')) if args.requirements else [
@@ -47,8 +47,10 @@ def main():
     entries = sanitize_semantic_inputs(extract_skills(safe_text, skills)['semantic_inputs'])
     print('2/4 Recuperação semântica multilíngue', flush=True)
     embedder = ResumeEmbedder(manifest['retrieval']['path'])
-    vectors = embedder.encode([dict(text=r['text'], source='requirement') for r in requirements])
-    rows, _ = compare(requirements, vectors['embeddings'], embedder.encode(entries))
+    vectors = embedder.encode([dict(text=r['text'], source='requirement', requirement_id=r['id'])
+                               for r in requirements])
+    query_vectors = aggregate_requirement_windows(requirements, vectors)
+    rows, _ = compare(requirements, query_vectors, embedder.encode(entries))
     # Libera modelos da etapa anterior antes de carregar o avaliador na CPU.
     import gc
     del ner, embedder

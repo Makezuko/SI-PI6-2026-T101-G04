@@ -33,7 +33,9 @@ Ausência de decisão ou falha técnica produz erro, sem nota. Sem entradas
 profissionais nem recuperação utilizável, a análise permanece pendente.
 Pesos opcionais explícitos devem ser positivos e finitos.
 
-A avaliação automática busca tecnologias e aliases explícitos em **todas** as
+No modo contextual, condições manuais são opcionais e não participam das decisões; consulte [avaliação contextual](avaliacao-contextual.md). As regras a seguir aplicam-se ao modo legado.
+
+A avaliação automática legada busca tecnologias e aliases explícitos em **todas** as
 entradas profissionais, além dos candidatos semânticos. `SQL` não é alias de
 PostgreSQL: quando a vaga aceita essa alternativa, configure condição OU.
 Pandas/NumPy e Git/Docker usam E somente quando essa condição foi salva

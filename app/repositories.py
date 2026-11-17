@@ -3,6 +3,7 @@ from datetime import datetime
 from pathlib import Path
 import re
 import math
+import logging
 
 from app.requisitos import STATUS_VAGA, draft_from_description, parse_requirements, serialize
 from src.data.clean import extract_contact_info, extract_education_blocks
@@ -10,6 +11,8 @@ from src.nlp.skills_extractor import extract_skills
 
 PROFILE_FIELDS = 'id,email,auth_user_id,nome,empresa,criado_em'
 JOB_FIELDS = 'id,titulo,descricao,requisitos,criado_por,criado_em,status'
+logger = logging.getLogger(__name__)
+
 RESUME_FIELDS = 'id,vaga_id,nome_arquivo,texto_extraido,texto_anonimizado,status,enviado_em'
 
 
@@ -170,7 +173,8 @@ def list_jobs(client):
         for j in result:
             j['candidate_count'] = counts.get(j['id'], 0)
     except Exception:
-        pass
+        logger.error('Falha ao consultar contagem de currículos.')
+        raise RuntimeError('Não foi possível consultar a contagem de currículos.') from None
 
     return result
 
@@ -184,7 +188,8 @@ def get_job(client, job_id):
         resumes_resp = client.table('curriculos').select('id').eq('vaga_id', int(job_id)).execute()
         job['candidate_count'] = len(resumes_resp.data or [])
     except Exception:
-        pass
+        logger.error('Falha ao consultar contagem de currículos.')
+        raise RuntimeError('Não foi possível consultar a contagem de currículos.') from None
     return job
 
 

@@ -5,37 +5,8 @@ from typing import Any
 
 from src.nlp.skills_extractor import (
     extract_skills,
-    normalize_heading,
     repair_common_encoding,
-    split_heading_and_content,
 )
-
-EDUCATION_HEADINGS = {
-    "education": "education",
-    "academic background": "education",
-    "academic qualifications": "education",
-    "educational qualification": "education",
-    "formação": "education",
-    "formação acadêmica": "education",
-    "formacao academica": "education",
-    "educação": "education",
-    "educacao": "education",
-}
-
-EDUCATION_STOP_HEADINGS = {
-    "skills",
-    "technical skills",
-    "experience",
-    "professional experience",
-    "work experience",
-    "projects",
-    "languages",
-    "certifications",
-    "experiência",
-    "projetos",
-    "habilidades",
-}
-
 
 def extract_pdf_text(source: Any) -> str:
     if isinstance(source, (str, Path)):

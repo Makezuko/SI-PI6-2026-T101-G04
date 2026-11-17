@@ -93,13 +93,13 @@ As consultas dependem das políticas RLS configuradas no Supabase. Não desative
 
 ## Funcionalidades e limites atuais
 
-As telas de cadastro/login, perfil, vagas e currículos estão ligadas às rotas da aplicação. As vagas e os perfis usam Supabase; currículos e análises também dependem da migração de integração e das permissões correspondentes. A tela de análise aceita arquivos PDF, exige requisitos cadastrados e revisados manualmente e apresenta um índice semântico com evidências para revisão humana.
+As telas de cadastro/login, perfil, vagas e currículos estão ligadas às rotas da aplicação. As vagas e os perfis usam Supabase; currículos e análises também dependem da migração de integração e das permissões correspondentes. A tela de análise aceita arquivos PDF, exige requisitos cadastrados e revisados manualmente e apresenta decisões documentais e evidências para revisão humana. No modo contextual, a recuperação semântica fornece trechos ao avaliador local; condições manuais legadas são opcionais e não participam dessa avaliação.
 
 O índice não é uma probabilidade de contratação nem uma decisão sobre o candidato. O arquivo PDF original não é exibido na tela de detalhes. A qualidade dos modelos em português e a integração com o Supabase real ainda precisam de validação ponta a ponta.
 
 ## Executar
 
-Com o ambiente virtual ativado:
+Para o fluxo contextual, o comando oficial é `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\iniciar_contextual.ps1`, após preparar os modelos e o runtime conforme [o guia contextual](docs/avaliacao-contextual.md). Para iniciar com a configuração padrão (legada), com o ambiente virtual ativado:
 ```powershell
 python -m app.run
 ```
@@ -112,3 +112,7 @@ Para encerrar, pressione `Ctrl+C` no terminal.
 ```powershell
 python -m unittest discover -s tests
 ```
+
+## Avaliações e ferramentas
+
+Métricas de [NER](docs/avaliacao_ner.md) medem extração de entidades; métricas de [recuperação](docs/avaliacao-semantica-ampliada.md) medem a posição de evidências anotadas; a [avaliação contextual](docs/avaliacao-contextual.md) examina decisões fundamentadas em evidências. São etapas distintas. Resultados locais são diagnósticos, não validação geral do modelo. Consulte o [índice de scripts](scripts/README.md) para comandos e dependências.

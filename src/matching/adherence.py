@@ -2,7 +2,7 @@
 from copy import deepcopy
 import math
 
-from src.matching.score import _by_id, _number, _nonempty_text, _validate_ranking
+from src.matching.validation import by_id, number, nonempty_text, validate_ranking
 
 FORMULA_VERSION = '3.1-experimental'
 DEFAULT_WEIGHTS = {'obrigatorio': 2.0, 'desejavel': 1.0}
@@ -11,8 +11,8 @@ STATES = {'atendido', 'nao_identificado', 'revisao_necessaria'}
 
 def calculate_adherence(requirements, decisions, weights=None):
     """Cossenos não entram no cálculo. Ausência de decisão é erro, nunca zero."""
-    requirements = _by_id(requirements, 'requirements')
-    decisions = _by_id(decisions, 'decisions')
+    requirements = by_id(requirements, 'requirements')
+    decisions = by_id(decisions, 'decisions')
     if not requirements or requirements.keys() != decisions.keys():
         raise ValueError('Requisitos e decisões devem ter os mesmos IDs, não vazios.')
     configured = dict(DEFAULT_WEIGHTS)
@@ -21,7 +21,7 @@ def calculate_adherence(requirements, decisions, weights=None):
             raise ValueError('Pesos devem usar obrigatorio e/ou desejavel.')
         configured.update(weights)
     for level, weight in configured.items():
-        configured[level] = _number(weight, f'Peso {level}')
+        configured[level] = number(weight, f'Peso {level}')
         if configured[level] <= 0:
             raise ValueError('Pesos devem ser positivos.')
     details = []
@@ -33,19 +33,19 @@ def calculate_adherence(requirements, decisions, weights=None):
         state = decision.get('estado')
         if state not in STATES:
             raise ValueError('Decisão ausente ou inválida; análise não calculada.')
-        reason = _nonempty_text(decision.get('justificativa'), 'justificativa')
+        reason = nonempty_text(decision.get('justificativa'), 'justificativa')
         evidence = deepcopy(decision.get('evidencias', []))
         if not isinstance(evidence, list) or (state == 'atendido' and not evidence):
             raise ValueError('Atendimento exige evidência documental.')
         for entry in evidence:
             if not isinstance(entry, dict):
                 raise ValueError('Evidência deve ser um objeto com texto e origem.')
-            _nonempty_text(entry.get('text'), 'evidencia.text')
-            _nonempty_text(entry.get('source'), 'evidencia.source')
+            nonempty_text(entry.get('text'), 'evidencia.text')
+            nonempty_text(entry.get('source'), 'evidencia.source')
         origin = decision.get('origem', 'automatica')
         if origin not in {'automatica', 'humana'}:
             raise ValueError('Origem de decisão inválida.')
-        details.append(dict(id=identifier, text=_nonempty_text(requirement.get('text'), 'text'),
+        details.append(dict(id=identifier, text=nonempty_text(requirement.get('text'), 'text'),
                             nivel=level, tipo=requirement.get('tipo'), peso=configured[level],
                             estado=state, origem=origin, justificativa=reason, evidencias=evidence,
                             best_evidence=evidence[0] if evidence else None,
@@ -74,14 +74,14 @@ def calculate_adherence(requirements, decisions, weights=None):
 
 def evaluate_requirements(requirements, results, entries=None):
     """Recuperação é entrada; similaridade não decide atendimento."""
-    by_id = _by_id(results, 'results')
-    if _by_id(requirements, 'requirements').keys() != by_id.keys():
+    results_by_id = by_id(results, 'results')
+    if by_id(requirements, 'requirements').keys() != results_by_id.keys():
         raise ValueError('Recuperação incompleta: IDs diferentes dos requisitos.')
     from src.matching.documental_rules import infer_condition, validate_condition, evaluate_condition
     decisions = []
     for requirement in requirements:
-        result = by_id[requirement['id']]
-        top, ranking = _validate_ranking(result)
+        result = results_by_id[requirement['id']]
+        top, ranking = validate_ranking(result)
         if not ranking and not entries:
             raise ValueError('Recuperação sem resultados; análise permanece pendente.')
         state = 'revisao_necessaria'

@@ -1,4 +1,4 @@
-"""Calcula o índice agregado a partir do JSON do analisador semântico."""
+"""CLI legada para reprodução do índice semântico histórico."""
 import argparse
 import json
 from pathlib import Path

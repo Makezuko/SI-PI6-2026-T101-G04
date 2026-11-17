@@ -1,88 +1,19 @@
-"""Agregação pura de similaridades; não decide atendimento ou qualificação."""
+"""Fórmula legada de similaridade, preservada para reprodução histórica."""
 import math
-from numbers import Real
+from src.matching.validation import (NUMERIC_TOLERANCE, by_id, number, nonempty_text, validate_ranking)
 
 
 FORMULA_VERSION = "2.1"
-NUMERIC_TOLERANCE = 1e-9
 SIMILARITY_THRESHOLD = 0.50
 DEFAULT_WEIGHTS = {"obrigatorio": 90.0, "desejavel": 10.0}
 
 
-def _number(value, field):
-    if isinstance(value, bool) or not isinstance(value, Real):
-        raise ValueError(f"{field} deve ser um número finito, não booleano.")
-    try:
-        number = float(value)
-    except (OverflowError, ValueError) as exc:
-        raise ValueError(f"{field} deve ser um número finito.") from exc
-    if not math.isfinite(number):
-        raise ValueError(f"{field} deve ser um número finito.")
-    return number
-
-
-def _cosine(value, field):
-    number = _number(value, field)
-    if not -1 - NUMERIC_TOLERANCE <= number <= 1 + NUMERIC_TOLERANCE:
-        raise ValueError(f"{field} deve estar entre -1 e 1.")
-    return number
-
-
-def _nonempty_text(value, field):
-    if not isinstance(value, str) or not value.strip():
-        raise ValueError(f"{field} deve ser texto não vazio.")
-    return value
-
-
-def _by_id(items, name):
-    if not isinstance(items, list):
-        raise ValueError(f"{name} deve ser uma lista.")
-    indexed = {}
-    for item in items:
-        if not isinstance(item, dict):
-            raise ValueError(f"Cada item de {name} deve ser um objeto.")
-        identifier = _nonempty_text(item.get("id"), f"ID em {name}")
-        if identifier in indexed:
-            raise ValueError(f"ID duplicado em {name}: {identifier}.")
-        indexed[identifier] = item
-    return indexed
-
-
-def _validate_ranking(result):
-    identifier = result["id"]
-    ranking = result.get("ranking")
-    if not isinstance(ranking, list):
-        raise ValueError(f"{identifier}: ranking deve estar presente como lista.")
-    previous = None
-    for evidence in ranking:
-        if not isinstance(evidence, dict):
-            raise ValueError(f"{identifier}: evidência deve ser um objeto.")
-        similarity = _cosine(evidence.get("similarity"), f"{identifier}: similarity")
-        if previous is not None and similarity > previous + NUMERIC_TOLERANCE:
-            raise ValueError(f"{identifier}: ranking deve estar em ordem decrescente.")
-        previous = similarity
-        for field in ("text", "source"):
-            _nonempty_text(evidence.get(field), f"{identifier}: evidência.{field}")
-        for field in ("input_index", "chunk_index"):
-            index = evidence.get(field)
-            if isinstance(index, bool) or not isinstance(index, int) or index < 0:
-                raise ValueError(f"{identifier}: {field} deve ser inteiro não negativo.")
-    top = result.get("top_similarity")
-    if ranking:
-        top = _cosine(top, f"{identifier}: top_similarity")
-        if abs(top - float(ranking[0]["similarity"])) > NUMERIC_TOLERANCE:
-            raise ValueError(f"{identifier}: top_similarity incoerente com a primeira evidência.")
-    elif top is not None:
-        top = _cosine(top, f"{identifier}: top_similarity")
-    return top, ranking
-
-
 def calculate_similarity_index(requirements, results, weights=None):
     """Calcula pontos por requisito usando similaridades de compare()."""
-    requirements_by_id = _by_id(requirements, "requirements")
+    requirements_by_id = by_id(requirements, "requirements")
     if not requirements_by_id:
         raise ValueError("requirements deve conter pelo menos um requisito.")
-    results_by_id = _by_id(results, "results")
+    results_by_id = by_id(results, "results")
     missing = sorted(requirements_by_id.keys() - results_by_id.keys())
     extra = sorted(results_by_id.keys() - requirements_by_id.keys())
     if missing or extra:
@@ -93,13 +24,13 @@ def calculate_similarity_index(requirements, results, weights=None):
             raise ValueError("weights deve ser um objeto com obrigatorio e/ou desejavel.")
         configured.update(weights)
     for level, value in configured.items():
-        configured[level] = _number(value, f"Peso {level}")
+        configured[level] = number(value, f"Peso {level}")
         if configured[level] <= 0:
             raise ValueError(f"Peso {level} deve ser estritamente positivo.")
 
     warnings, details, incomplete = [], [], []
     for identifier, requirement in requirements_by_id.items():
-        text = _nonempty_text(requirement.get("text"), f"{identifier}: text")
+        text = nonempty_text(requirement.get("text"), f"{identifier}: text")
         level = requirement.get("nivel")
         if level is None:
             level = "obrigatorio"
@@ -109,7 +40,7 @@ def calculate_similarity_index(requirements, results, weights=None):
         kind = requirement.get("tipo")
         if kind is not None and not isinstance(kind, str):
             raise ValueError(f"{identifier}: tipo deve ser texto ou null.")
-        top, ranking = _validate_ranking(results_by_id[identifier])
+        top, ranking = validate_ranking(results_by_id[identifier])
         evidence = None
         if ranking:
             evidence = {key: ranking[0][key]

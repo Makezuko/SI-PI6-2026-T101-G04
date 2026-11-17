@@ -1,3 +1,4 @@
+import argparse
 import html
 import json
 from pathlib import Path
@@ -115,9 +116,14 @@ def metric_card(title, value):
     )
 
 
-def main():
-    baseline = load_json(BASELINE_PATH)
-    v4 = load_json(V4_PATH)
+def main(argv=None):
+    parser = argparse.ArgumentParser(description='Compara dois relatórios semânticos históricos.')
+    parser.add_argument('--baseline', type=Path, default=BASELINE_PATH)
+    parser.add_argument('--v4', type=Path, default=V4_PATH)
+    parser.add_argument('--output-dir', type=Path, default=OUTPUT_DIR)
+    args = parser.parse_args(argv)
+    baseline = load_json(args.baseline)
+    v4 = load_json(args.v4)
 
     baseline_results = {row["id"]: row for row in baseline["results"]}
     v4_results = {row["id"]: row for row in v4["results"]}
@@ -222,7 +228,7 @@ def main():
             """
         )
 
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    args.output_dir.mkdir(parents=True, exist_ok=True)
 
     report_html = f"""<!DOCTYPE html>
 <html lang="pt-BR">
@@ -296,7 +302,7 @@ li {{ margin: 12px 0; overflow-wrap: anywhere; }}
 </html>
 """
 
-    output_path = OUTPUT_DIR / "relatorio_comparativo.html"
+    output_path = args.output_dir / "relatorio_comparativo.html"
     output_path.write_text(report_html, encoding="utf-8")
     print("Relatório comparativo gerado:")
     print(output_path)

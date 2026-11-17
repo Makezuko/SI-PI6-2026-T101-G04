@@ -153,7 +153,7 @@ tentar baixar embeddings; falha de rede/modelo será informada, sem fallback.
 Neste workspace `venv` está funcional; `.venv` não está funcional. Usar:
 
 ```powershell
-Set-Location 'C:\Users\anabe\OneDrive\Documentos\Curriculo_AI\SI-PI6-2026-T101-G04'
+# Execute na raiz do reposit?rio clonado
 # Se precisar instalar dependências no ambiente:
 .\venv\Scripts\python.exe -m pip install -r requirements.txt
 $env:NER_MODEL_PATH = 'models/ner/augmented/best_model'

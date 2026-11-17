@@ -18,13 +18,8 @@ st.set_page_config(
     layout="wide"
 )
 
-APP_DIR = Path(__file__).resolve().parent
-
-# O dashboard está dentro de reports/.
-if (APP_DIR / "ner_consolidated").is_dir():
-    REPORTS_DIR = APP_DIR / "ner_consolidated"
-else:
-    REPORTS_DIR = APP_DIR / "reports" / "ner_consolidated"
+# Mantém a leitura dos relatórios locais na raiz do repositório.
+REPORTS_DIR = Path(__file__).resolve().parent.parent / "reports" / "ner_consolidated"
 
 MODELS = {
     "Baseline": "baseline",

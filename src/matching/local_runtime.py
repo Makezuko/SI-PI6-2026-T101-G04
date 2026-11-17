@@ -8,6 +8,10 @@ import time
 import urllib.request
 
 
+# Timeout HTTP inclui toda a resposta; não é o max_time de geração do Transformers.
+HTTP_REQUEST_TIMEOUT_SECONDS = 120
+
+
 class LlamaCppAdapter:
     def __init__(self, model_path, executable):
         if not Path(model_path).is_file() or not Path(executable).is_file():
@@ -45,7 +49,7 @@ class LlamaCppAdapter:
                 self.process.kill()
 
     def generate(self, payload):
-        from src.matching.contextual import PROMPT, STATES
+        from src.matching.contextual import PROMPT, STATES, settings
         ids = [e['id'] for e in payload['evidencias']]
         schema = dict(type='object', additionalProperties=False,
             required=['estado', 'evidence_ids', 'justificativa', 'limitacoes', 'base'],
@@ -56,9 +60,9 @@ class LlamaCppAdapter:
                 base=dict(type='string', enum=['evidencia', 'ausencia', 'contradicao', 'ambiguidade'])))
         body = dict(messages=[dict(role='system', content=PROMPT),
                               dict(role='user', content=json.dumps(payload, ensure_ascii=False))],
-                    temperature=0, seed=0, max_tokens=384,
+                    temperature=0, seed=0, max_tokens=settings()['max_new_tokens'],
                     response_format=dict(type='json_schema', json_schema=dict(name='sustentacao', schema=schema)))
         request = urllib.request.Request(self.url + '/v1/chat/completions',
             data=json.dumps(body).encode('utf-8'), headers={'Content-Type': 'application/json'})
-        with self.http.open(request, timeout=120) as response:
+        with self.http.open(request, timeout=HTTP_REQUEST_TIMEOUT_SECONDS) as response:
             return json.load(response)['choices'][0]['message']['content']

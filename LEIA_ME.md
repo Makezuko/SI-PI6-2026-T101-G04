@@ -1,4 +1,9 @@
 ## Na raiz do projeto, com venv ativo
+
+Para a avaliação ampliada com dez currículos adicionais da validação, consulte
+[o roteiro de preparação, anotação humana e avaliação](docs/avaliacao-semantica-ampliada.md).
+As anotações dessa nova etapa permanecem em `reports/`, sem dados pessoais versionados.
+
 ```powershell
 python -m pip install "numpy>=1.24,<3" "matplotlib>=3.7,<4"
 python -m unittest discover -s tests -p "test_semantic_stage.py"

@@ -156,7 +156,7 @@ def validate_annotation(annotation, inputs, expected_hash):
 def metrics_for(rows, ranking_only=False):
     """Reutiliza evaluate_ranking; perdas da extração são positivos sem acerto.
 
-    Um sentinela -1 só na cópia destinada à métrica marca esses positivos,
+    Um índice ausente só na cópia destinada à métrica marca esses positivos,
     sem entrar no gold persistido, no modelo ou em compare.
     """
     selected = [row for row in rows if not (ranking_only and row['requirement']['extraction_failure'])]
@@ -164,7 +164,8 @@ def metrics_for(rows, ranking_only=False):
     for row in selected:
         r = dict(row['requirement'])
         if r['extraction_failure']:
-            r['acceptable_input_indices'] = [-1]
+            r['acceptable_input_indices'] = [1 + max(
+                (hit['input_index'] for hit in row['result']['ranking']), default=-1)]
         requirements.append(r)
     result = evaluate_ranking([row['result'] for row in selected], requirements)
     result['extraction_lost_positive_count'] = sum(row['requirement']['extraction_failure'] for row in selected)

@@ -29,6 +29,9 @@ from typing import Any
 # ============================================================
 
 SKILL_SECTION_HEADINGS = {
+    "competências técnicas & ferramentas", "competências técnicas e ferramentas",
+    "habilidades & ferramentas", "habilidades e ferramentas",
+    "competências técnicas & tecnologias", "stack técnica", "stack tecnológico",
     "habilidades técnicas", "habilidades tecnicas", "habilidades", "competências técnicas",
     "competencias tecnicas", "competências", "conhecimentos técnicos",
     "skills",
@@ -928,6 +931,10 @@ def extract_ner_skill_blocks(
 # ============================================================
 
 CONTEXT_SECTION_HEADINGS = {
+    "experiência profissional & projetos": "experience",
+    "experiência prática": "experience", "experiência e projetos": "experience",
+    "formação & certificações": "education", "formação e certificações": "education",
+    "educação": "education", "formacao": "education",
     "projetos aplicados em dados & ia": "project",
     "projetos relevantes": "project", "relevant projects": "project",
     "applied data & ai projects": "project",
@@ -1095,7 +1102,17 @@ def segment_experience_block(
             header_lines.append(line)
 
         elif current_lines:
-            current_lines.append(line)
+            # Uma nova entrada datada não deve virar continuação da atividade.
+            if re.search(r'\b(?:19|20)\d{2}\b', line) and re.search(r'\s[|–—]\s', line):
+                save_current(line_number - 1)
+                header_lines = [line]
+                collecting_next_header = True
+            else:
+                # Hifenização de quebra de linha de PDF.
+                if current_lines[-1].endswith('-') and line[:1].islower():
+                    current_lines[-1] = current_lines[-1][:-1] + line
+                else:
+                    current_lines.append(line)
 
     if current_lines:
         save_current(
@@ -1103,9 +1120,22 @@ def segment_experience_block(
         )
 
     if not evidence_blocks:
-        return [{**block, 'text': line.strip(), 'start_line': base_line + index + 1,
-                 'end_line': base_line + index + 1}
-                for index, line in enumerate(lines) if line.strip()]
+        fragments = []
+        for index, line in enumerate(lines):
+            value = line.strip()
+            if not value:
+                continue
+            # Continuação conservadora: não unir títulos ou entradas datadas.
+            if (fragments and value[:1].islower()
+                    and not re.search(r'\b(?:19|20)\d{2}\b', value)
+                    and not fragments[-1]['text'].endswith(('.', ';', ':'))):
+                previous = fragments[-1]['text']
+                fragments[-1]['text'] = previous[:-1] + value if previous.endswith('-') else previous + ' ' + value
+                fragments[-1]['end_line'] = base_line + index + 1
+            else:
+                fragments.append({**block, 'text': value, 'start_line': base_line + index + 1,
+                                  'end_line': base_line + index + 1})
+        return fragments
 
     return evidence_blocks
 
@@ -1139,8 +1169,28 @@ def extract_context_blocks(
                 "end_line": end_line,
             }
 
-            if current_source == "experience":
+            if current_source in {"experience", "project"}:
                 blocks.extend(segment_experience_block(block))
+            elif current_source in {"summary", "education"}:
+                # Parágrafos completos preservam frases quebradas por layout PDF.
+                paragraph = []
+                paragraph_start = None
+                def save_paragraph(end):
+                    if paragraph:
+                        value = re.sub(r'(\w)-\s+(?=[a-zà-ú])', r'\1', ' '.join(paragraph))
+                        blocks.append({**block, 'text': value,
+                                       'start_line': paragraph_start, 'end_line': end})
+                for offset, line in enumerate(current_lines):
+                    value = line.strip()
+                    if not value:
+                        save_paragraph((start_line or 0) + offset)
+                        paragraph = []
+                        paragraph_start = None
+                    else:
+                        if paragraph_start is None:
+                            paragraph_start = (start_line or 0) + offset + 1
+                        paragraph.append(value)
+                save_paragraph(end_line)
             else:
                 # Uma linha/atividade por evidência; não unir projetos, diplomas
                 # e níveis de idioma em um único trecho artificial.
@@ -1172,6 +1222,13 @@ def extract_context_blocks(
             if inline_content:
                 current_lines.append(inline_content)
 
+        elif normalized in SKILL_SECTION_HEADINGS:
+            close_block(line_number - 1)
+            current_source = 'skill_context'
+            current_heading = heading.strip()
+            start_line = line_number
+            if inline_content:
+                current_lines.append(inline_content)
         elif normalized in CONTEXT_STOP_HEADINGS:
             close_block(line_number - 1)
 

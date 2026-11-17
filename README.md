@@ -2,6 +2,21 @@
 
 Aplicação Flask para triagem de currículos. As instruções abaixo são para Windows.
 
+O [fluxo contextual experimental](docs/avaliacao-contextual.md) prepara avaliação
+de sustentação por modelo local, separada da recuperação semântica. Está desativado
+por padrão; a qualidade das decisões ainda precisa de avaliação humana.
+
+Para testar o fluxo com modelos locais preparados, encerre o servidor atual e execute:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\iniciar_contextual.ps1
+```
+
+Esse comando seleciona explicitamente o avaliador contextual e a recuperação
+multilíngue do manifesto local. Depois, selecione o currículo na aplicação e
+reprocesse: análises anteriores não são atualizadas automaticamente. Para testar
+sem acessar o banco, use `.\.venv-contextual\Scripts\python.exe -m scripts.testar_fluxo_contextual`.
+
 A regra experimental de [aderência documental](docs/aderencia.md) usa pesos por
 requisito: obrigatório **2**, desejável/não obrigatório **1**, sem rejeição
 automática. Veja também o [estado do projeto](docs/estado-do-projeto.md).

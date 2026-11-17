@@ -1,6 +1,7 @@
 """Fluxo real Flask/comparador/fórmula, com modelos e Supabase simulados."""
 import io
 import json
+import os
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
@@ -52,6 +53,27 @@ class AnalysisWebTests(unittest.TestCase):
 
     def select(self, ids=('1',)):
         return self.post('/vagas/1/adicionar-curriculos', {'selected_candidates': list(ids)})
+
+    def test_contextual_mode_reaches_adapter_and_displays_method(self):
+        self.prepare()
+        adapter = SimpleNamespace(generate=lambda payload: json.dumps(dict(
+            estado='sustentado', evidence_ids=[payload['evidencias'][0]['id']],
+            justificativa='Dublê de integração, sem inferência real.', limitacoes=[], base='evidencia')))
+        with patch.dict(os.environ, {'CONTEXTUAL_EVALUATOR': 'experimental'}), patch(
+                'app.analysis.load_contextual_model', return_value=adapter):
+            self.assertEqual(self.upload().status_code, 302)
+            result = self.db['analyses'][0]['result']
+            self.assertIn('contextual_configuration', result)
+            self.assertEqual(result['details'][0]['diagnostic']['contextual']['estado'], 'sustentado')
+            page = self.client.get('/vagas/1/candidato/1').data.decode()
+            self.assertIn('Avaliação contextual local', page)
+
+    def test_missing_contextual_model_does_not_save_fake_success(self):
+        self.prepare()
+        with patch.dict(os.environ, {'CONTEXTUAL_EVALUATOR': 'experimental'}), patch(
+                'app.analysis.load_contextual_model', return_value=None):
+            self.upload()
+            self.assertFalse(self.db.get('analyses', []))
 
     def test_new_upload_persistence_recovery_and_no_duplicate(self):
         self.prepare()

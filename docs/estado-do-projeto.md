@@ -1,5 +1,10 @@
 # Estado do projeto
 
+O [ensaio contextual local](avaliacao-contextual.md) acrescenta um avaliador de
+sustentação entre recuperação e pontuação. O comando `scripts/iniciar_contextual.ps1`
+seleciona explicitamente esse caminho e os pesos locais do manifesto. O caminho
+legado continua sendo o padrão quando o servidor é iniciado sem essa configuração.
+
 O Flask (`app/routes.py`) recebe PDFs e requisitos revisados por vaga.
 `app/requisitos.py` preserva IDs e classificação dos requisitos;
 `app/repositories.py` lê e grava com o cliente autenticado, mantendo a decisão

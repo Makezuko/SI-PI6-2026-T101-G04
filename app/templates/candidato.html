@@ -109,6 +109,9 @@
 
       <div>
         <div class="section-label">Evidências por requisito</div>
+        {% if candidate.analysis %}
+        <p class="field-hint">{{ 'Avaliação contextual local · experimental' if candidate.analysis.contextual_configuration is defined else 'Avaliação por regras legadas · interpretação contextual desativada nesta análise' }}</p>
+        {% endif %}
         {% for warning in requirement_warnings(job.description, job.requirements_data) %}
         <p class="req-list"><strong>{{ warning }}</strong> <a href="{{ url_for('editar_vaga', job_id=job.id) }}">Revisar vaga</a></p>
         {% endfor %}
@@ -122,6 +125,16 @@
             <br>
             {% if item.nivel == 'obrigatorio' and item.estado != 'atendido' %}<strong>Atenção: obrigatório {{ 'não identificado' if item.estado == 'nao_identificado' else 'pendente de revisão' }}. Sem rejeição automática.</strong><br>{% endif %}
             Justificativa: {{ item.justificativa }}<br>
+            {% if item.diagnostic.contextual is defined %}
+            Avaliação contextual experimental: {{ item.diagnostic.contextual.estado }}<br>
+            Base: {{ item.diagnostic.contextual.base }} · Citações: {{ item.diagnostic.contextual.evidence_ids|join(', ') }}<br>
+            Limitações: {{ item.diagnostic.contextual.limitacoes|join('; ') }}<br>
+            {% for evidence in item.diagnostic.retrieved_evidence %}
+            <details><summary>{{ evidence.id }} · {{ evidence.source }} · {{ 'Citada' if evidence.id in item.diagnostic.contextual.evidence_ids else 'Recuperada' }}</summary>
+              {{ evidence.text }}<br>{{ evidence.context_header or '' }}
+            </details>
+            {% endfor %}
+            {% endif %}
             Fonte da decisão: {{ item.origem }} · Regra: {{ item.diagnostic.rule if item.diagnostic else 'Revisão humana' }}<br>
             Evidência: {{ item.best_evidence.text if item.best_evidence else 'Sem evidência recuperada' }}
             · Origem: {{ item.best_evidence.source if item.best_evidence else 'Indisponível' }}

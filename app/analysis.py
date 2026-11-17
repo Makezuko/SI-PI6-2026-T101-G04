@@ -15,7 +15,7 @@ from src.nlp.skills_extractor import extract_skills
 from src.matching.documental_rules import unsafe
 
 MODEL_LOCK = RLock()
-PIPELINE_VERSION = 'web-4-documental-literal-sections'
+PIPELINE_VERSION = 'web-6-contextual-complete-evidence'
 
 
 class AnalysisError(ValueError):
@@ -27,7 +27,9 @@ def fingerprint(value):
 
 
 def configuration():
+    from src.matching.contextual import settings
     return {
+        'contextual': settings(),
         'ner_model': os.getenv('NER_MODEL_PATH', 'models/ner/augmented/best_model'),
         'embedding_model': os.getenv('EMBEDDING_MODEL', 'sentence-transformers/all-mpnet-base-v2'),
         'formula_version': FORMULA_VERSION, 'weights': DEFAULT_WEIGHTS,
@@ -86,16 +88,27 @@ def analyze(job, resume):
                   and not any(a < entity['end'] and entity['start'] < b for a, b in spans)]
         inputs = extract_skills(text=text, ner_entities=skills)['semantic_inputs']
         inputs = sanitize_semantic_inputs(inputs)
-        if not inputs:
+        if not inputs and not config['contextual']['enabled']:
             raise AnalysisError('Nenhuma evidência profissional extraída; análise permanece pendente.')
         safe_requirements = [dict(item) for item in requirements]
         queries = embedder.encode([{'text': item['text'], 'source': 'requirement'} for item in safe_requirements])
         if len(queries['records']) != len(requirements):
             raise AnalysisError('Divida os requisitos longos em requisitos curtos antes da análise.')
-        embedded = embedder.encode(inputs)
-        from src.matching.semantic import compare
-        results, _ = compare(safe_requirements, queries['embeddings'], embedded)
-    result = calculate_adherence(safe_requirements, evaluate_requirements(safe_requirements, results, inputs))
+        if inputs:
+            embedded = embedder.encode(inputs)
+            from src.matching.semantic import compare
+            results, _ = compare(safe_requirements, queries['embeddings'], embedded)
+        else:
+            results = [dict(id=item['id'], ranking=[]) for item in safe_requirements]
+    if config['contextual']['enabled']:
+        from src.matching.contextual import evaluate_batch
+        with MODEL_LOCK:
+            adapter = load_contextual_model(config['contextual']['model'], config['contextual']['revision'])
+            if adapter is None:
+                raise AnalysisError('Avaliador contextual não carregado. Execute scripts/iniciar_contextual.ps1 no ambiente preparado; nenhuma nova análise foi salva.')
+            result = evaluate_batch(safe_requirements, results, inputs, adapter)
+    else:
+        result = calculate_adherence(safe_requirements, evaluate_requirements(safe_requirements, results, inputs))
     result['extraction_diagnostic'] = {
         'requirements_received': [item['id'] for item in safe_requirements],
         'entries_by_source': {source: sum(entry['source'] == source for entry in inputs)
@@ -103,7 +116,18 @@ def analyze(job, resume):
         'entries_considered': len(inputs),
     }
     result['last_role'] = latest_role(raw, entities)
-    return {**versions(job, resume), **config, 'result': result}
+    return {**versions(job, resume), **{k: v for k, v in config.items() if k != 'contextual'}, 'result': result}
+
+
+@lru_cache(maxsize=2)
+def load_contextual_model(path, revision):
+    from src.matching.contextual import create_adapter
+    try:
+        if not revision:
+            return None
+        return create_adapter(path)
+    except Exception:
+        return None
 
 
 def is_current_documental_result(result):

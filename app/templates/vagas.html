@@ -174,6 +174,7 @@
       <div class="cand-score">
         {% set level = 'mid' %}
         <div class="score-label {{ level }}">Aderência documental</div>
+        {% if c.analysis %}<div class="field-hint">{{ 'Contextual local · experimental' if c.analysis.contextual_configuration is defined else 'Regras legadas' }}</div>{% endif %}
         {% if c.analysis and c.analysis.undecided %}<div class="score-label">Nenhum requisito decidido</div>
         {% elif c.analysis and c.analysis.provisional %}<div class="score-label">Provisório · máximo {{ '%.2f'|format(c.analysis.maximum_score) }}% · {{ c.analysis.counts.revisao_necessaria }} pendentes</div>{% endif %}
         <div class="score-pct">{% if c.score is not none and c.analysis.provisional %}Mínimo confirmado {% endif %}{{ '%.2f%%'|format(c.score) if c.score is not none else c.analysis_state }}</div>

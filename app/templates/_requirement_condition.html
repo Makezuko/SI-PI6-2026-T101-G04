@@ -3,7 +3,7 @@
 {% set kind = condition.get('kind', 'auto') %}
 {% set mode = kind ~ ':' ~ condition.get('level') if kind == 'language' else kind ~ ':' ~ condition.get('completion') if kind == 'education' else kind %}
 <details style="grid-column:1/-1" class="req-condition">
-  <summary>Condições de atendimento (opcional)</summary>
+  <summary>Revisão avançada opcional do avaliador legado</summary>
   <label>Regra
     <select name="req_condition_mode" aria-label="Regra de atendimento">
       {% for key, label in [('auto','Avaliação conservadora pelo texto'),('all','Tecnologias: exige todas (E)'),('any','Tecnologias: aceita uma (OU)'),('use','Uso descrito de todas as tecnologias'),('api','Desenvolvimento de API com as tecnologias'),('language:basico','Idioma: básico ou superior'),('language:intermediario','Idioma: intermediário ou superior'),('language:avancado','Idioma: avançado ou superior'),('language:fluente','Idioma: fluente ou superior'),('education:completed','Graduação concluída na área'),('education:in_progress','Graduação em andamento na área')] %}
@@ -16,6 +16,6 @@
   </label>
   <button type="button" class="btn btn-ghost" data-suggest-condition>Sugerir condições pelo texto</button>
   <span data-condition-message></span>
-  <p class="field-hint">Revise os termos e o operador antes de salvar. A condição não muda o texto, o ID ou o peso do requisito. Tecnologias em condições de atividade devem aparecer na mesma atividade.</p>
+  <p class="field-hint">Cadastre e revise o requisito em linguagem natural. Estes campos são opcionais e exclusivos do avaliador legado; o experimento contextual interpreta o texto completo.</p>
 </details>
 {% endmacro %}

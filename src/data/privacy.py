@@ -4,6 +4,19 @@ import re
 from src.data.clean import anonymize_resume_text
 
 
+def uploaded_name_entities(text, anonymized_text):
+    """Reutiliza nome já ocultado no cabeçalho pelo upload, sem adivinhar pelo arquivo."""
+    original_lines = [line.strip() for line in text.splitlines() if line.strip()]
+    saved_lines = [line.strip() for line in (anonymized_text or '').splitlines() if line.strip()]
+    if not original_lines or not saved_lines or saved_lines[0] not in {'[NOME OCULTO]', '[DADO PESSOAL OCULTO]'}:
+        return []
+    name = original_lines[0]
+    if not re.fullmatch(r'[^\W\d_]+(?:[ \t]+[^\W\d_]+){1,5}', name):
+        return []
+    start = text.index(name)
+    return [dict(label='NAME', text=name, start=start, end=start + len(name))]
+
+
 def valid_entity(text, entity):
     start, end = entity.get('start'), entity.get('end')
     if (type(start) is not int or type(end) is not int
@@ -17,6 +30,7 @@ def valid_entity(text, entity):
 
 def personal_spans(text, entities):
     spans = []
+    confirmed_names = set()
     for entity in entities:
         if not valid_entity(text, entity):
             continue
@@ -24,12 +38,18 @@ def personal_spans(text, entities):
         # Nome de um só token/fragmento é ambíguo, sobretudo fora do idioma NER.
         if label == 'NAME' and len(re.findall(r'[^\W\d_]{2,}', value)) >= 2:
             spans.append((entity['start'], entity['end']))
+            confirmed_names.add(value)
         elif label == 'EMAIL_ADDRESS' and '@' in value:
             spans.append((entity['start'], entity['end']))
         elif label == 'LOCATION':
             prefix = text[text.rfind('\n', 0, entity['start']) + 1:entity['start']]
             if re.fullmatch(r'\s*(?:location|localização|endereço|address)\s*:\s*', prefix, re.I):
                 spans.append((entity['start'], entity['end']))
+    # Repete apenas nomes completos confirmados, com fronteiras. Nunca propaga
+    # tokens parciais ou nomes inferidos de uma palavra para o restante do texto.
+    for name in confirmed_names:
+        pattern = r'(?<!\w)' + r'\s+'.join(re.escape(part) for part in name.split()) + r'(?!\w)'
+        spans.extend((match.start(), match.end()) for match in re.finditer(pattern, text, re.I))
     merged = []
     for start, end in sorted(spans):
         if merged and start < merged[-1][1]:

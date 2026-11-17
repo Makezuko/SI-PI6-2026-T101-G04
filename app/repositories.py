@@ -96,6 +96,7 @@ def job_for_template(row):
 
 
 def resume_for_template(row):
+    from src.data.privacy import anonymize_for_analysis, uploaded_name_entities
     display_date = format_display_date(row.get('enviado_em'))
 
     text = row.get('texto_extraido') or ''
@@ -109,8 +110,9 @@ def resume_for_template(row):
 
     initials = ''.join(part[0] for part in name.split()[:2]).upper() or 'CV'
     contact = extract_contact_info(text) if text else {'email': None, 'phone': None}
-    education_blocks = extract_education_blocks(text) if text else []
-    skills_data = extract_skills(text=text) if text else {'skills': [], 'context_blocks': []}
+    safe_text = anonymize_for_analysis(text, uploaded_name_entities(text, row.get('texto_anonimizado')))
+    education_blocks = extract_education_blocks(safe_text) if text else []
+    skills_data = extract_skills(text=safe_text) if text else {'skills': [], 'context_blocks': []}
 
     skills = skills_data.get('skills', [])
     education = education_blocks[0]['text'].splitlines()[0] if education_blocks else 'Não especificada'

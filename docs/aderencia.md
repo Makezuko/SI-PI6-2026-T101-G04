@@ -1,4 +1,93 @@
-# SP2TG-27 — Índice de compatibilidade semântica
+# Aderência documental — regra de negócio experimental
+
+## Regra atual: versão 3.1-experimental
+
+O fluxo web usa `src/matching/adherence.py`. Cada requisito obrigatório pesa
+**2**; cada desejável/não obrigatório pesa **1**. Esses pesos são por requisito,
+não uma reserva de pontos por grupo. A configuração é experimental, sem validação
+empírica como política de seleção. Não implica aprovação ou rejeição automática.
+
+```text
+aderência = 100 × soma(pesos dos requisitos atendidos)
+                  / soma(pesos de todos os requisitos)
+```
+
+Cada atendido contribui com seu peso completo; cosseno não multiplica a
+contribuição. Não identificados e pendentes continuam no denominador. Com
+pendências, o percentual é o mínimo confirmado, provisório; o máximo possível
+inclui também os pesos pendentes. Obrigatórios não identificados ou pendentes
+recebem destaque, sem excluir candidatos nem criar grupos no ranking.
+O ranking usa o mínimo confirmado, menor peso pendente e ID estável do registro
+para desempate; não usa identidade pessoal.
+
+Exemplo sintético: dois obrigatórios e um desejável totalizam peso 5. Um
+obrigatório atendido, outro pendente e o desejável não identificado produzem
+**40% a 80%**, provisórios. Se a revisão confirmar o obrigatório pendente,
+o resultado será **80%**, sem pendências. Com pesos iguais, seis atendidos
+entre oito requisitos produzem 75%.
+
+`calculate_adherence(requirements, decisions, weights=None)` exige decisões por
+ID (`estado`, `justificativa`, `evidencias`, `origem`). Estados aceitos:
+`atendido`, `nao_identificado`, `revisao_necessaria`. Atendimento exige evidência.
+Ausência de decisão ou falha técnica produz erro, sem nota. Sem entradas
+profissionais nem recuperação utilizável, a análise permanece pendente.
+Pesos opcionais explícitos devem ser positivos e finitos.
+
+A avaliação automática busca tecnologias e aliases explícitos em **todas** as
+entradas profissionais, além dos candidatos semânticos. `SQL` não é alias de
+PostgreSQL: quando a vaga aceita essa alternativa, configure condição OU.
+Pandas/NumPy e Git/Docker usam E somente quando essa condição foi salva
+explicitamente. Há regras delimitadas para uso descrito, desenvolvimento de API
+na mesma oração, idioma com nível declarado e graduação com área e situação
+explícitas. Não há inferência de Pandas por Python ou React por Next.js.
+A ausência no Top-k não comprova ausência no currículo.
+
+O vocabulário e as regras estão em `src/matching/documental_rules.py`. Menção
+de tecnologia não comprova atividade, duração ou senioridade. Negação, hipótese,
+menção a terceiros, equivalência não validada e contexto insuficiente seguem
+para revisão. Idioma exige nível próprio, sem misturar níveis de outros idiomas.
+Não há classificação automática de ausente apenas por falta de keyword.
+
+Na edição da vaga, abra **Condições de atendimento** de cada requisito e selecione
+E/OU, atividade, idioma ou formação e os termos. **Sugerir condições pelo texto**
+preenche uma proposta revisável; só **Salvar Alterações** modifica a vaga. IDs,
+texto e pesos são independentes da condição. Alterações invalidam análises pelo
+hash, sem aumentar automaticamente o denominador de vagas existentes.
+
+Se todos estiverem pendentes, a interface mostra **Avaliação pendente** e
+**Nenhum requisito decidido**, sem percentual nem posição numérica. O JSON
+mantém limites matemáticos para auditoria (`undecided=true`), sem nota final.
+Decisões parciais mostram **Mínimo confirmado**, pendências e máximo possível.
+
+Aderência considera os requisitos com evidência identificada no currículo.
+Não comprova domínio nem substitui a avaliação do recrutador.
+
+A fórmula e o pipeline novos invalidam o hash de configuração das análises
+anteriores: o histórico é preservado e exige reanálise. A estrutura JSON existente
+comporta as decisões, pesos, justificativas e evidências; nenhuma migração ou
+alteração remota foi executada. `status=calculado` significa cálculo executado;
+`provisional` indica se ainda há decisões pendentes.
+
+Limitações: controles web para registrar revisão humana e trilha de revisões
+ainda não estão implementados. A função aceita decisões humanas, mas isso não
+equivale a oferecer esse fluxo na interface. Composição de tecnologias já pode
+ser configurada na vaga, mas não interpreta atividades e equivalências gerais.
+Inferência contextual mais ampla
+e validação contra decisões humanas exigem experimento posterior. Hit@k/MRR
+avaliam recuperação; não validam atendimento. NER mede extração de entidades.
+
+Diagnóstico e decisões de uma fixture sintética: [diagnóstico documental](diagnostico-documental.md).
+
+```powershell
+.\venv\Scripts\python.exe -m scripts.diagnosticar_aderencia
+```
+
+## Histórico: índice semântico 2.1
+
+O restante desta seção documenta o método legado em `src/matching/score.py` e a
+CLI `scripts/calcular_aderencia.py`, ainda preservados para reproduzir experimentos
+antigos. Eles **não calculam a aderência documental atual** e não são chamados
+pelo fluxo web. Não misturar seus resultados com o ranking atual.
 
 O fluxo web está descrito em [integração de aderência](integracao-aderencia.md),
 incluindo migração incremental, configuração e roteiro de teste manual.

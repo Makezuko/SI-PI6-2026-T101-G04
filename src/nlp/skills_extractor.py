@@ -29,6 +29,8 @@ from typing import Any
 # ============================================================
 
 SKILL_SECTION_HEADINGS = {
+    "habilidades técnicas", "habilidades tecnicas", "habilidades", "competências técnicas",
+    "competencias tecnicas", "competências", "conhecimentos técnicos",
     "skills",
     "technical skills",
     "technical skill",
@@ -926,6 +928,18 @@ def extract_ner_skill_blocks(
 # ============================================================
 
 CONTEXT_SECTION_HEADINGS = {
+    "projetos aplicados em dados & ia": "project",
+    "projetos relevantes": "project", "relevant projects": "project",
+    "applied data & ai projects": "project",
+    "resumo profissional": "summary", "resumo": "summary",
+    "professional summary": "summary", "summary": "summary", "profile": "summary",
+    "formação acadêmica & certificações": "education",
+    "formação acadêmica e certificações": "education",
+    "formação acadêmica": "education", "formacao academica": "education",
+    "formação": "education", "education": "education",
+    "academic background": "education", "academic qualifications": "education",
+    "education & certifications": "education",
+    "idiomas": "language", "languages": "language",
     "experience": "experience",
     "professional experience": "experience",
     "work experience": "experience",
@@ -967,6 +981,8 @@ CONTEXT_STOP_HEADINGS = (
         "referências",
     }
 )
+# Os limites precisam ser os mesmos para habilidades e contexto.
+STOP_SECTION_HEADINGS.update(CONTEXT_SECTION_HEADINGS)
 
 
 def segment_experience_block(
@@ -1014,7 +1030,7 @@ def segment_experience_block(
         if evidence_text:
             evidence_blocks.append({
                 "text": evidence_text,
-                "source": "experience",
+                "source": block.get("source", "experience"),
                 "heading": block.get("heading"),
                 "evidence_type": "responsibility",
                 "context_header": "\n".join(header_lines).strip(),
@@ -1087,7 +1103,9 @@ def segment_experience_block(
         )
 
     if not evidence_blocks:
-        return [block]
+        return [{**block, 'text': line.strip(), 'start_line': base_line + index + 1,
+                 'end_line': base_line + index + 1}
+                for index, line in enumerate(lines) if line.strip()]
 
     return evidence_blocks
 
@@ -1124,7 +1142,14 @@ def extract_context_blocks(
             if current_source == "experience":
                 blocks.extend(segment_experience_block(block))
             else:
-                blocks.append(block)
+                # Uma linha/atividade por evidência; não unir projetos, diplomas
+                # e níveis de idioma em um único trecho artificial.
+                for offset, line in enumerate(current_lines):
+                    value = re.sub(r'^\s*[-•●▪◦*]\s+', '', line).strip()
+                    if value:
+                        blocks.append({**block, 'text': value,
+                                       'start_line': (start_line or 0) + offset + 1,
+                                       'end_line': (start_line or 0) + offset + 1})
 
         current_source = None
         current_heading = None

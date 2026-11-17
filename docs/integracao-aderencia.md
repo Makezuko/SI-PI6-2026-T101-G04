@@ -1,5 +1,14 @@
 # Integração web da compatibilidade semântica
 
+Atualização de 17/11/2026: o fluxo web passou para aderência documental
+`3.1-experimental`, pipeline `web-4-documental-literal-sections`, pesos por requisito
+obrigatório 2 e desejável 1. Consulte [a regra atual](aderencia.md).
+`calculate_adherence` recebe decisões de `evaluate_requirements`; a recuperação
+semântica permanece separada. O ranking segue o mínimo confirmado, sem grupos
+de exclusão por obrigatórios. As descrições abaixo de índice semântico e limiar
+referem-se ao histórico anterior. Os requisitos, arquivos e banco remoto não
+foram alterados por esta atualização.
+
 Implementação síncrona local em `app/analysis.py`. O upload PDF existente é
 reutilizado; currículos cadastrados usam `texto_extraido`. Requisitos passam
 por `parse_requirements`: todos devem estar classificados, com status derivado

@@ -2,6 +2,10 @@
 
 Aplicação Flask para triagem de currículos. As instruções abaixo são para Windows.
 
+A regra experimental de [aderência documental](docs/aderencia.md) usa pesos por
+requisito: obrigatório **2**, desejável/não obrigatório **1**, sem rejeição
+automática. Veja também o [estado do projeto](docs/estado-do-projeto.md).
+
 ## Instalação
 
 Clone o repositório e entre na pasta:

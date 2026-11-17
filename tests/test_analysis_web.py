@@ -61,9 +61,65 @@ class AnalysisWebTests(unittest.TestCase):
         self.assertEqual(len(self.db['resumes']), 1)
         self.assertEqual(len(self.db['analyses']), 1)
         page = self.client.get('/vagas/1/candidato/1').data.decode()
-        self.assertIn('100.00/100', page)
-        self.assertIn('Similaridade: 1.0000', page)
+        self.assertIn('100.00%', page)
+        self.assertIn('Similaridade: Indisponível', page)
+        self.assertIn('evidência literal suficiente para python', page)
         self.assertNotIn('Alta aderência', page)
+
+    def test_incompatible_saved_results_require_reanalysis_without_template_error(self):
+        from copy import deepcopy
+        self.prepare(); self.upload()
+        record = self.db['analyses'][0]
+        original = deepcopy(record['result'])
+        variants = []
+        for field in ('counts', 'weights', 'details'):
+            changed = deepcopy(original)
+            changed.pop(field)
+            variants.append(changed)
+        variants.extend([None, {}, dict(original, counts=None),
+                         dict(original, score_name='indice_compatibilidade_semantica',
+                              formula_version='2.1', score=21.88)])
+        for result in variants:
+            with self.subTest(result=result):
+                # Mantém os hashes atuais para testar o contrato, não só a versão do hash.
+                record['result'] = result
+                response = self.client.get('/vagas/1/candidato/1')
+                self.assertEqual(response.status_code, 200)
+                self.assertIn('formato incompatível', response.data.decode())
+                listing = self.client.get('/vagas/1').data.decode()
+                self.assertIn('data-score=""', listing)
+                self.assertNotIn('21.88%', listing)
+                self.assertEqual(record['result'], result)
+        self.select()
+        page = self.client.get('/vagas/1/candidato/1').data.decode()
+        self.assertIn('100.00%', page)
+        self.assertIn('Atendidos: 1;', page)
+        self.assertNotIn('formato incompatível', page)
+
+    def test_templates_handle_legacy_result_even_with_old_backend_loaded(self):
+        self.prepare(); self.upload()
+
+        def attach_legacy(client, job, candidates):
+            for candidate in candidates:
+                candidate.update(analysis={'score': 21.88, 'details': [],
+                                           'weights': {'obrigatorio': 90, 'desejavel': 10}},
+                                 score=21.88, mandatory_status='incompativel',
+                                 analysis_state='Obrigatório incompatível')
+            return candidates
+
+        # Simula exatamente um processo com código Python antigo e templates novos.
+        with patch('app.routes.attach_analysis', side_effect=attach_legacy):
+            detail = self.client.get('/vagas/1/candidato/1')
+            self.assertEqual(detail.status_code, 200)
+            page = detail.data.decode()
+            self.assertIn('formato incompatível', page)
+            self.assertNotIn('21.88%', page)
+            self.assertNotIn('Obrigatório incompatível', page)
+            self.assertNotIn('Atendidos: 0', page)
+            listing = self.client.get('/vagas/1')
+            self.assertEqual(listing.status_code, 200)
+            self.assertIn('data-score=""', listing.data.decode())
+            self.assertNotIn('21.88%', listing.data.decode())
 
     def test_detail_counts_required_and_desirable_matches_separately(self):
         self.prepare()
@@ -75,9 +131,49 @@ class AnalysisWebTests(unittest.TestCase):
         self.db['jobs'][0]['requisitos'] = json.dumps(requirements)
         self.upload()
         page = self.client.get('/vagas/1/candidato/1').data.decode()
-        self.assertIn('Obrigatórios compatíveis: 1/1.', page)
-        self.assertIn('Desejáveis compatíveis: 0/1.', page)
+        self.assertIn('Obrigatórios com evidência: 1/1.', page)
+        self.assertIn('Desejáveis com evidência: 0/1.', page)
+        self.assertIn('Percentual provisório', page)
+        self.assertIn('Peso 2.0', page)
+        self.assertIn('Peso 1.0', page)
         self.assertIn('Collaborate with teams', page)
+
+    def test_all_undecided_has_no_displayed_score_or_rank(self):
+        self.prepare()
+        self.db['jobs'][0]['requisitos'] = self.db['jobs'][0]['requisitos'].replace('Python', 'Liderança complexa')
+        self.upload()
+        page = self.client.get('/vagas/1/candidato/1').data.decode()
+        self.assertIn('Avaliação pendente', page)
+        self.assertIn('Nenhum requisito decidido', page)
+        self.assertNotIn('0.00%', page)
+        self.assertNotIn('100.00%', page)
+        listing = self.client.get('/vagas/1').data.decode()
+        self.assertIn('class="rank-num">—', listing)
+        self.assertIn('data-score=""', listing)
+
+    def test_conditions_are_reviewed_saved_and_invalidate_analysis(self):
+        self.prepare(); self.upload()
+        old_analysis = self.db['analyses'][0]
+        response = self.post('/requisitos/sugerir-condicao', {'text': 'Pandas e NumPy'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['condition'], {'kind': 'all', 'terms': ['pandas', 'numpy']})
+        # A sugestão não modifica a vaga nem os resultados existentes.
+        self.assertNotIn('condition', json.loads(self.db['jobs'][0]['requisitos'])['items'][0])
+        response = self.post('/vagas/1/editar', {
+            'title': 'Python developer', 'description': 'Graduação em computação', 'status': 'Aberta',
+            'req_id': ['R1'], 'req_text': ['Python'], 'req_tipo': ['tecnico'],
+            'req_nivel': ['obrigatorio'], 'req_condition_mode': ['all'],
+            'req_condition_terms': ['Python; Docker'],
+        })
+        self.assertEqual(response.status_code, 302)
+        stored = json.loads(self.db['jobs'][0]['requisitos'])['items'][0]
+        self.assertEqual(stored['id'], 'R1')
+        self.assertEqual(stored['text'], 'Python')
+        self.assertEqual(stored['condition']['terms'], ['python', 'docker'])
+        page = self.client.get('/vagas/1/candidato/1').data.decode()
+        self.assertIn('Desatualizada', page)
+        self.assertIn('descrição menciona formação', page)
+        self.assertEqual(self.db['analyses'][0], old_analysis)
 
     def test_existing_resume_and_manual_decision(self):
         self.prepare(); self.upload()
@@ -153,15 +249,18 @@ class AnalysisWebTests(unittest.TestCase):
         self.assertEqual(other.get('/vagas/1/candidato/1').status_code, 404)
         self.assertEqual(self.post('/vagas/1/adicionar-curriculos', {'selected_candidates': ['1']}, other).status_code, 404)
 
-    def test_mandatory_passes_rank_before_higher_incompatible_score(self):
+    def test_ranking_uses_percentage_without_mandatory_exclusion(self):
         self.prepare(); self.upload(); self.upload('other.pdf', 'SQL'); self.upload('third.pdf', 'Docker')
         self.db['analyses'][0]['result']['score'] = 70.01
         self.db['analyses'][1]['result']['score'] = 70.99
+        self.db['analyses'][1]['result']['undecided'] = False
+        self.db['analyses'][1]['result']['details'][0]['estado'] = 'nao_identificado'
+        self.db['analyses'][1]['result']['counts'] = {'atendido': 0, 'nao_identificado': 1, 'revisao_necessaria': 0}
         self.db['analyses'].pop()
         page = self.client.get('/vagas/1').data.decode()
+        self.assertLess(page.index('data-score="70.99"'), page.index('data-score="70.01"'))
         self.assertLess(page.index('data-score="70.01"'), page.index('data-score=""'))
-        self.assertLess(page.index('data-score=""'), page.index('data-score="70.99"'))
-        self.assertIn('data-mandatory-status="incompativel"', page)
+        self.assertIn('Sem rejeição automática', page)
         self.assertIn("parseFloat(b.getAttribute('data-score'))", page)
 
     def test_save_failure_never_reports_complete(self):

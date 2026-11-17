@@ -83,6 +83,13 @@ class ResumeEmbedder:
                 else offsets[last_token][0]
             )
 
+            # Tokenizadores de subpalavras podem iniciar uma janela no meio
+            # de uma palavra. Expanda offsets, preservando a cobertura original.
+            while start > 0 and start < len(text) and text[start - 1].isalnum() and text[start].isalnum():
+                start -= 1
+            while end < len(text) and end > 0 and text[end - 1].isalnum() and text[end].isalnum():
+                end += 1
+
             chunk_text = text[start:end]
 
             # Confere o tamanho após retokenizar o trecho.

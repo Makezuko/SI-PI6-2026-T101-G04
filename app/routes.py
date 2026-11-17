@@ -1,7 +1,7 @@
 import re
 from functools import wraps
 
-from flask import abort, flash, g, redirect, render_template, request, session, url_for
+from flask import abort, flash, g, redirect, render_template, request, session, url_for, jsonify
 from supabase_auth.errors import AuthApiError
 
 from app.analysis import AnalysisError, attach_analysis, process_resume
@@ -23,6 +23,13 @@ from app.repositories import (
 from app.requisitos import NIVEIS, STATUS_VAGA, TIPOS, build_requirements, rows_from_form
 from app.supabase_client import create_supabase_client
 from src.data.clean import parse_resume_pdf
+from src.matching.documental_rules import suggest_condition
+
+
+@app.context_processor
+def requirement_review_helpers():
+    from app.requisitos import requirement_warnings
+    return {'requirement_warnings': requirement_warnings}
 
 
 @app.errorhandler(AnalysisSchemaError)
@@ -188,7 +195,7 @@ def dashboard():
     scores = []
     for job in jobs:
         scores.extend(c['score'] for c in attach_analysis(g.supabase, job, list_resumes(g.supabase, job['id'])) if c['score'] is not None)
-    average = f'{sum(scores) / len(scores):.2f}/100' if scores else 'Indisponível'
+    average = f'{sum(scores) / len(scores):.2f}%' if scores else 'Indisponível'
     return render_template('dashboard.html', active_page='dashboard', jobs=jobs,
                            open_jobs_count=sum(job['status'] == 'Aberta' for job in jobs),
                            total_resumes=total_resumes if total_resumes else '—', avg_match_rate=average)
@@ -289,6 +296,15 @@ def editar_vaga(job_id):
 def candidatos():
     jobs = database_jobs()
     return redirect(url_for('vagas', job_id=jobs[0]['id'])) if jobs else redirect(url_for('nova_vaga'))
+
+
+@app.route('/requisitos/sugerir-condicao', methods=['POST'])
+@login_required
+def suggest_requirement_condition():
+    text = request.form.get('text', '')
+    if len(text) > 300:
+        abort(400)
+    return jsonify(condition=suggest_condition(text))
 
 
 @app.route('/configuracoes')

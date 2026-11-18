@@ -127,6 +127,120 @@
         {% include '_adherence_requirements.html' %}
       </div>
       <div>
+        <div class="section-label">Justificativa da Análise (IA)</div>
+        {% set llm = candidate.llm_justification %}
+        {% if llm and llm.status == 'disponivel' and llm.content and llm.content.parecer_executivo %}
+        {% set c = llm.content %}
+        {% set exec = c.parecer_executivo %}
+        {% set aderencia_labels = {'forte': 'Aderência Forte', 'moderada': 'Aderência Moderada', 'parcial': 'Aderência Parcial', 'baixa': 'Aderência Baixa'} %}
+        {% set req_status_labels = {'atendido': 'Atendido', 'parcial': 'Parcial', 'nao_evidenciado': 'Não evidenciado'} %}
+        {% set impacto_labels = {'alto': 'Impacto Alto', 'medio': 'Impacto Médio', 'baixo': 'Impacto Baixo'} %}
+        {% set curva_labels = {'imediata': 'Adaptação Imediata', 'baixa': 'Curva Baixa', 'moderada': 'Curva Moderada', 'alta': 'Curva Alta'} %}
+        <div class="req-list llm-card">
+          <div class="llm-exec">
+            <div class="llm-exec-head">
+              <span class="llm-pill {{ exec.classificacao_aderencia }}">{{ aderencia_labels.get(exec.classificacao_aderencia, exec.classificacao_aderencia) }}</span>
+              <span class="llm-pill neutral">{{ candidate_text(exec.nivel_aparente, candidate) }}</span>
+            </div>
+            <p style="margin:0;line-height:1.55;">{{ candidate_text(exec.resumo_analitico, candidate) }}</p>
+          </div>
+
+          {% if c.analise_requisitos %}
+          <div>
+            <div class="llm-subtitle">Análise Contextual por Requisito</div>
+            <div class="llm-sublist">
+              {% for req in c.analise_requisitos %}
+              <div class="llm-subitem">
+                <div class="llm-subitem-head">
+                  <strong>{{ candidate_text(req.requisito, candidate) }}</strong>
+                  <span style="display:inline-flex;gap:6px;align-items:center;">
+                    <span class="llm-pill neutral">{{ 'Obrigatório' if req.nivel == 'obrigatorio' else 'Desejável' }}</span>
+                    <span class="llm-pill {{ req.status }}">{{ req_status_labels.get(req.status, req.status) }}</span>
+                  </span>
+                </div>
+                <div>{{ candidate_text(req.analise_contextual, candidate) }}</div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+
+          {% if c.pontos_fortes %}
+          <div>
+            <div class="llm-subtitle">Pontos Fortes</div>
+            <div class="llm-sublist">
+              {% for ponto in c.pontos_fortes %}
+              <div class="llm-subitem">
+                <strong>{{ candidate_text(ponto.titulo, candidate) }}</strong>
+                <div style="margin-top:3px;">{{ candidate_text(ponto.justificativa, candidate) }}</div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+
+          {% if c.lacunas_e_riscos %}
+          <div>
+            <div class="llm-subtitle">Lacunas e Riscos</div>
+            <div class="llm-sublist">
+              {% for lacuna in c.lacunas_e_riscos %}
+              <div class="llm-subitem">
+                <div class="llm-subitem-head">
+                  <strong>{{ candidate_text(lacuna.ponto, candidate) }}</strong>
+                  <span class="llm-pill {{ lacuna.impacto }}">{{ impacto_labels.get(lacuna.impacto, lacuna.impacto) }}</span>
+                </div>
+                <div>{{ candidate_text(lacuna.observacao, candidate) }}</div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+
+          {% if c.equivalencias_e_transferiveis %}
+          <div>
+            <div class="llm-subtitle">Equivalências e Competências Transferíveis</div>
+            <div class="llm-sublist">
+              {% for eq in c.equivalencias_e_transferiveis %}
+              <div class="llm-subitem">
+                <div class="llm-subitem-head">
+                  <strong>{{ candidate_text(eq.experiencia_equivalente, candidate) }}</strong>
+                  <span class="llm-pill neutral">Para: {{ candidate_text(eq.requisito_relacionado, candidate) }}</span>
+                </div>
+                <div>{{ candidate_text(eq.observacao, candidate) }}</div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+
+          {% if c.curva_de_adaptacao %}
+          <div>
+            <div class="llm-subtitle">Curva de Adaptação</div>
+            <div class="llm-subitem">
+              <div class="llm-subitem-head">
+                <strong>Estimativa de Ramp-up</strong>
+                <span class="llm-pill curva-{{ c.curva_de_adaptacao.nivel }}">{{ curva_labels.get(c.curva_de_adaptacao.nivel, c.curva_de_adaptacao.nivel) }}</span>
+              </div>
+              <div>{{ candidate_text(c.curva_de_adaptacao.justificativa, candidate) }}</div>
+              {% if c.curva_de_adaptacao.areas_de_ramp_up %}
+              <ul style="margin:6px 0 0 18px;">
+                {% for area in c.curva_de_adaptacao.areas_de_ramp_up %}<li>{{ candidate_text(area, candidate) }}</li>{% endfor %}
+              </ul>
+              {% endif %}
+            </div>
+          </div>
+          {% endif %}
+
+          <div class="llm-transparency">
+            <strong>Transparência da análise:</strong> {{ candidate_text(c.nota_transparencia, candidate) }}
+          </div>
+        </div>
+        {% else %}
+        <div class="req-list">{{ llm.message if llm and llm.message else 'Justificativa por IA não disponível no momento.' }}</div>
+        {% endif %}
+      </div>
+
+      <div>
         <div class="section-label">Limitações</div>
         <div class="req-list">Aderência considera os requisitos com evidência identificada no currículo. Não comprova domínio nem substitui a avaliação do recrutador. Regra de negócio experimental; qualidade em português não validada.</div>
       </div>

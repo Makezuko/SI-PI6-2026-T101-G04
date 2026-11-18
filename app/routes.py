@@ -4,7 +4,7 @@ from functools import wraps
 from flask import abort, flash, g, redirect, render_template, request, session, url_for, jsonify
 from supabase_auth.errors import AuthApiError
 
-from app.analysis import AnalysisError, attach_analysis, process_resume
+from app.analysis import AnalysisError, attach_analysis, ensure_candidate_justification, process_resume
 from app import app
 from app.repositories import (
     AnalysisSchemaError,
@@ -472,6 +472,7 @@ def candidato_detalhe(job_id, candidate_id):
     if candidate is None:
         abort(404, description='Candidato não encontrado nesta vaga.')
     candidate = attach_analysis(g.supabase, job, [candidate])[0]
+    ensure_candidate_justification(g.supabase, job, candidate)
     event('ANALYSIS_SELECTED', found=candidate['analysis'] is not None,
           analysis_id=candidate.get('analysis_id'),
           persisted_run_id=(candidate.get('analysis') or {}).get('execution_id'),

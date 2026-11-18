@@ -1,4 +1,4 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 :root{
   --brand-50:#eaf1f8; --brand-100:#cddff0; --brand-200:#9dc0e0; --brand-300:#6da0d1;
@@ -447,3 +447,19 @@ tr.job-row.closed td:first-child{ box-shadow:inset 3px 0 0 #cbd5e1; }
   font-size: 14px;
   font-weight: 600;
 }
+
+/* ---------- Justificativa IA (Schema v2) ---------- */
+.llm-card{ display:flex; flex-direction:column; gap:14px; }
+.llm-exec{ display:flex; flex-direction:column; gap:8px; padding-bottom:12px; border-bottom:1px solid var(--line); }
+.llm-exec-head{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.llm-pill{ display:inline-flex; align-items:center; font-size:11.5px; font-weight:600; padding:3px 10px; border-radius:999px; }
+.llm-pill.forte, .llm-pill.atendido, .llm-pill.baixo, .llm-pill.curva-imediata, .llm-pill.curva-baixa{ background:var(--high-soft); color:var(--high); }
+.llm-pill.moderada, .llm-pill.parcial, .llm-pill.medio, .llm-pill.curva-moderada{ background:var(--mid-soft); color:var(--mid); }
+.llm-pill.baixa, .llm-pill.nao_evidenciado, .llm-pill.alto, .llm-pill.curva-alta{ background:var(--low-soft); color:var(--low); }
+.llm-pill.neutral{ background:var(--brand-50); color:var(--brand-700); }
+.llm-subtitle{ font-size:12.5px; font-weight:700; color:var(--ink); margin-bottom:6px; }
+.llm-sublist{ display:flex; flex-direction:column; gap:8px; }
+.llm-subitem{ background:#fff; border:1px solid var(--line-strong); border-radius:9px; padding:10px 12px; font-size:13px; line-height:1.5; }
+.llm-subitem-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-bottom:4px; }
+.llm-meta{ font-size:12px; color:var(--ink-soft); }
+.llm-transparency{ font-size:12px; color:#475569; background:#f8fafc; border:1px solid var(--line-strong); border-radius:8px; padding:9px 12px; line-height:1.5; }

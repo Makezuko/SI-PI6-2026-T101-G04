@@ -265,6 +265,49 @@ def attach_analysis(client, job, candidates):
     return sorted(candidates, key=ranking_order)
 
 
+def dashboard_scores(client, jobs):
+    """Calcula pontuações atuais para o painel com apenas 2 queries no banco."""
+    if not jobs:
+        return []
+    from app.repositories import list_analyses_for_dashboard, list_resumes_for_dashboard
+    resumes = list_resumes_for_dashboard(client)
+    analyses = list_analyses_for_dashboard(client)
+    config = configuration()
+    config_hash = fingerprint(config)
+    jobs_by_id = {str(job['id']): job for job in jobs}
+    req_hashes = {
+        str(job['id']): fingerprint(parse_requirements(job['requirements_data'])['items'])
+        for job in jobs
+    }
+    analyses_by_pair = {}
+    for row in analyses:
+        key = (str(row.get('vaga_id')), str(row.get('curriculo_id')))
+        analyses_by_pair.setdefault(key, []).append(row)
+
+    scores = []
+    for resume in resumes:
+        job_id = resume['job_id']
+        job = jobs_by_id.get(job_id)
+        if job is None:
+            continue
+        current = {
+            'requirements_hash': req_hashes[job_id],
+            'text_hash': fingerprint(resume['raw_text']),
+            'config_hash': config_hash,
+        }
+        previous = analyses_by_pair.get((job_id, resume['id']), [])
+        valid = [row for row in previous
+                 if all(row.get(k) == v for k, v in current.items())
+                 and result_matches_mode(row.get('result'), config)]
+        if not valid:
+            continue
+        record = max(valid, key=lambda row: (row.get('analisado_em') or '', int(row.get('id') or 0)))
+        result = record.get('result') or {}
+        if not result.get('undecided') and result.get('score') is not None:
+            scores.append(result['score'])
+    return scores
+
+
 def process_resume(client, job, resume):
     from app.repositories import save_analysis, get_resume
     event('ANALYSIS_EFFECTIVE_CONFIG', **process_configuration())

@@ -343,6 +343,10 @@ class LlmJustificationTests(unittest.TestCase):
         self.assertIn('data-cand-tab="resumo"', html)
         self.assertIn('data-cand-tab="requisitos"', html)
         self.assertIn('data-cand-tab="curriculo"', html)
+        self.assertIn('class="resume-sheet"', html)
+        self.assertIn('Ver texto bruto (debug .txt)', html)
+        self.assertIn('class="limitations-footnote"', html)
+        self.assertNotIn('Dados Extraídos', html)
         self.assertIn('class="resume-text-view"', html)
         self.assertNotIn('class="pdf-bar"', html)
 

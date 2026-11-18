@@ -495,3 +495,21 @@ tr.job-row.closed td:first-child{ box-shadow:inset 3px 0 0 #cbd5e1; }
 .adherence-details{ font-size:12px; color:var(--ink-soft); }
 .adherence-details summary{ cursor:pointer; font-weight:600; color:var(--brand-600); user-select:none; }
 .adherence-details p{ margin:6px 0 0; line-height:1.5; }
+
+/* ---------- Currículo formatado & Aviso discreto de rodapé ---------- */
+.resume-sheet{ background:#fff; border:1px solid var(--line-strong); border-radius:12px; padding:22px 24px; display:flex; flex-direction:column; gap:16px; }
+.resume-sheet-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; padding-bottom:14px; border-bottom:1px solid var(--line); }
+.resume-sheet-head h3{ margin:0; font-size:18px; font-weight:700; color:var(--ink); }
+.resume-sheet-meta{ font-size:12.5px; color:var(--ink-soft); margin-top:4px; line-height:1.5; }
+.resume-sheet-pills{ display:flex; flex-wrap:wrap; gap:8px; }
+.resume-meta-pill{ background:#f8fafc; border:1px solid var(--line-strong); border-radius:8px; padding:6px 10px; font-size:12px; color:var(--ink); }
+.resume-meta-pill strong{ color:var(--ink-soft); font-weight:600; margin-right:4px; }
+.resume-formatted{ display:flex; flex-direction:column; gap:6px; font-size:13.5px; line-height:1.65; color:var(--ink); }
+.resume-sec-heading{ margin:12px 0 2px; font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--brand-700); padding-bottom:4px; border-bottom:1px solid var(--line); }
+.resume-sec-heading:first-child{ margin-top:0; }
+.resume-para{ margin:0; }
+.resume-bullets{ margin:2px 0 4px 18px; padding:0; display:flex; flex-direction:column; gap:4px; }
+.resume-debug{ margin-top:4px; font-size:12px; color:var(--ink-soft); }
+.resume-debug summary{ cursor:pointer; font-weight:600; color:var(--brand-600); user-select:none; margin-bottom:8px; }
+.limitations-footnote{ display:flex; align-items:flex-start; gap:8px; padding:10px 26px; background:#f8fafc; border-top:1px solid var(--line); font-size:12px; line-height:1.5; color:var(--ink-soft); }
+.limitations-footnote svg{ flex-shrink:0; margin-top:2px; color:#94a3b8; }

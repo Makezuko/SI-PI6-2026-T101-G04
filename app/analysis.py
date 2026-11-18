@@ -1,19 +1,23 @@
 """Orquestração local da análise; modelos carregados uma vez por processo."""
 from functools import lru_cache
 from hashlib import sha256
+import math
 import json
 import os
+import sys
 from pathlib import Path
 from threading import RLock
 
 from app.requisitos import parse_requirements
 from src.data.clean import anonymize_resume_text
-from src.data.privacy import anonymize_for_analysis, personal_spans, valid_entity, latest_role, sanitize_semantic_inputs
-from src.matching.score import calculate_similarity_index, FORMULA_VERSION, DEFAULT_WEIGHTS
+from src.data.privacy import anonymize_for_analysis, personal_spans, valid_entity, latest_role, sanitize_semantic_inputs, uploaded_name_entities
+from src.matching.adherence import calculate_adherence, evaluate_requirements, FORMULA_VERSION, DEFAULT_WEIGHTS, STATES
 from src.nlp.skills_extractor import extract_skills
+from src.matching.documental_rules import unsafe
+from src.matching.telemetry import event, execution_id, stage
 
 MODEL_LOCK = RLock()
-PIPELINE_VERSION = 'web-2-offset-privacy'
+PIPELINE_VERSION = 'web-8-contextual-window-mean'
 
 
 class AnalysisError(ValueError):
@@ -25,7 +29,9 @@ def fingerprint(value):
 
 
 def configuration():
+    from src.matching.contextual import settings
     return {
+        'contextual': settings(),
         'ner_model': os.getenv('NER_MODEL_PATH', 'models/ner/augmented/best_model'),
         'embedding_model': os.getenv('EMBEDDING_MODEL', 'sentence-transformers/all-mpnet-base-v2'),
         'formula_version': FORMULA_VERSION, 'weights': DEFAULT_WEIGHTS,
@@ -33,12 +39,20 @@ def configuration():
     }
 
 
-def versions(job, resume):
+def process_configuration():
+    config = configuration()
+    contextual = config['contextual']
+    return dict(pid=os.getpid(), python=sys.executable, enabled=contextual['enabled'],
+                backend=contextual['backend'], model=contextual['model'],
+                revision=contextual['revision'], pipeline=config['pipeline_version'])
+
+
+def versions(job, resume, config=None):
     requirements = parse_requirements(job['requirements_data'])
     return {
         'requirements_hash': fingerprint(requirements['items']),
         'text_hash': fingerprint(resume['raw_text']),
-        'config_hash': fingerprint(configuration()),
+        'config_hash': fingerprint(configuration() if config is None else config),
     }
 
 
@@ -69,75 +83,200 @@ def analyze(job, resume):
     requirements = confirmed_requirements(job)
     config = configuration()
     with MODEL_LOCK:
-        predictor, embedder = load_models(config['ner_model'], config['embedding_model'])
-        prediction = predictor.predict(text=resume['raw_text'], minimum_confidence=0.0)
-        raw = resume['raw_text']
-        entities = prediction['entities']
-        text = anonymize_for_analysis(raw, entities)
-        spans = personal_spans(raw, entities)
-        skills = [dict(label='SKILLS', text=anonymize_resume_text(entity['text']),
-                       confidence=entity.get('confidence', 0))
-                  for entity in entities if entity['label'] == 'SKILLS'
-                  and valid_entity(raw, entity)
-                  and not any(a < entity['end'] and entity['start'] < b for a, b in spans)]
-        inputs = extract_skills(text=text, ner_entities=skills)['semantic_inputs']
-        inputs = sanitize_semantic_inputs(inputs)
-        if not inputs:
-            raise AnalysisError('Nenhuma evidência profissional extraída; análise permanece pendente.')
-        safe_requirements = [dict(item) for item in requirements]
-        queries = embedder.encode([{'text': item['text'], 'source': 'requirement'} for item in safe_requirements])
-        if len(queries['records']) != len(requirements):
-            raise AnalysisError('Divida os requisitos longos em requisitos curtos antes da análise.')
-        embedded = embedder.encode(inputs)
-        from src.matching.semantic import compare
-        results, _ = compare(safe_requirements, queries['embeddings'], embedded)
-    result = calculate_similarity_index(safe_requirements, results)
+        with stage('input_extraction'):
+            predictor, embedder = load_models(config['ner_model'], config['embedding_model'])
+            prediction = predictor.predict(text=resume['raw_text'], minimum_confidence=0.0)
+            raw = resume['raw_text']
+            entities = prediction['entities'] + uploaded_name_entities(raw, resume.get('anonymized_text'))
+            text = anonymize_for_analysis(raw, entities)
+            spans = personal_spans(raw, entities)
+            skills = [dict(label='SKILLS', text=anonymize_resume_text(entity['text']),
+                           confidence=entity.get('confidence', 0))
+                      for entity in entities if entity['label'] == 'SKILLS'
+                      and valid_entity(raw, entity)
+                      and not unsafe(raw[raw.rfind('\n', 0, entity['start']) + 1:
+                                         raw.find('\n', entity['end']) if '\n' in raw[entity['end']:] else len(raw)])
+                      and not any(a < entity['end'] and entity['start'] < b for a, b in spans)]
+            inputs = extract_skills(text=text, ner_entities=skills)['semantic_inputs']
+            inputs = sanitize_semantic_inputs(inputs)
+            if not inputs and not config['contextual']['enabled']:
+                raise AnalysisError('Nenhuma evidência profissional extraída; análise permanece pendente.')
+            safe_requirements = [dict(item) for item in requirements]
+        from src.matching.semantic import compare, aggregate_requirement_windows
+        with stage('requirement_embeddings'):
+            queries = embedder.encode([{'text': item['text'], 'source': 'requirement',
+                                        'requirement_id': item['id']} for item in safe_requirements])
+        with stage('requirement_window_validation'):
+            query_vectors = aggregate_requirement_windows(safe_requirements, queries)
+            event('ANALYSIS_SHAPE', stage='requirement_window_validation', count=len(requirements),
+                  windows=len(queries['records']), dimension=len(query_vectors[0]))
+        if inputs:
+            with stage('evidence_embeddings'):
+                embedded = embedder.encode(inputs)
+                event('ANALYSIS_SHAPE', stage='evidence_embeddings', count=len(inputs),
+                      windows=len(embedded['records']), dimension=len(embedded['embeddings'][0]))
+            with stage('semantic_comparison'):
+                results, _ = compare(safe_requirements, query_vectors, embedded)
+        else:
+            results = [dict(id=item['id'], ranking=[]) for item in safe_requirements]
+    if config['contextual']['enabled']:
+        from src.matching.contextual import evaluate_batch
+        with MODEL_LOCK:
+            from src.matching.contextual import ContextualTechnicalError
+            ctx = config['contextual']
+            event('MODEL_LOAD_START')
+            try:
+                adapter = load_contextual_model(ctx['model'], ctx['revision'], ctx['backend'],
+                                               ctx['runtime'], ctx['runtime_revision'])
+                if adapter is None:
+                    raise ContextualTechnicalError('MODEL_LOAD_ERROR')
+                event('MODEL_LOAD_OK')
+                result = evaluate_batch(safe_requirements, results, inputs, adapter)
+            except ContextualTechnicalError as error:
+                event('ANALYSIS_TECHNICAL_ERROR', error_code=error.code)
+                raise AnalysisError(f'Falha técnica contextual [{error.code}]. Execução {execution_id.get()}. Nenhuma nova análise foi salva.') from None
+    else:
+        result = calculate_adherence(safe_requirements, evaluate_requirements(safe_requirements, results, inputs))
+    result['extraction_diagnostic'] = {
+        'requirements_received': [item['id'] for item in safe_requirements],
+        'entries_by_source': {source: sum(entry['source'] == source for entry in inputs)
+                              for source in sorted({entry['source'] for entry in inputs})},
+        'entries_considered': len(inputs),
+    }
     result['last_role'] = latest_role(raw, entities)
-    return {**versions(job, resume), **config, 'result': result}
+    result['execution_id'] = execution_id.get()
+    return {**versions(job, resume, config), **{k: v for k, v in config.items() if k != 'contextual'}, 'result': result}
+
+
+@lru_cache(maxsize=2)
+def load_contextual_model(path, revision, backend=None, runtime=None, runtime_revision=None):
+    from src.matching.contextual import create_adapter, ContextualTechnicalError
+    try:
+        if not revision:
+            raise ContextualTechnicalError('CONTEXTUAL_CONFIG_INVALID')
+        return create_adapter(path)
+    except Exception:
+        raise ContextualTechnicalError('MODEL_LOAD_ERROR') from None
+
+
+def is_current_documental_result(result):
+    """Hashes não bastam: valide também o contrato JSON usado pelos templates.
+
+    Um servidor antigo pode continuar gravando o formato semântico enquanto os
+    templates já foram atualizados no disco. Não converta essas notas em aderência.
+    """
+    if not isinstance(result, dict):
+        return False
+    if (result.get('formula_version') != FORMULA_VERSION
+            or result.get('score_name') != 'aderencia_documental'
+            or result.get('status') != 'calculado'):
+        return False
+    counts, weights, details = (result.get(key) for key in ('counts', 'weights', 'details'))
+    if not isinstance(counts, dict) or any(
+            type(counts.get(state)) is not int or counts[state] < 0 for state in STATES):
+        return False
+    if not isinstance(weights, dict) or weights != DEFAULT_WEIGHTS:
+        return False
+    if not isinstance(details, list) or not details:
+        return False
+    required_fields = {'id', 'text', 'nivel', 'peso', 'estado', 'justificativa',
+                       'compatible', 'contribution_points', 'max_points',
+                       'best_evidence', 'original_cosine'}
+    if any(not isinstance(item, dict) or not required_fields.issubset(item)
+           or item['estado'] not in STATES for item in details):
+        return False
+    if counts != {state: sum(item['estado'] == state for item in details) for state in STATES}:
+        return False
+    for key in ('score', 'maximum_score', 'pending_weight'):
+        value = result.get(key)
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+            return False
+    return (0 <= result['score'] <= result['maximum_score'] <= 100
+            and result['pending_weight'] >= 0
+            and type(result.get('provisional')) is bool
+            and type(result.get('undecided')) is bool
+            and result['undecided'] == (counts['revisao_necessaria'] == len(details))
+            and isinstance(result.get('mandatory_alert_ids'), list))
+
+
+def result_matches_mode(result, config):
+    if not is_current_documental_result(result):
+        return False
+    ctx = config['contextual']
+    actual = result.get('contextual_configuration')
+    if not ctx['enabled']:
+        return actual is None
+    from src.matching.contextual import FORMULA_VERSION as CONTEXTUAL_FORMULA, validate
+    if actual != ctx or result.get('contextual_formula_version') != CONTEXTUAL_FORMULA:
+        return False
+    try:
+        for item in result['details']:
+            trace = item['diagnostic']
+            verdict = validate(trace['contextual'], trace['retrieved_evidence'])
+            state = {'sustentado': 'atendido', 'nao_sustentado_pelas_evidencias': 'nao_identificado'}.get(verdict['estado'], 'revisao_necessaria')
+            if item['estado'] != state:
+                return False
+    except (KeyError, ValueError, TypeError):
+        return False
+    return True
 
 
 def attach_analysis(client, job, candidates):
     from app.repositories import list_analyses
     rows = list_analyses(client, job['id']) if candidates else []
+    config = configuration()
     for candidate in candidates:
         previous = [row for row in rows if str(row['curriculo_id']) == candidate['id']]
         current = versions(job, candidate)
-        valid = [row for row in previous if all(row.get(key) == value for key, value in current.items())]
-        record = valid[0] if valid else None
+        valid = [row for row in previous
+                 if all(row.get(key) == value for key, value in current.items())
+                 and result_matches_mode(row.get('result'), config)]
+        record = max(valid, key=lambda row: (row.get('analisado_em') or '', int(row.get('id') or 0))) if valid else None
+        candidate['analysis_id'] = record.get('id') if record else None
         candidate['analysis'] = record['result'] if record else None
         result = record['result'] if record else {}
         candidate['last_role'] = result.get('last_role', 'Não identificado')
         candidate['score'] = result.get('score')
+        candidate['ranking_score'] = candidate['score']
+        if result.get('undecided'):
+            candidate['score'] = None
         candidate['mandatory_status'] = result.get('mandatory_status')
         if not record:
             candidate['analysis_state'] = 'Desatualizada' if previous else 'Pendente'
         elif result.get('status') == 'analise_incompleta':
             candidate['analysis_state'] = 'Incompleta'
-        elif candidate['mandatory_status'] == 'incompativel':
-            candidate['analysis_state'] = 'Obrigatório incompatível'
-        elif candidate['mandatory_status'] == 'atendido' and candidate['score'] is not None:
-            candidate['analysis_state'] = 'Concluída'
+        elif result.get('undecided'):
+            candidate['analysis_state'] = 'Avaliação pendente'
+        elif result.get('provisional'):
+            candidate['analysis_state'] = 'Provisória — revisão necessária'
         else:
-            candidate['analysis_state'] = 'Desatualizada'
+            candidate['analysis_state'] = 'Concluída'
 
     def ranking_order(candidate):
-        required_status = candidate.get('mandatory_status')
-        bucket = 0 if required_status == 'atendido' else 2 if required_status == 'incompativel' else 1
         score = candidate.get('score')
-        return bucket, score is None, -(score or 0)
+        pending = (candidate.get('analysis') or {}).get('pending_weight', 0)
+        return score is None, -(score or 0), pending, int(candidate['id'])
 
     return sorted(candidates, key=ranking_order)
 
 
 def process_resume(client, job, resume):
     from app.repositories import save_analysis, get_resume
+    event('ANALYSIS_EFFECTIVE_CONFIG', **process_configuration())
     payload = analyze(job, resume)
     # Evita publicar como atual uma análise cujo texto/requisitos mudaram durante o cálculo.
     from app.repositories import get_job
     latest_job = get_job(client, job['id'])
     latest_resume = get_resume(client, job['id'], resume['id'])
-    if not latest_job or not latest_resume or versions(latest_job, latest_resume) != versions(job, resume):
+    if (not latest_job or not latest_resume
+            or any(payload.get(key) != value for key, value in versions(latest_job, latest_resume).items())):
         raise AnalysisError('Vaga ou currículo mudou durante a análise. Reenvie para recalcular.')
-    save_analysis(client, job['id'], resume['id'], payload)
+    event('ANALYSIS_SAVE_START')
+    try:
+        record = save_analysis(client, job['id'], resume['id'], payload)
+    except Exception:
+        event('ANALYSIS_SAVE_ERROR', error_code='PERSISTENCE_ERROR')
+        raise
+    event('ANALYSIS_SAVED', analysis_id=record.get('id'), persisted_run_id=payload['result']['execution_id'])
     # A decisão manual em curriculos.status nunca é alterada por processamento.
     return payload['result']

@@ -25,15 +25,16 @@ assert resultado["skills"] == ["Python", "SQL"]
 
 contextos = resultado["context_blocks"]
 
-assert len(contextos) == 2
-assert contextos[0]["source"] == "experience"
-assert contextos[1]["source"] == "project"
+experiencias = [item for item in contextos if item['source'] == 'experience']
+projetos = [item for item in contextos if item['source'] == 'project']
+assert experiencias and projetos
+assert any(item['source'] == 'education' for item in contextos)
 
 # A frase deve ser preservada mesmo sem previsão do NER.
-assert "Worked with Python" in contextos[0]["text"]
+assert any("Worked with Python" in item['text'] for item in experiencias)
 
 # A formação não deve entrar no bloco de projetos.
-assert "Bachelor" not in contextos[1]["text"]
+assert all("Bachelor" not in item['text'] for item in projetos)
 
 # Não acrescentamos uma biblioteca que não foi mencionada.
 assert "Pandas" not in resultado["skills"]

@@ -1,3 +1,7 @@
+# Roteiro histórico de experimentos
+
+Este documento preserva comandos e resultados de experimentos anteriores. Para o fluxo atual e a inicialização oficial, consulte [README.md](README.md) e [o índice de scripts](scripts/README.md). Caminhos e artefatos locais podem precisar ser ajustados.
+
 ## Na raiz do projeto, com venv ativo
 
 Para a avaliação ampliada com dez currículos adicionais da validação, consulte

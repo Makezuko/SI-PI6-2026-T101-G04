@@ -1,0 +1,21 @@
+{% macro condition_fields(item={}) %}
+{% set condition = item.get('condition') or {} %}
+{% set kind = condition.get('kind', 'auto') %}
+{% set mode = kind ~ ':' ~ condition.get('level') if kind == 'language' else kind ~ ':' ~ condition.get('completion') if kind == 'education' else kind %}
+<details style="grid-column:1/-1" class="req-condition">
+  <summary>Revisão avançada opcional do avaliador legado</summary>
+  <label>Regra
+    <select name="req_condition_mode" aria-label="Regra de atendimento">
+      {% for key, label in [('auto','Avaliação conservadora pelo texto'),('all','Tecnologias: exige todas (E)'),('any','Tecnologias: aceita uma (OU)'),('use','Uso descrito de todas as tecnologias'),('api','Desenvolvimento de API com as tecnologias'),('language:basico','Idioma: básico ou superior'),('language:intermediario','Idioma: intermediário ou superior'),('language:avancado','Idioma: avançado ou superior'),('language:fluente','Idioma: fluente ou superior'),('education:completed','Graduação concluída na área'),('education:in_progress','Graduação em andamento na área')] %}
+      <option value="{{ key }}" {{ 'selected' if mode == key else '' }}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Termos exigidos
+    <input type="text" name="req_condition_terms" value="{{ condition.get('terms', [])|join('; ') }}" maxlength="500" placeholder="Ex.: Git; Docker · ou um idioma / área da graduação" aria-label="Termos da condição">
+  </label>
+  <button type="button" class="btn btn-ghost" data-suggest-condition>Sugerir condições pelo texto</button>
+  <span data-condition-message></span>
+  <p class="field-hint">Cadastre e revise o requisito em linguagem natural. Estes campos são opcionais e exclusivos do avaliador legado; o experimento contextual interpreta o texto completo.</p>
+</details>
+{% endmacro %}

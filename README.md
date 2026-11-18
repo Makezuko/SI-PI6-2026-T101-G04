@@ -2,6 +2,31 @@
 
 Aplicação Flask para triagem de currículos. As instruções abaixo são para Windows.
 
+O [fluxo contextual experimental](docs/avaliacao-contextual.md) prepara avaliação
+de sustentação por modelo local, separada da recuperação semântica. Está desativado
+por padrão; a qualidade das decisões ainda precisa de avaliação humana.
+
+Para o bloqueio de processo/porta e a comprovação de POST, modelo, gravação e tela,
+veja o [diagnóstico operacional](docs/diagnostico-operacional-contextual.md).
+Para reiniciar com identidade do processo verificada, use o mesmo comando abaixo
+com `-Restart`. O [diagnóstico de login](docs/diagnostico-login-contextual.md)
+explica a correção do bloqueio de rede do processo e o rastreio sanitizado de Auth.
+
+Para testar o fluxo com modelos locais preparados, encerre o servidor atual e execute:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\iniciar_contextual.ps1
+```
+
+Esse comando seleciona explicitamente o avaliador contextual e a recuperação
+multilíngue do manifesto local. Depois, selecione o currículo na aplicação e
+reprocesse: análises anteriores não são atualizadas automaticamente. Para testar
+sem acessar o banco, use `.\.venv-contextual\Scripts\python.exe -m scripts.testar_fluxo_contextual`.
+
+A regra experimental de [aderência documental](docs/aderencia.md) usa pesos por
+requisito: obrigatório **2**, desejável/não obrigatório **1**, sem rejeição
+automática. Veja também o [estado do projeto](docs/estado-do-projeto.md).
+
 ## Instalação
 
 Clone o repositório e entre na pasta:
@@ -68,21 +93,26 @@ As consultas dependem das políticas RLS configuradas no Supabase. Não desative
 
 ## Funcionalidades e limites atuais
 
-As telas de cadastro/login, perfil, vagas e currículos estão ligadas às rotas da aplicação. As vagas e os perfis usam Supabase; currículos e análises também dependem da migração de integração e das permissões correspondentes. A tela de análise aceita arquivos PDF, exige requisitos cadastrados e revisados manualmente e apresenta um índice semântico com evidências para revisão humana.
+As telas de cadastro/login, perfil, vagas e currículos estão ligadas às rotas da aplicação. As vagas e os perfis usam Supabase; currículos e análises também dependem da migração de integração e das permissões correspondentes. A tela de análise aceita arquivos PDF, exige requisitos cadastrados e revisados manualmente e apresenta decisões documentais e evidências para revisão humana. No modo contextual, a recuperação semântica fornece trechos ao avaliador local; condições manuais legadas são opcionais e não participam dessa avaliação.
 
 O índice não é uma probabilidade de contratação nem uma decisão sobre o candidato. O arquivo PDF original não é exibido na tela de detalhes. A qualidade dos modelos em português e a integração com o Supabase real ainda precisam de validação ponta a ponta.
 
 ## Executar
 
-Com o ambiente virtual ativado:
+Para o fluxo contextual, o comando oficial é `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\iniciar_contextual.ps1`, após preparar os modelos e o runtime conforme [o guia contextual](docs/avaliacao-contextual.md). Para iniciar com a configuração padrão (legada), com o ambiente virtual ativado:
 ```powershell
 python -m app.run
 ```
 
-Depois, acesse http://127.0.0.1:5000. Para encerrar, pressione `Ctrl+C` no terminal.
+Depois, acesse http://127.0.0.1:5002. O servidor usa processo único sem debug/reloader.
+Para encerrar, pressione `Ctrl+C` no terminal.
 
 ## Testes
 
 ```powershell
 python -m unittest discover -s tests
 ```
+
+## Avaliações e ferramentas
+
+Métricas de [NER](docs/avaliacao_ner.md) medem extração de entidades; métricas de [recuperação](docs/avaliacao-semantica-ampliada.md) medem a posição de evidências anotadas; a [avaliação contextual](docs/avaliacao-contextual.md) examina decisões fundamentadas em evidências. São etapas distintas. Resultados locais são diagnósticos, não validação geral do modelo. Consulte o [índice de scripts](scripts/README.md) para comandos e dependências.

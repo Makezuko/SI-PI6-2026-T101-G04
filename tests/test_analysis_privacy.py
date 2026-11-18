@@ -112,10 +112,10 @@ class PrivacyTests(unittest.TestCase):
                                           for role in ['Software Engineer', 'Data Engineer']]),
                          'Não identificado')
 
-    def test_identical_name_elsewhere_does_not_become_a_global_rule(self):
+    def test_confirmed_full_name_is_redacted_in_repeated_occurrences(self):
         text = 'Ana Ferreira\nProjeto Ana Ferreira: planejamento e atendimento'
         self.assertEqual(anonymize_for_analysis(text, [entity(text, 'Ana Ferreira')]),
-                         '[DADO PESSOAL OCULTO]\nProjeto Ana Ferreira: planejamento e atendimento')
+                     '[DADO PESSOAL OCULTO]\nProjeto [DADO PESSOAL OCULTO]: planejamento e atendimento')
 
     def test_demographic_and_personal_attributes_are_masked(self):
         text = (

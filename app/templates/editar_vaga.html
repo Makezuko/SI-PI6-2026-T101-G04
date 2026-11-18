@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_requirement_condition.html" import condition_fields %}
 {% block title %}Editar Vaga · TalentMatch AI{% endblock %}
 
 {% block topbar %}
@@ -11,6 +12,7 @@
 {% endblock %}
 
 {% block content %}
+<script src="{{ url_for('static', filename='requirement-conditions.js') }}"></script>
 <div style="max-width:860px">
   {% if error %}
   <div class="auth-error" style="margin-bottom:16px;">{{ error }}</div>
@@ -55,6 +57,9 @@
       <div style="padding:20px 24px 24px">
         <div class="req-cols" aria-hidden="true"><span>Requisito</span><span>Tipo</span><span>Nível</span><span></span></div>
         <div id="req-list">
+          {% for warning in requirement_warnings(form.description, {'items': form.requirements}) %}
+          <p class="field-hint"><strong>{{ warning }}</strong></p>
+          {% endfor %}
           {% if form and form.requirements %}
             {% for r in form.requirements %}
             <div class="req-row" data-req-row>
@@ -75,6 +80,7 @@
               <button type="button" class="req-remove" data-req-remove title="Remover requisito" aria-label="Remover requisito">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
+              {{ condition_fields(r if r is defined else {}) }}
             </div>
             {% endfor %}
           {% else %}
@@ -97,6 +103,7 @@
               <button type="button" class="req-remove" data-req-remove title="Remover requisito" aria-label="Remover requisito">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
+              {{ condition_fields(r if r is defined else {}) }}
             </div>
             {% endfor %}
           {% endif %}
@@ -120,6 +127,7 @@
             <button type="button" class="req-remove" data-req-remove title="Remover requisito" aria-label="Remover requisito">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
+            {{ condition_fields(r if r is defined else {}) }}
           </div>
         </template>
         <p class="field-hint" style="margin-top:14px">Defina os requisitos específicos da vaga. <b>Técnico</b>: linguagens, ferramentas e conhecimentos técnicos. <b>Comportamental</b>: postura, comunicação e trabalho em equipe. Linhas vazias são ignoradas.</p>
@@ -227,10 +235,13 @@
         row.querySelector('.req-text').value = '';
         row.querySelector('.req-tipo').value = '';
         row.querySelector('.req-nivel').value = 'obrigatorio';
+        row.querySelector('[name=req_condition_mode]').value = 'auto';
+        row.querySelector('[name=req_condition_terms]').value = '';
       }
       refresh();
     });
     list.addEventListener('input', refresh);
+    setupConditionSuggestions(list);
     list.addEventListener('change', refresh);
     list.addEventListener('keydown', function (event) {
       if (event.key === 'Enter' && event.target.classList.contains('req-text')) {

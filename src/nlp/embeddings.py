@@ -65,52 +65,47 @@ class ResumeEmbedder:
             return []
 
         chunks = []
-        first_token = 0
-
-        while first_token < len(offsets):
-            last_token = min(
-                first_token + self.window_size,
-                len(offsets),
-            )
-
-            start = (
-                0 if first_token == 0
-                else offsets[first_token][0]
-            )
-
-            end = (
-                len(text) if last_token == len(offsets)
-                else offsets[last_token][0]
-            )
-
-            chunk_text = text[start:end]
-
-            # Confere o tamanho após retokenizar o trecho.
-            token_count = len(
-                self.tokenizer(
-                    chunk_text,
-                    add_special_tokens=True,
-                    truncation=False,
-                    verbose=False,
-                )["input_ids"]
-            )
-
-            if token_count > self.model.max_seq_length:
-                raise ValueError(
-                    "Trecho excedeu o limite do modelo. "
-                    "Reduza o tamanho da janela."
-                )
-
-            chunks.append({
-                "text": chunk_text,
-                "start_char": start,
-                "end_char": end,
-            })
-
-            if last_token == len(offsets):
+        start = 0
+        while start < len(text):
+            local = self.tokenizer(text[start:], add_special_tokens=False,
+                                   return_offsets_mapping=True, truncation=False, verbose=False)
+            spans = local['offset_mapping']
+            if not spans:
+                # Preserve trailing whitespace in the preceding evidence window.
+                if chunks:
+                    chunks[-1]['end_char'] = len(text)
+                    chunks[-1]['text'] = text[chunks[-1]['start_char']:]
                 break
-
-            first_token = last_token - self.overlap
+            end = len(text) if len(spans) <= self.window_size else start + spans[self.window_size][0]
+            # Prefer a complete word, but never exceed the real retokenized limit.
+            while end < len(text) and end > start and text[end - 1].isalnum() and text[end].isalnum():
+                end += 1
+            while True:
+                chunk_text = text[start:end]
+                tokens = self.tokenizer(chunk_text, add_special_tokens=True,
+                                        truncation=False, verbose=False)['input_ids']
+                if len(tokens) <= self.model.max_seq_length:
+                    break
+                end -= max(1, (end - start) // 10)
+                boundary = end
+                while boundary > start and text[boundary - 1].isalnum() and text[boundary].isalnum():
+                    boundary -= 1
+                if boundary > start:
+                    end = boundary
+                if end <= start:
+                    raise ValueError('Nenhum trecho cabe no limite real do modelo.')
+            chunks.append(dict(text=chunk_text, start_char=start, end_char=end,
+                               token_count=len(tokens)))
+            if end == len(text):
+                break
+            accepted = self.tokenizer(chunk_text, add_special_tokens=False,
+                                      return_offsets_mapping=True, truncation=False, verbose=False)['offset_mapping']
+            next_start = start + accepted[-self.overlap][0] if self.overlap and len(accepted) > self.overlap else end
+            boundary = next_start
+            while boundary > start and boundary < len(text) and text[boundary - 1].isalnum() and text[boundary].isalnum():
+                boundary -= 1
+            next_start = boundary if boundary > start else end
+            start = next_start if start < next_start <= end else end
 
         return chunks
 

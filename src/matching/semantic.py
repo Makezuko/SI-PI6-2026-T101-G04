@@ -362,3 +362,34 @@ def evaluate_ranking(results, requirements):
 
         "per_requirement": per_requirement,
     }
+
+
+def aggregate_requirement_windows(requirements, encoded):
+    """One L2-normalized mean vector per requirement, in original ID order.
+
+    Every window contributes equally; overlap is retained. No requirement is
+    duplicated in scoring. Evidence windows retain their original max pooling.
+    """
+    vectors = np.asarray(encoded['embeddings'], dtype=float)
+    records = encoded['records']
+    if vectors.ndim != 2 or len(vectors) != len(records) or not np.isfinite(vectors).all():
+        raise ValueError('Matriz de janelas invalida.')
+    groups = [[] for _ in requirements]
+    for record, vector in zip(records, vectors):
+        index = record.get('input_index')
+        if type(index) is not int or not 0 <= index < len(requirements):
+            raise ValueError('Associacao de requisito invalida.')
+        rid = record.get('metadata', {}).get('requirement_id')
+        if rid is not None and rid != requirements[index]['id']:
+            raise ValueError('ID do requisito desalinhado.')
+        groups[index].append(vector)
+    result = []
+    for group in groups:
+        if not group:
+            raise ValueError('Requisito sem janela valida.')
+        mean = np.mean(group, axis=0)
+        norm = np.linalg.norm(mean)
+        if not np.isfinite(norm) or norm <= 0:
+            raise ValueError('Representacao de requisito invalida.')
+        result.append((mean / norm).tolist())
+    return result

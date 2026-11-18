@@ -3,6 +3,7 @@ from datetime import datetime
 from pathlib import Path
 import re
 import math
+import logging
 
 from app.requisitos import STATUS_VAGA, draft_from_description, parse_requirements, serialize
 from src.data.clean import extract_contact_info, extract_education_blocks
@@ -10,6 +11,8 @@ from src.nlp.skills_extractor import extract_skills
 
 PROFILE_FIELDS = 'id,email,auth_user_id,nome,empresa,criado_em'
 JOB_FIELDS = 'id,titulo,descricao,requisitos,criado_por,criado_em,status'
+logger = logging.getLogger(__name__)
+
 RESUME_FIELDS = 'id,vaga_id,nome_arquivo,texto_extraido,texto_anonimizado,status,enviado_em'
 
 
@@ -39,15 +42,19 @@ def update_profile(client, profile_id, auth_user_id, values):
 
 
 def ensure_profile(client, user):
+    from app.auth_diagnostics import stage
+    stage('PROFILE_READ')
     response = client.table('usuarios').select(PROFILE_FIELDS).eq('auth_user_id', str(user.id)).limit(1).execute()
     if response.data:
         profile = response.data[0]
         email = user.email.lower()
         if (profile.get('email') or '').lower() != email:
+            stage('PROFILE_UPDATE')
             profile = update_profile(client, profile['id'], user.id, {'email': email})
         return profile
     metadata = user.user_metadata or {}
     try:
+        stage('PROFILE_CREATE')
         response = client.table('usuarios').insert({
             'auth_user_id': str(user.id),
             'email': user.email.lower(),
@@ -56,11 +63,13 @@ def ensure_profile(client, user):
         }, returning='minimal').execute()
     except Exception as error:
         if str(getattr(error, 'code', '')) == '23505':
+            stage('PROFILE_RETRY_READ')
             retry = client.table('usuarios').select(PROFILE_FIELDS).eq('auth_user_id', str(user.id)).limit(1).execute()
             if retry.data:
                 return retry.data[0]
             raise LegacyProfileError('E-mail de um perfil antigo precisa ser vinculado ao Auth pela equipe.') from error
         raise
+    stage('PROFILE_READ_AFTER_CREATE')
     response = client.table('usuarios').select(PROFILE_FIELDS).eq('auth_user_id', str(user.id)).limit(1).execute()
     if not response.data:
         raise RuntimeError('O perfil não foi retornado pelo banco. Confira a migração e o RLS.')
@@ -96,6 +105,7 @@ def job_for_template(row):
 
 
 def resume_for_template(row):
+    from src.data.privacy import anonymize_for_analysis, uploaded_name_entities
     display_date = format_display_date(row.get('enviado_em'))
 
     text = row.get('texto_extraido') or ''
@@ -109,8 +119,9 @@ def resume_for_template(row):
 
     initials = ''.join(part[0] for part in name.split()[:2]).upper() or 'CV'
     contact = extract_contact_info(text) if text else {'email': None, 'phone': None}
-    education_blocks = extract_education_blocks(text) if text else []
-    skills_data = extract_skills(text=text) if text else {'skills': [], 'context_blocks': []}
+    safe_text = anonymize_for_analysis(text, uploaded_name_entities(text, row.get('texto_anonimizado')))
+    education_blocks = extract_education_blocks(safe_text) if text else []
+    skills_data = extract_skills(text=safe_text) if text else {'skills': [], 'context_blocks': []}
 
     skills = skills_data.get('skills', [])
     education = education_blocks[0]['text'].splitlines()[0] if education_blocks else 'Não especificada'
@@ -162,7 +173,8 @@ def list_jobs(client):
         for j in result:
             j['candidate_count'] = counts.get(j['id'], 0)
     except Exception:
-        pass
+        logger.error('Falha ao consultar contagem de currículos.')
+        raise RuntimeError('Não foi possível consultar a contagem de currículos.') from None
 
     return result
 
@@ -176,7 +188,8 @@ def get_job(client, job_id):
         resumes_resp = client.table('curriculos').select('id').eq('vaga_id', int(job_id)).execute()
         job['candidate_count'] = len(resumes_resp.data or [])
     except Exception:
-        pass
+        logger.error('Falha ao consultar contagem de currículos.')
+        raise RuntimeError('Não foi possível consultar a contagem de currículos.') from None
     return job
 
 

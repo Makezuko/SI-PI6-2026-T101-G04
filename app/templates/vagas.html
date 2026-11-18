@@ -123,9 +123,16 @@
     <h2>Candidatos da Vaga</h2>
     <span class="count" id="candidate-counter">{{ candidates|length }} candidatos exibidos</span>
   </div>
+  <p class="field-hint" style="padding:0 24px">Regra experimental: obrigatório pesa 2; desejável pesa 1. Pendências tornam o ranking provisório. Aderência documental não comprova domínio nem substitui avaliação humana.</p>
 
   <div id="candidates-container">
     {% for c in candidates %}
+    {% if c.analysis and (c.analysis.score_name != 'aderencia_documental'
+          or c.analysis.formula_version != '3.1-experimental'
+          or c.analysis.counts is not mapping
+          or c.analysis.weights is not mapping) %}
+    {% set c = dict(c, analysis=none, score=none, mandatory_status=none, analysis_state='Desatualizada') %}
+    {% endif %}
     <a href="{{ url_for('candidato_detalhe', job_id=job.id, candidate_id=c.id) }}" 
        class="cand-row" 
        data-name="{{ c.name|lower }}" 
@@ -133,9 +140,10 @@
        data-skills="{{ c.skills|join(' ')|lower }}" 
        data-status="{{ c.status }}" 
        data-date="{{ c.submitted_at }}" 
+       data-pending-weight="{{ c.analysis.pending_weight if c.analysis else 0 }}"
        data-mandatory-status="{{ c.mandatory_status or 'pendente' }}"
        data-score="{{ c.score if c.score is not none else '' }}">
-      <div class="rank-num">{{ loop.index }}</div>
+      <div class="rank-num">{{ loop.index if c.score is not none else '—' }}</div>
       <div class="cand-avatar">{{ c.initials }}</div>
       <div class="cand-main">
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -165,10 +173,13 @@
       
       <div class="cand-score">
         {% set level = 'mid' %}
-        <div class="score-label {{ level }}">Índice de compatibilidade semântica</div>
-        <div class="score-pct">{{ '%.2f/100'|format(c.score) if c.score is not none else c.analysis_state }}</div>
-        {% if c.mandatory_status == 'incompativel' %}
-        <div class="score-label low">Requisito obrigatório abaixo de 0,50</div>
+        <div class="score-label {{ level }}">Aderência documental</div>
+        {% if c.analysis %}<div class="field-hint">{{ 'Contextual local · experimental' if c.analysis.contextual_configuration is defined else 'Regras legadas' }}</div>{% endif %}
+        {% if c.analysis and c.analysis.undecided %}<div class="score-label">Nenhum requisito decidido</div>
+        {% elif c.analysis and c.analysis.provisional %}<div class="score-label">Provisório · máximo {{ '%.2f'|format(c.analysis.maximum_score) }}% · {{ c.analysis.counts.revisao_necessaria }} pendentes</div>{% endif %}
+        <div class="score-pct">{% if c.score is not none and c.analysis.provisional %}Mínimo confirmado {% endif %}{{ '%.2f%%'|format(c.score) if c.score is not none else c.analysis_state }}</div>
+        {% if c.analysis and c.analysis.mandatory_alert_ids %}
+        <div class="score-label low">Obrigatórios não identificados ou pendentes: {{ c.analysis.mandatory_alert_ids|length }}. Sem rejeição automática.</div>
         {% endif %}
         <div class="score-track">
           <div
@@ -289,13 +300,6 @@
     });
 
     visibleRows.sort((a, b) => {
-      const mandatoryOrder = {atendido: 0, pendente: 1, incompleto: 1, incompativel: 2};
-      const statusA = a.getAttribute('data-mandatory-status');
-      const statusB = b.getAttribute('data-mandatory-status');
-      const mandatoryA = Object.prototype.hasOwnProperty.call(mandatoryOrder, statusA) ? mandatoryOrder[statusA] : 1;
-      const mandatoryB = Object.prototype.hasOwnProperty.call(mandatoryOrder, statusB) ? mandatoryOrder[statusB] : 1;
-      if (mandatoryA !== mandatoryB) return mandatoryA - mandatoryB;
-
       if (sortBy.startsWith('score-')) {
         const pendingA = a.getAttribute('data-score') === '';
         const pendingB = b.getAttribute('data-score') === '';
@@ -303,7 +307,7 @@
         if (pendingA) return 0;
       }
       if (sortBy === 'score-desc') {
-        return parseFloat(b.getAttribute('data-score')) - parseFloat(a.getAttribute('data-score'));
+        return parseFloat(b.getAttribute('data-score')) - parseFloat(a.getAttribute('data-score')) || Number(a.dataset.pendingWeight) - Number(b.dataset.pendingWeight);
       } else if (sortBy === 'score-asc') {
         return parseFloat(a.getAttribute('data-score')) - parseFloat(b.getAttribute('data-score'));
       } else if (sortBy === 'name-asc') {
@@ -316,7 +320,7 @@
 
     visibleRows.forEach((row, index) => {
       const rankNum = row.querySelector('.rank-num');
-      if (rankNum) rankNum.textContent = index + 1;
+      if (rankNum) rankNum.textContent = row.getAttribute('data-score') === '' ? '—' : index + 1;
       container.appendChild(row);
     });
 

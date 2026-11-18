@@ -5,37 +5,8 @@ from typing import Any
 
 from src.nlp.skills_extractor import (
     extract_skills,
-    normalize_heading,
     repair_common_encoding,
-    split_heading_and_content,
 )
-
-EDUCATION_HEADINGS = {
-    "education": "education",
-    "academic background": "education",
-    "academic qualifications": "education",
-    "educational qualification": "education",
-    "formação": "education",
-    "formação acadêmica": "education",
-    "formacao academica": "education",
-    "educação": "education",
-    "educacao": "education",
-}
-
-EDUCATION_STOP_HEADINGS = {
-    "skills",
-    "technical skills",
-    "experience",
-    "professional experience",
-    "work experience",
-    "projects",
-    "languages",
-    "certifications",
-    "experiência",
-    "projetos",
-    "habilidades",
-}
-
 
 def extract_pdf_text(source: Any) -> str:
     if isinstance(source, (str, Path)):
@@ -89,47 +60,9 @@ def extract_pdf_text(source: Any) -> str:
 
 
 def extract_education_blocks(text: str) -> list[dict[str, Any]]:
-    blocks = []
-    current_source = None
-    current_heading = None
-    current_lines = []
-    start_line = None
-
-    def close_block(end_line: int):
-        nonlocal current_source, current_heading, current_lines, start_line
-        block_text = "\n".join(current_lines).strip()
-        if current_source is not None and block_text:
-            blocks.append({
-                "text": block_text,
-                "source": current_source,
-                "heading": current_heading,
-                "start_line": start_line,
-                "end_line": end_line,
-            })
-        current_source = None
-        current_heading = None
-        current_lines = []
-        start_line = None
-
-    lines = text.splitlines()
-    for line_number, line in enumerate(lines, start=1):
-        heading, inline_content = split_heading_and_content(line)
-        normalized = normalize_heading(heading)
-
-        if normalized in EDUCATION_HEADINGS:
-            close_block(line_number - 1)
-            current_source = EDUCATION_HEADINGS[normalized]
-            current_heading = heading
-            start_line = line_number
-            if inline_content:
-                current_lines.append(inline_content)
-        elif normalized in EDUCATION_STOP_HEADINGS:
-            close_block(line_number - 1)
-        elif current_source is not None:
-            current_lines.append(line)
-
-    close_block(len(lines))
-    return blocks
+    """Usa o mesmo caminho de segmentacao do pipeline documental."""
+    from src.nlp.skills_extractor import extract_context_blocks
+    return [block for block in extract_context_blocks(text) if block['source'] == 'education']
 
 
 def extract_contact_info(text: str) -> dict[str, str | None]:

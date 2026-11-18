@@ -4,7 +4,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from supabase import ClientOptions, create_client
 
-load_dotenv(Path(__file__).resolve().parent.parent / '.env')
+load_dotenv(Path(__file__).resolve().parent.parent / '.env', override=False)
 
 
 def create_supabase_client():

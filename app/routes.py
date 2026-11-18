@@ -1,7 +1,7 @@
 import re
 from functools import wraps
 
-from flask import abort, flash, g, redirect, render_template, request, session, url_for
+from flask import abort, flash, g, redirect, render_template, request, session, url_for, jsonify
 from supabase_auth.errors import AuthApiError
 
 from app.analysis import AnalysisError, attach_analysis, process_resume
@@ -23,6 +23,15 @@ from app.repositories import (
 from app.requisitos import NIVEIS, STATUS_VAGA, TIPOS, build_requirements, rows_from_form
 from app.supabase_client import create_supabase_client
 from src.data.clean import parse_resume_pdf
+from src.matching.documental_rules import suggest_condition
+from src.matching.telemetry import event, execution_id
+from app.auth_diagnostics import stage as auth_stage, failure as auth_failure
+
+
+@app.context_processor
+def requirement_review_helpers():
+    from app.requisitos import requirement_warnings
+    return {'requirement_warnings': requirement_warnings}
 
 
 @app.errorhandler(AnalysisSchemaError)
@@ -36,12 +45,15 @@ def remember_tokens(auth_session):
 
 
 def finish_login(client, response):
+    auth_stage('AUTH_RESPONSE')
     if not response.session:
         raise ValueError('Confirme seu e-mail e faça login.')
+    auth_stage('AUTH_VERIFY_USER')
     verified = client.auth.get_user(response.session.access_token).user
     if not verified:
         raise ValueError('Não foi possível verificar a sessão.')
     profile = ensure_profile(client, verified)
+    auth_stage('SESSION_CREATE')
     session.clear()
     session['auth_user_id'] = str(verified.id)
     app.session_interface.regenerate(session)
@@ -51,6 +63,7 @@ def finish_login(client, response):
     session['user_name'] = profile.get('nome') or verified.email.split('@')[0]
     session['user_role'] = 'RH'
     session['user_initials'] = ''.join(part[0] for part in session['user_name'].split()[:2]).upper()
+    auth_stage('SESSION_READY')
 
 
 def login_required(view):
@@ -96,16 +109,20 @@ def login():
     if not email or not password:
         return render_template('login.html', error='Informe e-mail e senha.'), 400
     try:
+        auth_stage('CLIENT_CREATE')
         client = create_supabase_client()
+        auth_stage('AUTH_SIGN_IN')
         response = client.auth.sign_in_with_password({'email': email, 'password': password})
         finish_login(client, response)
-    except AuthApiError:
+    except AuthApiError as error:
+        auth_failure(error)
         return render_template('login.html', error='Não foi possível entrar. Confira as credenciais e a confirmação do e-mail.'), 401
-    except LegacyProfileError:
+    except LegacyProfileError as error:
+        auth_failure(error)
         return render_template('login.html', error='Seu perfil antigo precisa ser vinculado ao Supabase Auth pela equipe.'), 409
     except Exception as error:
-        app.logger.warning('Falha no login: %s', type(error).__name__)
-        return render_template('login.html', error='Não foi possível concluir o login. Confira a conexão e a migração do banco.'), 503
+        auth_failure(error)
+        return render_template('login.html', error=f'Não foi possível concluir o login. Diagnóstico local: {execution_id.get()}.'), 503
     return redirect(url_for('dashboard'))
 
 
@@ -188,7 +205,7 @@ def dashboard():
     scores = []
     for job in jobs:
         scores.extend(c['score'] for c in attach_analysis(g.supabase, job, list_resumes(g.supabase, job['id'])) if c['score'] is not None)
-    average = f'{sum(scores) / len(scores):.2f}/100' if scores else 'Indisponível'
+    average = f'{sum(scores) / len(scores):.2f}%' if scores else 'Indisponível'
     return render_template('dashboard.html', active_page='dashboard', jobs=jobs,
                            open_jobs_count=sum(job['status'] == 'Aberta' for job in jobs),
                            total_resumes=total_resumes if total_resumes else '—', avg_match_rate=average)
@@ -289,6 +306,15 @@ def editar_vaga(job_id):
 def candidatos():
     jobs = database_jobs()
     return redirect(url_for('vagas', job_id=jobs[0]['id'])) if jobs else redirect(url_for('nova_vaga'))
+
+
+@app.route('/requisitos/sugerir-condicao', methods=['POST'])
+@login_required
+def suggest_requirement_condition():
+    text = request.form.get('text', '')
+    if len(text) > 300:
+        abort(400)
+    return jsonify(condition=suggest_condition(text))
 
 
 @app.route('/configuracoes')
@@ -401,6 +427,7 @@ def adicionar_curriculos(job_id):
             abort(400, description='Selecione ao menos um arquivo PDF ou currículo existente.')
 
         targets = {c['id']: c for c in candidates if c['id'] in selected_ids}
+        event('ANALYSIS_TARGETS', selected_count=len(targets))
         for missing in selected_ids - targets.keys():
             flash('Currículo selecionado não encontrado nesta vaga ou sem acesso.', 'error')
         for file_storage in valid_files:
@@ -418,13 +445,14 @@ def adicionar_curriculos(job_id):
         for resume in targets.values():
             try:
                 result = process_resume(g.supabase, job, resume)
-                flash(f"Currículo {resume['id']}: análise salva." if result['score'] is not None else
+                flash(f"Currículo {resume['id']}: análise salva. Execução {execution_id.get()}." if result['score'] is not None else
                       f"Currículo {resume['id']}: análise incompleta salva; sem índice.", 'success')
             except AnalysisError as error:
                 flash(f"Currículo {resume['id']}: {error}", 'error')
             except Exception as error:
-                app.logger.warning('Falha na análise: %s', type(error).__name__)
-                flash(f"Currículo {resume['id']}: não foi possível concluir e salvar a análise. Confira modelos e migração do banco.", 'error')
+                from src.matching.telemetry import failure
+                failure(error, 'processing')
+                flash(f"Falha tecnica no processamento do curriculo {resume['id']} [{type(error).__name__}]. Execucao {execution_id.get()}. Nenhuma nova analise foi salva. Consulte ANALYSIS_STAGE_ERROR no terminal.", 'error')
 
         return redirect(url_for('vagas', job_id=job['id']))
 
@@ -444,6 +472,10 @@ def candidato_detalhe(job_id, candidate_id):
     if candidate is None:
         abort(404, description='Candidato não encontrado nesta vaga.')
     candidate = attach_analysis(g.supabase, job, [candidate])[0]
+    event('ANALYSIS_SELECTED', found=candidate['analysis'] is not None,
+          analysis_id=candidate.get('analysis_id'),
+          persisted_run_id=(candidate.get('analysis') or {}).get('execution_id'),
+          method='contextual' if (candidate.get('analysis') or {}).get('contextual_configuration') else 'legacy_or_unavailable')
     return render_template('candidato.html', active_page='candidatos', job=job, candidate=candidate)
 
 

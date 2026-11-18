@@ -3,6 +3,8 @@
 {%- endmacro %}
 {% macro text(value) -%}{{ candidate_text(value, candidate) }}{%- endmacro %}
 {% set states = {'atendido': 'Evidência identificada', 'nao_identificado': 'Não identificado nas evidências analisadas', 'revisao_necessaria': 'Requer revisão'} %}
+{% set llm_reqs = (candidate.llm_justification.content.analise_requisitos if candidate.llm_justification and candidate.llm_justification.status == 'disponivel' and candidate.llm_justification.content and candidate.llm_justification.content.analise_requisitos else []) %}
+{% set llm_status_labels = {'atendido': 'Atendido (IA)', 'parcial': 'Parcial (IA)', 'nao_evidenciado': 'Não evidenciado (IA)'} %}
 <div class="requirement-results">
 {% for item in (candidate.analysis.details if candidate.analysis else []) %}
   {% set diagnostic = item.diagnostic or {} %}
@@ -14,9 +16,22 @@
     {% if evidence.id is defined and evidence.id in cited_ids and main.evidence is none %}{% set main.evidence = evidence %}{% endif %}
   {% endfor %}
   {% if not contextual and item.best_evidence %}{% set main.evidence = item.best_evidence %}{% endif %}
+  {% set llm_match = namespace(req=none) %}
+  {% for r in llm_reqs %}
+    {% if llm_match.req is none and (r.requisito|lower == item.text|lower) %}{% set llm_match.req = r %}{% endif %}
+  {% endfor %}
+  {% if llm_match.req is none and loop.index0 < llm_reqs|length %}{% set llm_match.req = llm_reqs[loop.index0] %}{% endif %}
   <article class="requirement-result" aria-labelledby="requirement-{{ loop.index }}">
     <h3 id="requirement-{{ loop.index }}">{{ text(item.text) }}</h3>
-    <p class="requirement-meta">{{ 'Obrigatório' if item.nivel == 'obrigatorio' else 'Desejável' }} · {{ states.get(item.estado, 'Requer revisão') }}</p>
+    <p class="requirement-meta">
+      {{ 'Obrigatório' if item.nivel == 'obrigatorio' else 'Desejável' }} · {{ states.get(item.estado, 'Requer revisão') }}
+      {% if llm_match.req %} · <span class="llm-pill {{ llm_match.req.status }}">{{ llm_status_labels.get(llm_match.req.status, llm_match.req.status) }}</span>{% endif %}
+    </p>
+    {% if llm_match.req %}
+    <div class="llm-req-note">
+      <strong>Análise Contextual por Requisito:</strong> {{ text(llm_match.req.analise_contextual) }}
+    </div>
+    {% endif %}
     {% if item.justificativa %}<p>{{ text(item.justificativa) }}</p>{% endif %}
     {% if main.evidence %}
     <div class="requirement-evidence">
@@ -57,9 +72,25 @@
   </article>
 {% endfor %}
 {% if not candidate.analysis %}
+  {% if llm_reqs %}
+  <div class="llm-subtitle" style="margin-bottom:8px;">Análise Contextual por Requisito</div>
+  {% for req in llm_reqs %}
+  <article class="requirement-result">
+    <div class="llm-subitem-head">
+      <h3 style="margin:0;">{{ text(req.requisito) }}</h3>
+      <span style="display:inline-flex;gap:6px;align-items:center;">
+        <span class="llm-pill neutral">{{ 'Obrigatório' if req.nivel == 'obrigatorio' else 'Desejável' }}</span>
+        <span class="llm-pill {{ req.status }}">{{ llm_status_labels.get(req.status, req.status) }}</span>
+      </span>
+    </div>
+    <p style="margin:6px 0 0;">{{ text(req.analise_contextual) }}</p>
+  </article>
+  {% endfor %}
+  {% else %}
   {% for item in job['requirements_data']['items'] %}
   <article class="requirement-result"><h3>{{ text(item.text) }}</h3><p>{{ 'Obrigatório' if item.nivel == 'obrigatorio' else 'Desejável' }} · Aguardando análise</p></article>
   {% endfor %}
+  {% endif %}
 {% endif %}
 </div>
 <script>

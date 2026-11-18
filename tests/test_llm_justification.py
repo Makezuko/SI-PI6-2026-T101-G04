@@ -340,6 +340,11 @@ class LlmJustificationTests(unittest.TestCase):
         self.assertIn('Curva Baixa', html)
         self.assertIn('Otimização de queries SQL', html)
         self.assertIn('Transparência da análise:', html)
+        self.assertIn('data-cand-tab="resumo"', html)
+        self.assertIn('data-cand-tab="requisitos"', html)
+        self.assertIn('data-cand-tab="curriculo"', html)
+        self.assertIn('class="resume-text-view"', html)
+        self.assertNotIn('class="pdf-bar"', html)
 
 
 if __name__ == '__main__':

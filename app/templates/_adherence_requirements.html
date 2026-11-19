@@ -1,73 +1,237 @@
 {% macro origin(source) -%}
 {{ {'experience': 'Experiência profissional', 'education': 'Formação acadêmica', 'project': 'Projeto', 'skill': 'Habilidade declarada', 'skill_context': 'Habilidades em contexto', 'summary': 'Resumo profissional'}.get(source, 'Outra seção do currículo') }}
 {%- endmacro %}
-{% macro text(value) -%}{{ candidate_text(value, candidate) }}{%- endmacro %}
-{% set states = {'atendido': 'Evidência identificada', 'nao_identificado': 'Não identificado nas evidências analisadas', 'revisao_necessaria': 'Requer revisão'} %}
-<div class="requirement-results">
-{% for item in (candidate.analysis.details if candidate.analysis else []) %}
-  {% set diagnostic = item.diagnostic or {} %}
-  {% set contextual = diagnostic.contextual|default({}) %}
-  {% set cited_ids = contextual.evidence_ids|default([]) %}
-  {% set evidence_list = diagnostic.retrieved_evidence|default(item.evidencias|default([]), true) %}
-  {% set main = namespace(evidence=none) %}
-  {% for evidence in evidence_list %}
-    {% if evidence.id is defined and evidence.id in cited_ids and main.evidence is none %}{% set main.evidence = evidence %}{% endif %}
-  {% endfor %}
-  {% if not contextual and item.best_evidence %}{% set main.evidence = item.best_evidence %}{% endif %}
-  <article class="requirement-result" aria-labelledby="requirement-{{ loop.index }}">
-    <h3 id="requirement-{{ loop.index }}">{{ text(item.text) }}</h3>
-    <p class="requirement-meta">{{ 'Obrigatório' if item.nivel == 'obrigatorio' else 'Desejável' }} · {{ states.get(item.estado, 'Requer revisão') }}</p>
-    {% if item.justificativa %}<p>{{ text(item.justificativa) }}</p>{% endif %}
-    {% if main.evidence %}
-    <div class="requirement-evidence">
-      <p><strong>Trecho do currículo:</strong></p>
-      {% set evidence_text = candidate_text(main.evidence.text, candidate) %}
-      <blockquote>“{{ evidence_text[:360] }}{% if evidence_text|length > 360 %}…{% endif %}”</blockquote>
-      <p>Origem: {{ origin(main.evidence.source) }}</p>
-      {% if evidence_text|length > 360 %}<a href="#requirement-details-{{ loop.index }}" class="evidence-full-link">Ler trecho completo em Detalhes da análise</a>{% endif %}
-    </div>
-    {% else %}<p class="field-hint">{{ 'Nenhuma evidência citada na decisão.' if contextual else 'Sem evidência recuperada.' }}</p>{% endif %}
-    <p class="requirement-contribution">Contribuição: {{ ('%.2f'|format(item.contribution_points))|replace('.', ',') }} pontos percentuais de {{ ('%.2f'|format(item.max_points))|replace('.', ',') }} possíveis.{% if item.estado == 'revisao_necessaria' %} Pendente de revisão.{% endif %}</p>
-    <details id="requirement-details-{{ loop.index }}" class="requirement-details">
-      <summary>Detalhes da análise</summary>
-      {% for evidence in evidence_list %}
-      <div class="requirement-evidence">
-        <p><strong>Evidência {{ loop.index }}</strong> · {{ 'Citada na decisão' if (evidence.id is defined and evidence.id in cited_ids) or (not contextual and evidence in item.evidencias) else 'Recuperada; não citada na decisão' }}</p>
-        <blockquote>{{ text(evidence.text) }}</blockquote>
-        <p>Origem: {{ origin(evidence.source) }}</p>
-        {% if evidence.context_header %}<p>{{ text(evidence.context_header) }}</p>{% endif %}
-        {% if evidence.id %}<p>ID: {{ evidence.id }}</p>{% endif %}
-        {% if evidence.similarity is defined and evidence.similarity is not none %}<p>Similaridade: {{ '%.4f'|format(evidence.similarity) }}</p>{% endif %}
+
+{% macro text(value) -%}
+{{ candidate_text(value, candidate) }}
+{%- endmacro %}
+
+{% set states = {
+  'atendido': 'Evidência identificada',
+  'nao_identificado': 'Não identificado nas evidências analisadas',
+  'revisao_necessaria': 'Requer revisão'
+} %}
+
+<div class="requirement-results candidate-requirement-results">
+
+  {% for item in (candidate.analysis.details if candidate.analysis else []) %}
+    {% set diagnostic = item.diagnostic or {} %}
+    {% set contextual = diagnostic.contextual|default({}) %}
+    {% set cited_ids = contextual.evidence_ids|default([]) %}
+    {% set evidence_list = diagnostic.retrieved_evidence|default(item.evidencias|default([]), true) %}
+    {% set main = namespace(evidence=none) %}
+
+    {% for evidence in evidence_list %}
+      {% if evidence.id is defined and evidence.id in cited_ids and main.evidence is none %}
+        {% set main.evidence = evidence %}
+      {% endif %}
+    {% endfor %}
+
+    {% if not contextual and item.best_evidence %}
+      {% set main.evidence = item.best_evidence %}
+    {% endif %}
+
+    <article class="requirement-result candidate-requirement-card"
+             aria-labelledby="requirement-{{ loop.index }}">
+
+      <div class="candidate-requirement-heading">
+        <h3 id="requirement-{{ loop.index }}">{{ text(item.text) }}</h3>
+
+        <span class="requirement-meta">
+          {{ 'Obrigatório' if item.nivel == 'obrigatorio' else 'Desejável' }}
+        </span>
       </div>
-      {% endfor %}
-      {% if item.original_cosine is defined and item.original_cosine is not none %}<p>Similaridade principal: {{ '%.4f'|format(item.original_cosine) }}</p>{% endif %}
-      <p>Requisito: {{ item.id }} · Decisão técnica: {{ item.estado }}{% if contextual.estado %} / {{ contextual.estado }}{% endif %}</p>
-      <p>Método: {{ 'Avaliação contextual local · experimental' if contextual else 'Avaliação por regras legadas' }} · Versão: {{ item.method_version }}</p>
-      <p>Fonte da decisão: {{ 'Revisão humana' if item.origem == 'humana' else 'Automática' }} · Peso: {{ item.peso }}</p>
-      {% if contextual.base %}<p>Base técnica: {{ contextual.base }}</p>{% endif %}
-      {% if contextual.limitacoes %}<p>Limitações: {{ text(contextual.limitacoes|join('; ')) }}</p>{% endif %}
-      {% if diagnostic.rule %}<p>Regra: {{ text(diagnostic.rule) }}</p>{% endif %}
-      {% if diagnostic.total_entries is defined %}<p>Entradas completas: {{ diagnostic.total_entries }}.</p>{% endif %}
-      {% if diagnostic.semantic_candidates is defined %}<p>Candidatos semânticos: {{ diagnostic.semantic_candidates }}.</p>{% endif %}
-      {% if diagnostic.eligible_entries is defined %}<p>Entradas elegíveis: {{ diagnostic.eligible_entries }}; contextos negados, hipotéticos ou ambíguos: {{ diagnostic.rejected_contexts }}.</p>{% endif %}
-      {% if diagnostic.matched_terms %}<p>Termos reconhecidos: {{ text(diagnostic.matched_terms|join(', ')) }}.</p>{% endif %}
-      {% if diagnostic.missing_terms %}<p>Termos pendentes: {{ text(diagnostic.missing_terms|join(', ')) }}.</p>{% endif %}
-      {% if diagnostic.processing_seconds is defined %}<p>Tempo de processamento: {{ '%.2f'|format(diagnostic.processing_seconds) }} s.</p>{% endif %}
-    </details>
-  </article>
-{% endfor %}
-{% if not candidate.analysis %}
-  {% for item in job['requirements_data']['items'] %}
-  <article class="requirement-result"><h3>{{ text(item.text) }}</h3><p>{{ 'Obrigatório' if item.nivel == 'obrigatorio' else 'Desejável' }} · Aguardando análise</p></article>
+
+      <p class="candidate-requirement-status">
+        {{ states.get(item.estado, 'Requer revisão') }}
+      </p>
+
+      {% if item.justificativa %}
+        <p class="candidate-requirement-justification">
+          {{ text(item.justificativa) }}
+        </p>
+      {% endif %}
+
+      {% if main.evidence %}
+        <div class="requirement-evidence candidate-main-evidence">
+          <p><strong>Trecho do currículo:</strong></p>
+
+          {% set evidence_text = candidate_text(main.evidence.text, candidate) %}
+
+          <blockquote>
+            “{{ evidence_text[:360] }}{% if evidence_text|length > 360 %}…{% endif %}”
+          </blockquote>
+
+          <p>Origem: {{ origin(main.evidence.source) }}</p>
+
+          {% if evidence_text|length > 360 %}
+            <a href="#requirement-details-{{ loop.index }}"
+               class="evidence-full-link">
+              Ler trecho completo em Detalhes da análise
+            </a>
+          {% endif %}
+        </div>
+      {% else %}
+        <p class="field-hint candidate-no-evidence">
+          {{ 'Nenhuma evidência citada na decisão.'
+             if contextual
+             else 'Sem evidência recuperada.' }}
+        </p>
+      {% endif %}
+
+      <p class="requirement-contribution">
+        Contribuição:
+        {{ ('%.2f'|format(item.contribution_points))|replace('.', ',') }}
+        pontos percentuais de
+        {{ ('%.2f'|format(item.max_points))|replace('.', ',') }}
+        possíveis.
+        {% if item.estado == 'revisao_necessaria' %}
+          Pendente de revisão.
+        {% endif %}
+      </p>
+
+      <details id="requirement-details-{{ loop.index }}"
+               class="requirement-details candidate-requirement-details">
+
+        <summary>Detalhes da análise</summary>
+
+        <div class="candidate-requirement-details-content">
+
+          {% for evidence in evidence_list %}
+            <div class="requirement-evidence">
+              <p>
+                <strong>Evidência {{ loop.index }}</strong>
+                ·
+                {{ 'Citada na decisão'
+                   if (evidence.id is defined and evidence.id in cited_ids)
+                      or (not contextual and evidence in item.evidencias)
+                   else 'Recuperada; não citada na decisão' }}
+              </p>
+
+              <blockquote>{{ text(evidence.text) }}</blockquote>
+
+              <p>Origem: {{ origin(evidence.source) }}</p>
+
+              {% if evidence.context_header %}
+                <p>{{ text(evidence.context_header) }}</p>
+              {% endif %}
+
+              {% if evidence.id %}
+                <p>ID: {{ evidence.id }}</p>
+              {% endif %}
+
+              {% if evidence.similarity is defined and evidence.similarity is not none %}
+                <p>Similaridade: {{ '%.4f'|format(evidence.similarity) }}</p>
+              {% endif %}
+            </div>
+          {% endfor %}
+
+          {% if item.original_cosine is defined and item.original_cosine is not none %}
+            <p>Similaridade principal: {{ '%.4f'|format(item.original_cosine) }}</p>
+          {% endif %}
+
+          <p>
+            Requisito: {{ item.id }}
+            · Decisão técnica: {{ item.estado }}
+            {% if contextual.estado %}
+              / {{ contextual.estado }}
+            {% endif %}
+          </p>
+
+          <p>
+            Método:
+            {{ 'Avaliação contextual local · experimental'
+               if contextual
+               else 'Avaliação por regras legadas' }}
+            · Versão: {{ item.method_version }}
+          </p>
+
+          <p>
+            Fonte da decisão:
+            {{ 'Revisão humana' if item.origem == 'humana' else 'Automática' }}
+            · Peso: {{ item.peso }}
+          </p>
+
+          {% if contextual.base %}
+            <p>Base técnica: {{ contextual.base }}</p>
+          {% endif %}
+
+          {% if contextual.limitacoes %}
+            <p>
+              Limitações:
+              {{ text(contextual.limitacoes|join('; ')) }}
+            </p>
+          {% endif %}
+
+          {% if diagnostic.rule %}
+            <p>Regra: {{ text(diagnostic.rule) }}</p>
+          {% endif %}
+
+          {% if diagnostic.total_entries is defined %}
+            <p>Entradas completas: {{ diagnostic.total_entries }}.</p>
+          {% endif %}
+
+          {% if diagnostic.semantic_candidates is defined %}
+            <p>Candidatos semânticos: {{ diagnostic.semantic_candidates }}.</p>
+          {% endif %}
+
+          {% if diagnostic.eligible_entries is defined %}
+            <p>
+              Entradas elegíveis: {{ diagnostic.eligible_entries }};
+              contextos negados, hipotéticos ou ambíguos:
+              {{ diagnostic.rejected_contexts }}.
+            </p>
+          {% endif %}
+
+          {% if diagnostic.matched_terms %}
+            <p>
+              Termos reconhecidos:
+              {{ text(diagnostic.matched_terms|join(', ')) }}.
+            </p>
+          {% endif %}
+
+          {% if diagnostic.missing_terms %}
+            <p>
+              Termos pendentes:
+              {{ text(diagnostic.missing_terms|join(', ')) }}.
+            </p>
+          {% endif %}
+
+          {% if diagnostic.processing_seconds is defined %}
+            <p>
+              Tempo de processamento:
+              {{ '%.2f'|format(diagnostic.processing_seconds) }} s.
+            </p>
+          {% endif %}
+
+        </div>
+      </details>
+    </article>
   {% endfor %}
-{% endif %}
+
+  {% if not candidate.analysis %}
+    {% for item in job['requirements_data']['items'] %}
+      <article class="requirement-result candidate-requirement-card">
+        <h3>{{ text(item.text) }}</h3>
+        <p>
+          {{ 'Obrigatório' if item.nivel == 'obrigatorio' else 'Desejável' }}
+          · Aguardando análise
+        </p>
+      </article>
+    {% endfor %}
+  {% endif %}
+
 </div>
+
 <script>
 document.querySelectorAll('.evidence-full-link').forEach(link => {
   link.addEventListener('click', () => {
     const details = document.querySelector(link.getAttribute('href'));
-    details.open = true;
-    details.querySelector('summary').focus();
+
+    if (details) {
+      details.open = true;
+      details.querySelector('summary').focus();
+    }
   });
 });
 </script>

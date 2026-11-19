@@ -22,7 +22,7 @@
 {% endif %}
 
 <div class="cand-detail candidate-detail-page">
-  <div class="cand-detail-card candidate-detail-card">
+  <div class="cand-detail-card">
 
     <div class="cand-detail-head candidate-detail-header">
       <div class="cand-detail-id">
@@ -61,286 +61,323 @@
     </div>
 
     <div class="cand-detail-body candidate-detail-body">
-
-      <!-- ADERÊNCIA DOCUMENTAL -->
       <section class="candidate-section adherence-box">
-        <div class="adherence-top">
-          <span>Aderência documental</span>
-          <b>
-            {% if candidate.score is not none and candidate.analysis and candidate.analysis.provisional %}
-              Mínimo confirmado
-            {% endif %}
-            {{ '%.2f%%'|format(candidate.score) if candidate.score is not none else candidate.analysis_state }}
-          </b>
-        </div>
-
-        {% if candidate.analysis %}
-          {% set mandatory_items = candidate.analysis.details|selectattr('nivel', 'equalto', 'obrigatorio')|list %}
-          {% set desired_items = candidate.analysis.details|selectattr('nivel', 'equalto', 'desejavel')|list %}
-          {% set mandatory_matches = mandatory_items|selectattr('compatible')|list %}
-          {% set desired_matches = desired_items|selectattr('compatible')|list %}
-
-          <div class="req-list candidate-analysis-summary">
-            <div class="candidate-analysis-weights">
-              <span>Pesos experimentais</span>
-              <strong>Obrigatório: {{ candidate.analysis.weights.obrigatorio }}</strong>
-              <strong>Desejável/não obrigatório: {{ candidate.analysis.weights.desejavel }}</strong>
-            </div>
-
-            <p>
-              Evidências identificadas em requisitos que representam
-              {{ ('%.2f'|format(candidate.analysis.score))|replace('.', ',') }}%
-              do peso total da vaga.
-            </p>
-
-            {% set pending = candidate.analysis.counts.revisao_necessaria %}
-            <p>
-              {% if pending == 1 %}
-                Há 1 requisito pendente de revisão.
-              {% elif pending %}
-                Há {{ pending }} requisitos pendentes de revisão.
-              {% else %}
-                Não há requisitos pendentes de revisão.
+        {% set gauge_score = candidate.score if candidate.score is not none else 0 %}
+        {% set gauge_color = 'var(--high)' if gauge_score >= 75 else ('var(--mid)' if gauge_score >= 45 else 'var(--low)') %}
+        <div class="adherence-gauge-layout">
+          <div class="gauge-wrap" aria-label="Aderência documental">
+            <svg class="gauge-svg" viewBox="0 0 220 124" role="img" aria-label="Medidor de aderência">
+              <path d="M 26 108 A 84 84 0 0 1 194 108" fill="none" stroke="#e2e8f0" stroke-width="14" stroke-linecap="round" pathLength="100" />
+              {% if candidate.score is not none and candidate.analysis and candidate.analysis.provisional %}
+              <path d="M 26 108 A 84 84 0 0 1 194 108" fill="none" stroke="#93c5fd" stroke-width="14" stroke-linecap="round" pathLength="100"
+                    stroke-dasharray="100" stroke-dashoffset="{{ 100 - candidate.analysis.maximum_score }}" opacity="0.65" />
               {% endif %}
-            </p>
-
-            {% if candidate.analysis.undecided %}
-              <strong>Nenhum requisito decidido. Avaliação pendente. Resultado provisório.</strong>
-            {% elif candidate.analysis.provisional %}
-              <strong>Resultado provisório · revisão humana pendente.</strong>
-            {% endif %}
-
-            {% if candidate.analysis.provisional %}
-              <p class="field-hint">
-                Máximo possível:
-                {{ ('%.2f'|format(candidate.analysis.maximum_score))|replace('.', ',') }}%.
-                Depende da confirmação dos requisitos pendentes.
-              </p>
-            {% endif %}
-
-            <div class="candidate-match-counts">
-              <span>
-                Obrigatórios com evidência:
-                <strong>{{ mandatory_matches|length }}/{{ mandatory_items|length }}</strong>
-              </span>
-              <span>
-                Desejáveis com evidência:
-                <strong>{{ desired_matches|length }}/{{ desired_items|length }}</strong>
-              </span>
+              {% if candidate.score is not none %}
+              <path d="M 26 108 A 84 84 0 0 1 194 108" fill="none" stroke="{{ gauge_color }}" stroke-width="14" stroke-linecap="round" pathLength="100"
+                    stroke-dasharray="100" stroke-dashoffset="{{ 100 - gauge_score }}" />
+              {% endif %}
+            </svg>
+            <div class="gauge-center">
+              {% if candidate.score is not none %}
+              <div class="gauge-value">{{ '%.2f%%'|format(candidate.score) }}</div>
+              <div class="gauge-caption">{{ 'Mínimo confirmado' if candidate.analysis and candidate.analysis.provisional else 'Aderência documental' }}</div>
+              {% else %}
+              <div class="gauge-value is-pending">{{ candidate.analysis_state }}</div>
+              <div class="gauge-caption">Aderência documental</div>
+              {% endif %}
             </div>
           </div>
-        {% endif %}
 
-        {% if candidate.analysis_state == 'Desatualizada' %}
-          <div class="req-list candidate-outdated-notice">
-            Análise anterior desatualizada ou em formato incompatível.
-            Selecione este currículo em Adicionar / Analisar Currículos e
-            processe novamente para calcular a aderência documental.
-          </div>
-        {% endif %}
-
-        <div class="adherence-track">
-          <div class="adherence-fill fill-{{ level }}"
-               data-score="{{ candidate.score if candidate.score is not none else 0 }}">
+          <div class="adherence-kpis">
+            {% if candidate.analysis %}
+            {% set mandatory_items = candidate.analysis.details|selectattr('nivel', 'equalto', 'obrigatorio')|list %}
+            {% set desired_items = candidate.analysis.details|selectattr('nivel', 'equalto', 'desejavel')|list %}
+            {% set mandatory_matches = mandatory_items|selectattr('compatible')|list %}
+            {% set desired_matches = desired_items|selectattr('compatible')|list %}
+            {% set pending = candidate.analysis.counts.revisao_necessaria %}
+            <div class="kpi-grid">
+              <span class="kpi-chip">Obrigatórios com evidência: {{ mandatory_matches|length }}/{{ mandatory_items|length }}.</span>
+              <span class="kpi-chip">Desejáveis com evidência: {{ desired_matches|length }}/{{ desired_items|length }}.</span>
+              {% if candidate.analysis.provisional %}
+              <span class="kpi-chip provisional">Máximo possível: {{ ('%.2f'|format(candidate.analysis.maximum_score))|replace('.', ',') }}% · {{ pending }} pendente(s)</span>
+              {% endif %}
+            </div>
+            {% if candidate.analysis.undecided %}
+            <strong style="font-size:13px;">Nenhum requisito decidido. Avaliação pendente. Resultado provisório.</strong>
+            {% elif candidate.analysis.provisional %}
+            <span class="field-hint" style="margin:0;">Resultado provisório · revisão humana pendente.</span>
+            {% endif %}
+            <details class="adherence-details">
+              <summary>Como a nota é calculada</summary>
+              <p>Pesos experimentais: obrigatório {{ candidate.analysis.weights.obrigatorio }}; desejável/não obrigatório {{ candidate.analysis.weights.desejavel }}.</p>
+              <p>Evidências identificadas em requisitos que representam {{ ('%.2f'|format(candidate.analysis.score))|replace('.', ',') }}% do peso total da vaga.
+              {% if pending == 1 %}Há 1 requisito pendente de revisão.{% elif pending %}Há {{ pending }} requisitos pendentes de revisão.{% else %}Não há requisitos pendentes de revisão.{% endif %}</p>
+              {% if candidate.analysis.provisional %}<p>Máximo possível: {{ ('%.2f'|format(candidate.analysis.maximum_score))|replace('.', ',') }}%. Depende da confirmação dos requisitos pendentes.</p>{% endif %}
+            </details>
+            {% endif %}
+            {% if candidate.analysis_state == 'Desatualizada' %}
+            <div class="req-list candidate-outdated-notice">Análise anterior desatualizada ou em formato incompatível. Selecione este currículo em Adicionar / Analisar Currículos e processe novamente para calcular a aderência documental.</div>
+            {% endif %}
           </div>
         </div>
-
-        <script>
-          const adherenceFill = document.currentScript.previousElementSibling.firstElementChild;
-          adherenceFill.style.width = `${adherenceFill.dataset.score}%`;
-        </script>
       </section>
 
-      <!-- PRIVACIDADE E TRIAGEM -->
-      <section class="candidate-section candidate-privacy-section">
-        {% if candidate.status == 'Aprovado' %}
-          <div class="candidate-privacy-notice candidate-approved-notice">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-              <polyline points="22 4 12 14.01 9 11.01"/>
-            </svg>
-            <span>
-              <strong>Candidato aprovado para entrevista:</strong>
-              Dados de contato e identificação revelados para agendamento.
-            </span>
-          </div>
-        {% else %}
-          <div class="candidate-privacy-notice candidate-blind-notice">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-            </svg>
-            <span>
-              <strong>Triagem às Cegas:</strong>
-              Dados pessoais detectados são ocultados. A anonimização automática
-              pode omitir ocorrências; confira as evidências antes de compartilhar.
-            </span>
-          </div>
-        {% endif %}
-      </section>
+      {% set req_count = (candidate.analysis.details|length if candidate.analysis else job['requirements_data']['items']|length) %}
+      <nav class="cand-tabs" role="tablist" aria-label="Seções do candidato">
+        <button type="button" class="cand-tab-btn active" data-cand-tab="resumo" role="tab" aria-selected="true">
+          Resumo
+        </button>
+        <button type="button" class="cand-tab-btn" data-cand-tab="requisitos" role="tab" aria-selected="false">
+          Requisitos &amp; Evidências <span class="cand-tab-badge">{{ req_count }}</span>
+        </button>
+        <button type="button" class="cand-tab-btn" data-cand-tab="curriculo" role="tab" aria-selected="false">
+          {% if candidate.status == 'Aprovado' %}Currículo Original{% else %}Currículo Anonimizado{% endif %}
+        </button>
+      </nav>
 
-      <!-- DADOS EXTRAÍDOS -->
-      <section class="candidate-section candidate-data-section">
-        <div class="section-label">Dados Extraídos</div>
-
-        <div class="data-grid candidate-data-grid">
-          <div class="data-row">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="1.8">
-              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-              <polyline points="22,6 12,13 2,6"/>
-            </svg>
-            <div>
-              <div class="data-label">E-mail</div>
-              <div class="data-value">{{ candidate.email }}</div>
+      <div class="cand-tab-panel active" data-cand-panel="resumo" role="tabpanel">
+      <section class="candidate-section">
+        <div class="section-label">Justificativa da Análise</div>
+        {% set llm = candidate.llm_justification %}
+        {% if llm and llm.status == 'disponivel' and llm.content and llm.content.parecer_executivo %}
+        {% set c = llm.content %}
+        {% set exec = c.parecer_executivo %}
+        {% set aderencia_labels = {'forte': 'Aderência Forte', 'moderada': 'Aderência Moderada', 'parcial': 'Aderência Parcial', 'baixa': 'Aderência Baixa'} %}
+        {% set impacto_labels = {'alto': 'Impacto Alto', 'medio': 'Impacto Médio', 'baixo': 'Impacto Baixo'} %}
+        {% set curva_labels = {'imediata': 'Adaptação Imediata', 'baixa': 'Curva Baixa', 'moderada': 'Curva Moderada', 'alta': 'Curva Alta'} %}
+        <div class="req-list llm-card">
+          <div class="llm-exec">
+            <div class="llm-exec-head">
+              <span class="llm-pill {{ exec.classificacao_aderencia }}">{{ aderencia_labels.get(exec.classificacao_aderencia, exec.classificacao_aderencia) }}</span>
+              <span class="llm-pill neutral">{{ candidate_text(exec.nivel_aparente, candidate) }}</span>
             </div>
+            <p style="margin:0;line-height:1.55;">{{ candidate_text(exec.resumo_analitico, candidate) }}</p>
           </div>
 
-          <div class="data-row">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="1.8">
-              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13 19.79 19.79 0 0 1 1.59 4.38 2 2 0 0 1 3.55 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.1 6.1l.88-.88a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
-            </svg>
+          {% if c.pontos_fortes or c.lacunas_e_riscos %}
+          <div class="llm-two-col">
+            {% if c.pontos_fortes %}
             <div>
-              <div class="data-label">Telefone</div>
-              <div class="data-value">{{ candidate.phone }}</div>
-            </div>
-          </div>
-
-          <div class="data-row">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="1.8">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-            </svg>
-            <div>
-              <div class="data-label">Arquivo de Origem</div>
-              <div class="data-value">
-                {{ candidate.filename }} (Enviado em {{ candidate.submitted_at }})
+              <div class="llm-subtitle">Pontos Fortes</div>
+              <div class="llm-sublist">
+                {% for ponto in c.pontos_fortes %}
+                <div class="llm-subitem">
+                  <strong>{{ candidate_text(ponto.titulo, candidate) }}</strong>
+                  <div style="margin-top:3px;">{{ candidate_text(ponto.justificativa, candidate) }}</div>
+                </div>
+                {% endfor %}
               </div>
             </div>
-          </div>
-
-          <div class="data-row">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="1.8">
-              <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
-              <path d="M6 12v5c3 3 9 3 12 0v-5"/>
-            </svg>
-            <div>
-              <div class="data-label">Escolaridade</div>
-              <div class="data-value">{{ candidate.education }}</div>
-            </div>
-          </div>
-
-          <div class="data-row">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="1.8">
-              <polygon points="12 2 2 7 12 12 22 7 12 2"/>
-              <polyline points="2 17 12 22 22 17"/>
-              <polyline points="2 12 12 17 22 12"/>
-            </svg>
-            <div>
-              <div class="data-label">Último Cargo</div>
-              <div class="data-value">{{ candidate.last_role }}</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- EVIDÊNCIAS POR REQUISITO -->
-      <section class="candidate-section candidate-evidence-section">
-        <div class="section-label">Evidências por requisito</div>
-
-        {% if candidate.analysis %}
-          <p class="field-hint">
-            {{ 'Avaliação contextual local · experimental'
-               if candidate.analysis.contextual_configuration is defined
-               else 'Avaliação por regras legadas · interpretação contextual desativada nesta análise' }}
-          </p>
-
-          <details class="analysis-technical">
-            <summary>Informações técnicas</summary>
-            {% if candidate.analysis_id %}
-              <p>Análise #{{ candidate.analysis_id }}</p>
             {% endif %}
-            {% if candidate.analysis.execution_id %}
-              <p>Execução {{ candidate.analysis.execution_id }}</p>
+
+            {% if c.lacunas_e_riscos %}
+            <div>
+              <div class="llm-subtitle">Lacunas e Riscos</div>
+              <div class="llm-sublist">
+                {% for lacuna in c.lacunas_e_riscos %}
+                <div class="llm-subitem">
+                  <div class="llm-subitem-head">
+                    <strong>{{ candidate_text(lacuna.ponto, candidate) }}</strong>
+                    <span class="llm-pill {{ lacuna.impacto }}">{{ impacto_labels.get(lacuna.impacto, lacuna.impacto) }}</span>
+                  </div>
+                  <div>{{ candidate_text(lacuna.observacao, candidate) }}</div>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
             {% endif %}
-            <p>Fórmula: {{ candidate.analysis.formula_version }}</p>
-          </details>
-        {% endif %}
-
-        {% for warning in requirement_warnings(job.description, job.requirements_data) %}
-          <p class="req-list candidate-requirement-warning">
-            <strong>{{ warning }}</strong>
-            <a href="{{ url_for('editar_vaga', job_id=job.id) }}">Revisar vaga</a>
-          </p>
-        {% endfor %}
-
-        {% include '_adherence_requirements.html' %}
-      </section>
-
-      <!-- LIMITAÇÕES -->
-      <section class="candidate-section candidate-limitations-section">
-        <div class="section-label">Limitações</div>
-        <div class="req-list candidate-limitations">
-          Aderência considera os requisitos com evidência identificada no currículo.
-          Não comprova domínio nem substitui a avaliação do recrutador.
-          Regra de negócio experimental; qualidade em português não validada.
-        </div>
-      </section>
-
-      <!-- VISUALIZAÇÃO DO CURRÍCULO -->
-      <section class="candidate-section candidate-resume-section">
-        <div class="section-label">
-          {% if candidate.status == 'Aprovado' %}
-            Currículo Original
-          {% else %}
-            Currículo Anonimizado (Triagem às Cegas)
+          </div>
           {% endif %}
-        </div>
 
-        <div class="pdf-mock">
-          <div class="pdf-toolbar">
-            <span>Arquivo: {{ candidate.filename }}</span>
-            <span>100% ⬇</span>
-          </div>
-
-          <div class="pdf-page">
-            <h3>{{ candidate.name }}</h3>
-            <div class="pdf-contact">{{ candidate.email }} · {{ candidate.phone }}</div>
-
-            <div class="pdf-section-title">RESUMO PROFISSIONAL</div>
-            <div class="pdf-bar" style="width:100%"></div>
-            <div class="pdf-bar" style="width:82%"></div>
-            <div class="pdf-bar" style="width:60%;margin-bottom:16px"></div>
-
-            <div class="pdf-section-title">EXPERIÊNCIA</div>
-            <p style="font-size:13px;margin:0 0 8px">{{ candidate.last_role }}</p>
-            <div class="pdf-bar" style="width:95%"></div>
-            <div class="pdf-bar" style="width:70%;margin-bottom:16px"></div>
-
-            <div class="pdf-section-title">HABILIDADES</div>
-            <div class="pdf-tags">
-              {% for skill in candidate.skills %}
-                <span>{{ skill }}</span>
+          {% if c.equivalencias_e_transferiveis %}
+          <div>
+            <div class="llm-subtitle">Equivalências e Competências Transferíveis</div>
+            <div class="llm-sublist">
+              {% for eq in c.equivalencias_e_transferiveis %}
+              <div class="llm-subitem">
+                <div class="llm-subitem-head">
+                  <strong>{{ candidate_text(eq.experiencia_equivalente, candidate) }}</strong>
+                  <span class="llm-pill neutral">Para: {{ candidate_text(eq.requisito_relacionado, candidate) }}</span>
+                </div>
+                <div>{{ candidate_text(eq.observacao, candidate) }}</div>
+              </div>
               {% endfor %}
             </div>
           </div>
+          {% endif %}
+
+          {% if c.curva_de_adaptacao %}
+          <div>
+            <div class="llm-subtitle">Curva de Adaptação</div>
+            <div class="llm-subitem">
+              <div class="llm-subitem-head">
+                <strong>Estimativa de Ramp-up</strong>
+                <span class="llm-pill curva-{{ c.curva_de_adaptacao.nivel }}">{{ curva_labels.get(c.curva_de_adaptacao.nivel, c.curva_de_adaptacao.nivel) }}</span>
+              </div>
+              <div>{{ candidate_text(c.curva_de_adaptacao.justificativa, candidate) }}</div>
+              {% if c.curva_de_adaptacao.areas_de_ramp_up %}
+              <ul style="margin:6px 0 0 18px;">
+                {% for area in c.curva_de_adaptacao.areas_de_ramp_up %}<li>{{ candidate_text(area, candidate) }}</li>{% endfor %}
+              </ul>
+              {% endif %}
+            </div>
+          </div>
+          {% endif %}
+
+          <div class="llm-transparency">
+            <strong>Transparência da análise:</strong> {{ candidate_text(c.nota_transparencia, candidate) }}
+          </div>
+        </div>
+        {% else %}
+        <div class="req-list">{{ llm.message if llm and llm.message else 'Justificativa por IA não disponível no momento.' }}</div>
+        {% endif %}
+      </section>
+      </div>
+
+      <div class="cand-tab-panel" data-cand-panel="requisitos" role="tabpanel">
+      <section class="candidate-section candidate-requirements-section">
+        <div class="section-label">Evidências por requisito</div>
+        {% if candidate.analysis %}
+        <div class="candidate-technical-box">
+          <p class="field-hint">{{ 'Avaliação contextual local · experimental' if candidate.analysis.contextual_configuration is defined else 'Avaliação por regras legadas · interpretação contextual desativada nesta análise' }}</p>
+          <details class="analysis-technical"><summary>Informações técnicas</summary>
+            <div class="candidate-technical-details">
+              {% if candidate.analysis_id %}<p>Análise #{{ candidate.analysis_id }}</p>{% endif %}
+              {% if candidate.analysis.execution_id %}<p>Execução {{ candidate.analysis.execution_id }}</p>{% endif %}
+              <p>Fórmula: {{ candidate.analysis.formula_version }}</p>
+            </div>
+          </details>
+        </div>
+        {% endif %}
+        {% for warning in requirement_warnings(job.description, job.requirements_data) %}
+        <p class="req-list candidate-warning-box"><strong>{{ warning }}</strong> <a href="{{ url_for('editar_vaga', job_id=job.id) }}">Revisar vaga</a></p>
+        {% endfor %}
+        {% include '_adherence_requirements.html' %}
+      </section>
+      </div>
+
+      <div class="cand-tab-panel" data-cand-panel="curriculo" role="tabpanel">
+      <section class="candidate-section">
+        {% if candidate.status == 'Aprovado' %}
+        <div class="candidate-privacy-notice candidate-approved-notice" style="margin-bottom:14px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          <span><strong>Candidato aprovado para entrevista:</strong> Dados de contato e identificação revelados para agendamento.</span>
+        </div>
+        {% else %}
+        <div class="candidate-privacy-notice candidate-blind-notice" style="margin-bottom:14px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <span><strong>Triagem às Cegas:</strong> Dados pessoais detectados são ocultados. A anonimização automática pode omitir ocorrências; confira antes de compartilhar.</span>
+        </div>
+        {% endif %}
+
+        <div class="section-label">{% if candidate.status == 'Aprovado' %}Currículo Original{% else %}Currículo Anonimizado{% endif %}</div>
+        <div class="resume-sheet">
+          <div class="resume-sheet-head">
+            <div>
+              <h3>{{ candidate.name }}</h3>
+              <div class="resume-sheet-meta">{{ candidate.email }} · {{ candidate.phone }}</div>
+              <div class="resume-sheet-meta">{{ candidate.filename }} · Enviado em {{ candidate.submitted_at }}</div>
+            </div>
+          </div>
+
+          <div class="resume-sheet-pills">
+            <span class="resume-meta-pill"><strong>Último Cargo:</strong>{{ candidate.last_role }}</span>
+            <span class="resume-meta-pill"><strong>Escolaridade:</strong>{{ candidate.education }}</span>
+          </div>
+
+          {% if candidate.skills %}
+          <div>
+            <div class="pdf-section-title" style="margin-bottom:6px;">HABILIDADES EXTRAÍDAS</div>
+            <div class="pdf-tags">
+              {% for skill in candidate.skills %}<span>{{ skill }}</span>{% endfor %}
+            </div>
+          </div>
+          {% endif %}
+
+          {% set safe_resume_text = candidate_text(candidate.anonymized_text or candidate.raw_text, candidate) or '' %}
+          <div id="formatted-resume" class="resume-formatted"></div>
+
+          <details class="resume-debug">
+            <summary>Ver texto bruto (debug .txt)</summary>
+            <pre id="raw-resume-source" class="resume-text-view">{{ safe_resume_text or 'Texto não disponível.' }}</pre>
+          </details>
         </div>
       </section>
-
+      </div>
     </div>
 
-    <!-- AÇÕES DO CANDIDATO -->
+    <div class="limitations-footnote">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <span>Aderência considera os requisitos com evidência identificada no currículo. Não comprova domínio nem substitui a avaliação do recrutador. Regra de negócio experimental; qualidade em português não validada.</span>
+    </div>
+
+    <script>
+      document.querySelectorAll('[data-cand-tab]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const target = btn.getAttribute('data-cand-tab');
+          document.querySelectorAll('[data-cand-tab]').forEach(b => {
+            const active = b.getAttribute('data-cand-tab') === target;
+            b.classList.toggle('active', active);
+            b.setAttribute('aria-selected', active ? 'true' : 'false');
+          });
+          document.querySelectorAll('[data-cand-panel]').forEach(panel => {
+            panel.classList.toggle('active', panel.getAttribute('data-cand-panel') === target);
+          });
+        });
+      });
+
+      (function renderFormattedResume() {
+        const src = document.getElementById('raw-resume-source');
+        const target = document.getElementById('formatted-resume');
+        if (!src || !target) return;
+        const lines = src.textContent.split(/\r?\n/);
+        const headingPattern = /^(sobre mim|resumo(?: profissional)?|forma[çc][ãa]o(?: acad[êe]mica)?|educa[çc][ãa]o|experi[êe]ncia(?: profissional)?|projetos(?: acad[êe]micos)?|habilidades(?: t[ée]cnicas.*)?|skills|idiomas|certifica[çc][õo]es|summary|education|experience|work experience|projects|languages)$/i;
+        let currentList = null;
+
+        function closeList() {
+          if (currentList) {
+            target.appendChild(currentList);
+            currentList = null;
+          }
+        }
+
+        lines.forEach(rawLine => {
+          const line = rawLine.trim();
+          if (!line) {
+            closeList();
+            return;
+          }
+          const isAllCapsHeading = line.length <= 48 && line === line.toUpperCase() && /[A-ZÀ-Ú]/.test(line) && !/^\[.*\]$/.test(line);
+          if (headingPattern.test(line.replace(/:$/, '')) || isAllCapsHeading) {
+            closeList();
+            const h = document.createElement('h4');
+            h.className = 'resume-sec-heading';
+            h.textContent = line.replace(/:$/, '');
+            target.appendChild(h);
+          } else if (/^[•\-*]\s+/.test(line)) {
+            if (!currentList) {
+              currentList = document.createElement('ul');
+              currentList.className = 'resume-bullets';
+            }
+            const li = document.createElement('li');
+            li.textContent = line.replace(/^[•\-*]\s+/, '');
+            currentList.appendChild(li);
+          } else {
+            closeList();
+            const p = document.createElement('p');
+            p.className = 'resume-para';
+            p.textContent = line;
+            target.appendChild(p);
+          }
+        });
+        closeList();
+      })();
+    </script>
+
     <div class="cand-detail-foot candidate-detail-footer">
       <form method="POST"
             action="{{ url_for('atualizar_status_candidato', job_id=job.id, candidate_id=candidate.id) }}"
             class="candidate-status-form">
-
         {% if candidate.status == 'Aprovado' %}
           <button type="submit" name="status" value="Pendente"
                   class="btn btn-outline candidate-action-button">

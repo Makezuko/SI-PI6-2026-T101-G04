@@ -9,6 +9,7 @@ Na raiz do projeto, em PowerShell, com o ambiente local preparado:
 
 ```powershell
 .\.venv-contextual\Scripts\python.exe -m pip install -r requirements.visualization.txt
+.\.venv-contextual\Scripts\python.exe -m scripts.reavaliar_recuperacao
 .\.venv-contextual\Scripts\python.exe -m scripts.gerar_resultados_visuais
 Start-Process .\reports\resultados_visuais\relatorio.html
 ```
@@ -43,6 +44,55 @@ pelo gerador; os diretórios vazios ou ausentes acima constam deste inventário.
 Se dados forem ausentes, o relatório indica indisponibilidade, sem fabricar zero.
 Se as fontes NER comparadas tiverem dataset, contagens ou subconjunto distintos,
 ou se o agregado semântico divergir do relatório completo, a geração falha.
+
+## Reavaliação offline da recuperação
+
+`scripts.reavaliar_recuperacao` lê o ranking completo já salvo em `resultados.json`
+e os arquivos congelados `anotacoes.json` e `entradas.json`. Antes do cálculo,
+verifica os fingerprints das anotações gravados no resultado histórico, os hashes
+das entradas no manifesto e na anotação, e a igualdade das linhas e da revisão.
+Não reexecuta o preflight de inferência original nem afirma ter revalidado os
+pesos ou o tokenizer; não carrega modelos. O commit e pipeline que produziram o
+ranking permanecem distintos do HEAD e hash do reavaliador atual. Os hashes de
+arquivos calculados agora identificam o que foi lido; não provam origem histórica.
+
+As saídas novas ficam em `reports/reavaliacao_recuperacao_top3/`: JSON e CSVs
+por requisito, currículo, categoria e geral. Arquivos das anotações, embeddings
+e relatórios históricos não são alterados. O JSON inclui contagens de relevantes
+anotados e presentes no Top-3, exclusões e hashes. O gerador visual confere as
+fontes e recalcula as métricas offline antes de usar esse JSON. Se existirem só
+agregados, não é possível calcular essas métricas: a seção informa indisponibilidade.
+
+Cada requisito é uma consulta; cada entrada original conta uma vez por
+`input_index`, mantendo a ordem e o desempate do ranking salvo. Para gold anotado
+G e três primeiras entradas distintas T3: Hit@3 vale 1 se houver acerto;
+Precision@3 é `|G ∩ T3| / 3`; Recall@3 é `|G ∩ T3| / |G|`. Com menos de três
+entradas, o denominador da precisão permanece 3. NDCG@3 usa relevância binária
+e `DCG = soma(rel_i / log2(i+1))`, dividida pelo DCG ideal com até três dos
+**todos** os relevantes anotados, não apenas os encontrados no Top-3. As médias
+são macro por consulta, sem usar cosseno como gold.
+
+Exemplo sintético: G={1,3,5,7}, T3={1,3,9}: Hit@3=1, Precision@3=2/3,
+Recall@3=1/2. A anotação identifica entradas aceitáveis; o protocolo não comprova
+que todas as evidências relevantes foram enumeradas. Por isso, Precision@3 é
+**sobre o gold anotado** e Recall@3 **sobre evidências anotadas**. Evidências
+relevantes não anotadas podem afetar as duas medidas e o NDCG.
+
+Precision@3 não é o percentual de consultas com acerto. Se a consulta tiver
+apenas uma evidência relevante anotada, o máximo é 1/3 = 33,33%, mesmo quando
+ela aparece na primeira posição. O relatório separa o Hit@3 por recorte de
+Precision e Recall nos recuperáveis; apresenta NDCG em gráfico separado com
+escala de 0 a 1. Os gráficos e a tabela por categoria usam somente ranking.
+O gráfico por currículo fica no apêndice; os valores por currículo continuam
+disponíveis nos arquivos da reavaliação.
+
+Em ponta a ponta, Hit@3 inclui falhas de extração como zero; nas demais métricas
+essas consultas são N/D e ficam fora das médias porque não existe gold de índices
+recuperáveis. Negativos e pendentes não entram nos agregados positivos. Isso não
+mede abstenção, correção contextual, aderência final ou confiança. Precision@3
+não é precisão NER; Recall@3 não é cobertura de requisitos. O resultado histórico
+usa all-mpnet-base-v2 e não valida o MiniLM multilíngue atual. Hit@1 e MRR ficam
+somente nos artefatos históricos, preservados sem alteração.
 
 As matrizes reproduzem os JSONs existentes: linhas são tags verdadeiras e colunas
 previstas. A normalização por linha é a da fonte; linhas sem suporte não devem ser

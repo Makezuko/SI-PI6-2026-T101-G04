@@ -27,6 +27,14 @@ def decimal(value, places):
     return 'N/D' if value is None else f'{value:.{places}f}'
 
 
+def numero_pt(value, places=2):
+    return 'N/D' if value is None else f'{value:.{places}f}'.replace('.', ',')
+
+
+def percentual_pt(value):
+    return 'N/D' if value is None else numero_pt(value * 100) + '%'
+
+
 def read_training_args(path, sources):
     """Extrai apenas literais simples do pickle; nunca desserializa objetos."""
     path = Path(path)
@@ -111,6 +119,8 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--ner-dir', type=Path, default=Path('reports/ner_documentacao'))
     parser.add_argument('--semantic-dir', type=Path, default=Path('reports/avaliacao_semantica_ampliada_resultados'))
+    parser.add_argument('--semantic-sample-dir', type=Path, default=Path('reports/avaliacao_semantica_ampliada'))
+    parser.add_argument('--reevaluation', type=Path, default=Path('reports/reavaliacao_recuperacao_top3/metricas.json'))
     parser.add_argument('--contextual-local', type=Path, default=Path('reports/contextual-local.json'))
     parser.add_argument('--contextual-operational', type=Path, default=Path('reports/contextual-operational.json'))
     parser.add_argument('--manifest', type=Path, default=Path('models/contextual/manifest.json'))
@@ -122,6 +132,7 @@ def main(argv=None):
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
+    from matplotlib.ticker import FuncFormatter
     import numpy as np
 
     output = args.output_dir
@@ -132,7 +143,7 @@ def main(argv=None):
     figures, tables = output / 'figuras', output / 'tabelas'
     figures.mkdir(parents=True, exist_ok=True)
     tables.mkdir(parents=True, exist_ok=True)
-    sources, sections, missing = {}, [], []
+    sources, sections, missing, apendice = {}, [], [], []
     for path in map(Path, ('src/nlp/train.py', 'src/nlp/prepare_ner_dataset.py',
                            'src/matching/contextual.py', 'src/matching/local_runtime.py',
                            'src/data/load.py', 'src/data/validate.py')):
@@ -142,11 +153,19 @@ def main(argv=None):
             missing.append(str(path))
     plt.rcParams.update({'font.size': 10, 'figure.facecolor': 'white', 'savefig.facecolor': 'white'})
 
-    def save_plot(fig, name):
+    def save_plot(fig, name, caption=None):
+        title = caption or (fig._suptitle.get_text() if fig._suptitle else fig.axes[0].get_title())
         for ext in ('png', 'svg'):
             fig.savefig(figures / f'{name}.{ext}', dpi=300, bbox_inches='tight')
         plt.close(fig)
-        return f'<figure><img src="figuras/{name}.svg" alt="{safe(name)}"><figcaption>{safe(name.replace("_", " "))}</figcaption></figure>'
+        return f'<figure><img src="figuras/{name}.svg" alt="{safe(title)}"><figcaption>{safe(title)}</figcaption></figure>'
+
+    def rotular_barras(ax, bars, values, normalized=False):
+        for bar, value in zip(bars, values):
+            if value is not None:
+                ax.annotate(numero_pt(value, 3) if normalized else percentual_pt(value),
+                            (bar.get_x() + bar.get_width() / 2, bar.get_height()),
+                            xytext=(0, 4), textcoords='offset points', ha='center', va='bottom', fontsize=9)
 
     def write_csv(name, headers, rows):
         with (tables / name).open('w', encoding='utf-8-sig', newline='') as stream:
@@ -234,62 +253,99 @@ def main(argv=None):
     ner_html += '<p>SKILLS exige cautela: resultados por entidade mostram a limitação do NER; o extrator híbrido complementa entidades com regras e seções. O augmentation altera também o número de atualizações; ganhos não podem ser atribuídos isoladamente a ele.</p>'
     sections = [ner_html]
 
-    agg = read_json(args.semantic_dir / 'agregados_sem_dados_pessoais.json', sources)
+    reevaluation = read_json(args.reevaluation, sources)
     full = read_json(args.semantic_dir / 'resultados.json', sources)
-    if agg:
-        validate_ranking(agg)
-        if full:
-            for group in ('overall', 'ranking_only'):
-                observed = full.get('summary', {}).get(group, {})
-                for key in ('denominator', 'hit_at_1', 'hit_at_3', 'mrr'):
-                    if observed.get(key) != agg[group].get(key):
-                        raise ValueError('Agregado semântico diverge do relatório completo')
-        rows = [[label, g['denominator'], g.get('extraction_lost_positive_count'), g.get('excluded_extraction_failures'),
-                 percent(g.get('hit_at_1')), percent(g.get('hit_at_3')), 'N/D' if g.get('mrr') is None else f"{g['mrr']:.3f}"]
-                for label, g in [('Ponta a ponta', agg['overall']), ('Somente ranking', agg['ranking_only'])]]
-        headers = ['Visão', 'Positivos', 'Perdidos na extração', 'Excluídos', 'Hit@1', 'Hit@3', 'MRR (0–1)']
-        write_csv('recuperacao.csv', ['Visão', 'Positivos', 'Perdidos na extração', 'Excluídos',
-                                       'Hit@1 (0–1)', 'Hit@3 (0–1)', 'MRR (0–1)'],
-                  [[label, g['denominator'], g.get('extraction_lost_positive_count'), g.get('excluded_extraction_failures'),
-                    g.get('hit_at_1'), g.get('hit_at_3'), g.get('mrr')]
-                   for label, g in [('Ponta a ponta', agg['overall']), ('Somente ranking', agg['ranking_only'])]])
-        fig, ax = plt.subplots(figsize=(8, 4.5)); x = np.arange(2)
-        for i, (key, label) in enumerate((('hit_at_1', 'Hit@1'), ('hit_at_3', 'Hit@3'))):
-            ax.bar(x + (i-.5)*.3, [agg[g][key]*100 if agg[g].get(key) is not None else float('nan') for g in ('overall', 'ranking_only')], .3, label=label)
-        ax.set_xticks(x, ['Ponta a ponta', 'Somente ranking']); ax.set_ylim(0, 100); ax.set_ylabel('% dos positivos'); ax.legend(); ax.set_title('Recuperação: Hit@k')
-        plot = save_plot(fig, 'recuperacao_hit')
-        manifest = full.get('manifest', {}) if full else {}
-        reviewed = {r.get('human_review', {}).get('reviewed_before_ranking') for r in full.get('rows', [])} if full else set()
-        sections.append('<h2>Recuperação semântica — avaliação histórica</h2>' + plot + table(headers, rows) +
-                        f"<p>Currículos: {safe(agg.get('resume_count'))}; requisitos: {safe(agg.get('requirement_count'))}; sem evidência: {safe(agg['overall'].get('no_evidence_count'))}. Modelo: {safe(manifest.get('embedding_model'))}; split: {safe(manifest.get('split'))}; commit: {safe(agg.get('commit'))}; pipeline: {safe(agg.get('pipeline_version'))}. Anotações humanas: campo reviewed_before_ranking observado = {safe(sorted(str(x) for x in reviewed))}; idioma não registrado no agregado. Itens sem evidência não entram no denominador positivo; isso não mede abstenção.</p>")
-        if full:
-            categories = full.get('summary', {}).get('by_category', {})
-            eligible = [(name, value) for name, value in categories.items() if value.get('denominator', 0) > 0]
-            category_rows = [[name, data.get('denominator'), percent(data.get('hit_at_1')),
-                              percent(data.get('hit_at_3')),
-                              'N/D' if data.get('mrr') is None else f"{data['mrr']:.3f}"] for name, data in categories.items()]
-            write_csv('recuperacao_categorias.csv', ['Categoria', 'Positivos', 'Hit@1 (0–1)', 'Hit@3 (0–1)', 'MRR (0–1)'],
-                      [[name, data.get('denominator'), data.get('hit_at_1'), data.get('hit_at_3'), data.get('mrr')]
-                       for name, data in categories.items()])
-            category_plot = ''
-            if eligible:
-                fig, ax = plt.subplots(figsize=(8, 4.5)); x = np.arange(len(eligible))
-                for i, (key, label) in enumerate((('hit_at_1', 'Hit@1'), ('hit_at_3', 'Hit@3'))):
-                    ax.bar(x + (i-.5)*.3, [v[key]*100 if v.get(key) is not None else float('nan') for _, v in eligible], .3, label=label)
-                ax.set_xticks(x, [f"{name}\n(n={value['denominator']})" for name, value in eligible]); ax.set_ylim(0, 100); ax.set_ylabel('% dos positivos'); ax.set_title('Recuperação por categoria — ponta a ponta'); ax.legend()
-                category_plot = save_plot(fig, 'recuperacao_categorias')
-            sections.append(category_plot + table(['Categoria', 'Positivos', 'Hit@1', 'Hit@3', 'MRR'], category_rows) + '<p>Categorias sem positivos permanecem sem métrica; os recortes são pequenos.</p>')
-            resumes = list(full.get('summary', {}).get('by_resume', {}).values())
-            if resumes:
-                labels = [f'Currículo {i+1}\n(n={v.get("denominator", "N/D")})' for i, v in enumerate(resumes)]
-                fig, ax = plt.subplots(figsize=(11, 4.5)); x = np.arange(len(resumes))
-                for i, (key, label) in enumerate((('hit_at_1', 'Hit@1'), ('hit_at_3', 'Hit@3'))):
-                    ax.bar(x + (i-.5)*.35, [v[key]*100 if v.get(key) is not None else float('nan') for v in resumes], .35, label=label)
-                ax.set_xticks(x, labels, rotation=35, ha='right'); ax.set_ylim(0, 100); ax.set_ylabel('% dos positivos'); ax.set_title('Recuperação por currículo — ponta a ponta'); ax.legend(loc='upper left', bbox_to_anchor=(1.01, 1))
-                sections.append(save_plot(fig, 'recuperacao_curriculos') + '<p>Identificadores substituídos por numeração local; denominadores pequenos. Não são exemplos textuais de candidatos.</p>')
+    if reevaluation and full:
+        from scripts.reavaliar_recuperacao import calculate, load_verified
+        try:
+            verified, original_hashes = load_verified(args.semantic_dir / 'resultados.json', args.semantic_sample_dir)
+        except FileNotFoundError as error:
+            missing.append(str(error.filename))
+            reevaluation = None
+    if reevaluation and full:
+        if original_hashes != reevaluation.get('proveniencia', {}).get('fontes_sha256'):
+            raise ValueError('Fontes da reavaliação mudaram; não reutilizar métricas desatualizadas.')
+        check = calculate(verified)
+        if any(check[k] != reevaluation.get(k) for k in ('geral', 'por_curriculo', 'por_categoria', 'por_requisito')):
+            raise ValueError('Métricas divergem dos rankings congelados.')
+        g = reevaluation['geral']
+        n_hit, n_rec = g['hit_denominador_ponta_a_ponta'], g['denominador_recuperavel']
+        rows = [
+            ['Hit@3', 'Ponta a ponta', g['hit_at_3_ponta_a_ponta'], n_hit],
+            ['Hit@3', 'Somente ranking', g['hit_at_3'], n_rec],
+            ['Precision@3', 'Recuperáveis', g['precision_at_3'], n_rec],
+            ['Recall@3', 'Recuperáveis', g['recall_at_3'], n_rec],
+            ['NDCG@3', 'Recuperáveis', g['ndcg_at_3'], n_rec],
+        ]
+        write_csv('recuperacao.csv', ['Métrica', 'Recorte', 'Média (0–1)', 'Consultas'], rows)
+        display = [[metric, scope, numero_pt(value, 3) if metric == 'NDCG@3' else percentual_pt(value), n]
+                   for metric, scope, value, n in rows]
+
+        fig, ax = plt.subplots(figsize=(7.5, 4.5))
+        hit_values = [g['hit_at_3_ponta_a_ponta'], g['hit_at_3']]
+        bars = ax.bar([0, 1], [v * 100 if v is not None else float('nan') for v in hit_values], width=.55, color=['#3974ad', '#38a187'])
+        rotular_barras(ax, bars, hit_values)
+        ax.set_xticks([0, 1], [f'Ponta a ponta\n(n={n_hit})', f'Somente ranking\n(n={n_rec})'])
+        ax.set_ylim(0, 112); ax.set_ylabel('Consultas com acerto (%)'); ax.set_title('Hit@3 — comparação entre recortes')
+        plot_hit = save_plot(fig, 'recuperacao_hit')
+
+        fig, ax = plt.subplots(figsize=(7.5, 4.5))
+        pr_values = [g['precision_at_3'], g['recall_at_3']]
+        bars = ax.bar([0, 1], [v * 100 if v is not None else float('nan') for v in pr_values], width=.55, color=['#dc8241', '#38a187'])
+        rotular_barras(ax, bars, pr_values)
+        ax.set_xticks([0, 1], ['Precision@3', 'Recall@3']); ax.set_ylim(0, 112); ax.set_ylabel('Média por consulta (%)')
+        ax.set_title(f'Precision e Recall — recuperáveis (n={n_rec})')
+        plot_pr = save_plot(fig, 'recuperacao_precision_recall')
+
+        fig, ax = plt.subplots(figsize=(6, 4.5))
+        ndcg = g['ndcg_at_3']
+        bars = ax.bar([0], [ndcg if ndcg is not None else float('nan')], width=.45, color='#8b66a8')
+        rotular_barras(ax, bars, [ndcg], normalized=True)
+        ax.set_xticks([0], ['NDCG@3']); ax.set_ylim(0, 1); ax.margins(y=0)
+        ax.yaxis.set_major_formatter(FuncFormatter(lambda value, _: numero_pt(value, 1)))
+        ax.set_ylabel('Média por consulta (0 a 1)'); ax.set_title(f'NDCG@3 — recuperáveis (n={n_rec})')
+        plot_ndcg = save_plot(fig, 'recuperacao_ndcg')
+        manifest = full['manifest']
+        sections.append('<h2>Recuperação semântica — reavaliação do ranking histórico</h2>' + plot_hit + plot_pr + plot_ndcg + table(['Métrica', 'Recorte', 'Média', 'Consultas'], display) +
+            f"<p>Currículos: {safe(full.get('summary', {}).get('resume_count'))}; requisitos: {safe(g['total'])}; positivos recuperáveis: {safe(g['recuperaveis'])}; falhas de extração: {safe(g['falhas_extracao'])}; sem evidência: {safe(g['sem_evidencia'])}; pendentes: {safe(g['pendentes'])}. Nos recuperáveis há {safe(g['relevantes_anotados'])} evidências anotadas e {safe(g['relevantes_top3'])} no Top-3. Rankings com menos de três entradas: {safe(g['rankings_curtos'])} entre recuperáveis. Modelo histórico: {safe(manifest.get('embedding_model'))}; split: {safe(manifest.get('split'))}; commit do ranking: {safe(manifest.get('commit'))}; pipeline: {safe(manifest.get('pipeline_version'))}. O modelo atual MiniLM multilíngue não foi avaliado por este protocolo.</p>" +
+            '<p>Médias macro por consulta: Hit@3 = existência de acerto; Precision@3 sobre o gold anotado = acertos/3, mesmo em ranking curto; Recall@3 sobre evidências anotadas = acertos/total anotado. Precision@3 não é o percentual de consultas acertadas: se há apenas uma evidência anotada, seu valor máximo é 33,33%, mesmo que ela apareça em primeiro lugar. NDCG@3 usa escala de 0 a 1, relevância binária, DCG = soma de relᵢ/log₂(i+1) e IDCG da ordenação ideal de todos os relevantes anotados, até três. Exemplo sintético: gold {1,3,5,7}, Top-3 {1,3,9}: Hit=1, Precision=2/3, Recall=1/2. O gold não tem exaustividade comprovada; evidências relevantes não anotadas afetam essas medidas.</p>' +
+            f"<p>Na visão ponta a ponta, {g['falhas_extracao']} perdas de extração contam como falhas em Hit@3; Precision, Recall e NDCG são N/D nesses casos e agregados apenas nos recuperáveis. Sem evidência e pendentes são excluídos dos agregados positivos; isso não mede abstenção, aderência, confiança ou qualidade do Qwen. Precision@3 não é precisão NER; Recall@3 não é cobertura de requisitos; cosseno não é relevância verdadeira. Hit@1 e MRR permanecem apenas nos artefatos históricos originais.</p>")
+        categories = reevaluation['por_categoria']
+        category_headers = ['Categoria', 'Denom. recuperáveis', 'Hit@3 somente ranking', 'Precision@3', 'Recall@3', 'NDCG@3 (0 a 1)']
+        category_raw = [[name, v['denominador_recuperavel'], v['hit_at_3'], v['precision_at_3'], v['recall_at_3'], v['ndcg_at_3']] for name, v in categories.items()]
+        write_csv('recuperacao_categorias.csv', category_headers, category_raw)
+        category_display = [[r[0], r[1], percentual_pt(r[2]), percentual_pt(r[3]), percentual_pt(r[4]), numero_pt(r[5], 3)] for r in category_raw]
+        eligible = [(name, v) for name, v in categories.items() if v['denominador_recuperavel']]
+        if eligible:
+            fig, ax = plt.subplots(figsize=(10, 4.8)); x = np.arange(len(eligible))
+            for i, (key, label) in enumerate((('hit_at_3', 'Hit@3'), ('precision_at_3', 'Precision@3'), ('recall_at_3', 'Recall@3'))):
+                values = [v[key] for _, v in eligible]
+                bars = ax.bar(x+(i-1)*.25, [v*100 if v is not None else float('nan') for v in values], .25, label=label)
+                rotular_barras(ax, bars, values)
+            ax.set_xticks(x, [f"{name}\n(n={v['denominador_recuperavel']})" for name, v in eligible]); ax.set_ylim(0,115); ax.set_ylabel('Média por consulta (%)'); ax.set_title('Recuperação por categoria — somente ranking'); ax.legend(loc='upper left', bbox_to_anchor=(1.01,1))
+            sections.append(save_plot(fig, 'recuperacao_categorias'))
+            fig, ax = plt.subplots(figsize=(8, 4.5)); values = [v['ndcg_at_3'] for _, v in eligible]
+            bars = ax.bar(np.arange(len(eligible)), [v if v is not None else float('nan') for v in values], width=.5, color='#8b66a8')
+            rotular_barras(ax, bars, values, normalized=True)
+            ax.set_xticks(np.arange(len(eligible)), [f"{name}\n(n={v['denominador_recuperavel']})" for name, v in eligible]); ax.set_ylim(0,1); ax.set_ylabel('Média por consulta (0 a 1)'); ax.set_title('NDCG@3 por categoria — somente ranking')
+            ax.yaxis.set_major_formatter(FuncFormatter(lambda value, _: numero_pt(value, 1)))
+            sections.append(save_plot(fig, 'recuperacao_ndcg_categorias'))
+        sections.append('<p>Gráficos e tabela por categoria usam somente os positivos recuperáveis. Os recortes são pequenos; valores sem denominador são N/D.</p>' + table(category_headers, category_display))
+        resumes = list(reevaluation['por_curriculo'].values())
+        if resumes:
+            labels = [f"Currículo {i+1}\n(n={v['denominador_recuperavel']})" for i, v in enumerate(resumes)]
+            fig, ax = plt.subplots(figsize=(11,4.5)); x = np.arange(len(resumes))
+            values = [v['hit_at_3'] for v in resumes]
+            bars = ax.bar(x, [v*100 if v is not None else float('nan') for v in values], .6, color='#3974ad')
+            rotular_barras(ax, bars, values)
+            ax.set_xticks(x, labels, rotation=35, ha='right'); ax.set_ylim(0,115); ax.set_ylabel('Consultas com acerto (%)'); ax.set_title('Hit@3 por currículo — somente ranking')
+            apendice.append('<h2>Apêndice — recuperação por currículo</h2>' + save_plot(fig, 'recuperacao_curriculos') + '<p>Identificadores substituídos por numeração local; denominadores pequenos. As demais métricas por currículo estão no CSV da reavaliação.</p>')
     else:
-        missing.append(str(args.semantic_dir / 'agregados_sem_dados_pessoais.json'))
-        sections.append('<h2>Recuperação semântica</h2><p>Fonte agregada indisponível.</p>')
+        if not reevaluation:
+            missing.append(str(args.reevaluation))
+        if not full:
+            missing.append(str(args.semantic_dir / 'resultados.json'))
+        sections.append('<h2>Recuperação semântica</h2><p>Rankings completos ou reavaliação indisponíveis; não é possível deduzir as métricas dos agregados históricos.</p>')
 
     manifest = read_json(args.manifest, sources)
     if manifest is None:
@@ -402,6 +458,7 @@ def main(argv=None):
         interpretation = 'Comparação de F1 e diferença entre treino e avaliação indisponíveis: faltam métricas consolidadas.'
     sections.append('<h2>Conclusão</h2><p>' + safe(interpretation) + ' A amostra é limitada, a identidade histórica dos dados não foi comprovada por hash e os treinamentos também tiveram quantidades diferentes de atualizações; não é possível atribuir o ganho exclusivamente ao augmentation nem generalizá-lo para outras populações. O ensaio contextual não valida a qualidade das decisões.</p>')
     sections.append('<h2>Fontes e limites</h2><p>Relatório offline; apenas agregados e exemplos sintéticos. Sem inferência nem conexão com banco. Os hashes de fontes em fontes.json foram calculados agora: identificam os arquivos lidos, mas não comprovam sua procedência histórica. Lacunas: ' + safe(', '.join(missing) if missing else 'nenhuma entre as fontes requeridas pelo leitor') + '.</p><p>Referências oficiais: <a href="https://huggingface.co/distilbert/distilbert-base-cased">DistilBERT</a>; <a href="https://huggingface.co/sentence-transformers/all-mpnet-base-v2">all-mpnet-base-v2</a>; <a href="https://huggingface.co/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2">MiniLM multilíngue</a>; <a href="https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507">Qwen3</a>; <a href="https://github.com/ggml-org/llama.cpp">llama.cpp</a>.</p>')
+    sections.extend(apendice)
     try:
         commit = subprocess.run(['git', 'rev-parse', 'HEAD'], capture_output=True, text=True, check=True).stdout.strip()
     except (OSError, subprocess.CalledProcessError):

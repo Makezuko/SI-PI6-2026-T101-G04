@@ -5,7 +5,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from scripts.gerar_resultados_visuais import (decimal, main, percent, read_json,
+from scripts.gerar_resultados_visuais import (decimal, main, numero_pt, percent, percentual_pt, read_json,
                                                read_training_args, synthetic_evidence, validate_metrics, validate_ranking)
 
 
@@ -27,6 +27,9 @@ class VisualResultsTests(unittest.TestCase):
         self.assertEqual(decimal(.123456, 4), '0.1235')
         self.assertEqual(decimal(27.312, 2), '27.31')
         self.assertEqual(decimal(None, 2), 'N/D')
+        self.assertEqual(percentual_pt(.37037037037), '37,04%')
+        self.assertEqual(numero_pt(.9014608, 3), '0,901')
+        self.assertEqual(percentual_pt(None), 'N/D')
         with self.assertRaises(ValueError):
             validate_metrics(dict(data, train_subset='all'), 'train_original')
         with self.assertRaises(ValueError):
@@ -69,12 +72,13 @@ class VisualResultsTests(unittest.TestCase):
             main(['--ner-dir', str(root / 'ner'), '--ner-models', str(root / 'models'),
                   '--ner-preparation', str(root / 'preparation.json'),
                   '--ner-split-manifest', str(root / 'splits.json'),
+                  '--reevaluation', str(root / 'reevaluation.json'),
                   '--semantic-dir', str(root / 'semantic'), '--manifest', str(root / 'manifest.json'),
                   '--contextual-local', str(root / 'local.json'), '--contextual-operational', str(root / 'op.json'),
                   '--output-dir', str(output)])
             provenance = json.loads((output / 'fontes.json').read_text(encoding='utf-8'))
             self.assertTrue(provenance['missing'])
-            self.assertIn('indisponível', (output / 'relatorio.html').read_text(encoding='utf-8'))
+            self.assertIn('indisponíveis', (output / 'relatorio.html').read_text(encoding='utf-8'))
 
 
 if __name__ == '__main__':

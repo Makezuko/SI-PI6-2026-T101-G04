@@ -12,6 +12,10 @@
 {% endblock %}
 
 {% block content %}
+{% for category, message in get_flashed_messages(with_categories=true) %}
+  <div class="dashboard-message {{ category }}" role="status">{{ message }}</div>
+{% endfor %}
+
 <div class="stat-strip">
   <div class="stat">
     <div class="stat-label">Vagas abertas</div>
@@ -44,10 +48,14 @@
 <div class="panel dashboard-vacancies-panel">
 
   <div class="panel-head">
-    <h2>Últimas vagas cadastradas</h2>
+    <div>
+      <h2>Vagas cadastradas</h2>
+      <p class="dashboard-panel-note">Acesse o ranking ou gerencie cada vaga.</p>
+    </div>
     <span class="count">{{ jobs|length }} vagas</span>
   </div>
 
+  {% if jobs %}
   <div class="dashboard-table-wrap">
     <table class="dashboard-jobs-table">
 
@@ -115,10 +123,28 @@
           </td>
 
           <td class="dashboard-job-action-cell">
-            <a href="{{ url_for('vagas', job_id=job.id) }}"
-               class="link-cell">
-              Ver ranking →
-            </a>
+            <div class="dashboard-job-actions">
+              <a href="{{ url_for('vagas', job_id=job.id) }}"
+                 class="link-cell">
+                Ver ranking
+                <span aria-hidden="true">→</span>
+              </a>
+              <details class="job-actions-menu">
+                <summary aria-label="Opções da vaga {{ job.title }}" title="Opções da vaga">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" stroke-width="2">
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                </summary>
+                <div class="job-actions-popover">
+                  <a href="{{ url_for('editar_vaga', job_id=job.id) }}">Editar vaga</a>
+                  <form method="post" action="{{ url_for('excluir_vaga', job_id=job.id) }}"
+                        onsubmit="return confirm('Excluir esta vaga? Todos os currículos e análises vinculados também serão removidos. Esta ação não pode ser desfeita.')">
+                    <button type="submit">Excluir vaga</button>
+                  </form>
+                </div>
+              </details>
+            </div>
           </td>
 
         </tr>
@@ -128,6 +154,22 @@
 
     </table>
   </div>
+  {% else %}
+  <div class="dashboard-empty-state">
+    <div class="job-icon" aria-hidden="true">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2">
+        <rect x="2" y="7" width="20" height="14" rx="2"/>
+        <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
+      </svg>
+    </div>
+    <div>
+      <strong>Nenhuma vaga cadastrada</strong>
+      <p>Crie sua primeira vaga para começar a acompanhar candidatos.</p>
+    </div>
+    <a href="{{ url_for('nova_vaga') }}" class="btn btn-primary">+ Nova Vaga</a>
+  </div>
+  {% endif %}
 
 </div>
 {% endblock %}

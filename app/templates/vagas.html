@@ -6,6 +6,10 @@
   <div>
     <div class="eyebrow">Ranking de aderência</div>
     <h1 class="h1">{{ job.title }}</h1>
+    <details class="job-header-description">
+      <summary>Descrição da vaga</summary>
+      <div>{{ job.description or 'Descrição não cadastrada.' }}</div>
+    </details>
   </div>
 
   <div class="ranking-header-actions">
@@ -260,6 +264,7 @@
         Regra experimental: obrigatório pesa 2; desejável pesa 1.
         Pendências tornam o ranking provisório.
         Aderência documental não comprova domínio nem substitui avaliação humana.
+        A cor representa a faixa da nota, não a decisão do candidato.
       </p>
     </div>
 
@@ -281,6 +286,12 @@
           analysis_state='Desatualizada'
         ) %}
       {% endif %}
+
+      {% set score_level = 'low' if c.score is not none and c.score < 50
+        else ('mid' if c.score is not none and c.score < 70
+        else ('high' if c.score is not none else 'pending')) %}
+      {% set score_label = {'low': 'Baixa aderência', 'mid': 'Aderência intermediária',
+        'high': 'Alta aderência'} %}
 
       <a
         href="{{ url_for('candidato_detalhe', job_id=job.id, candidate_id=c.id) }}"
@@ -313,9 +324,9 @@
 
             {% set status_class = c.status|lower %}
 
-            <span class="status-badge {{ status_class }}">
+              <span class="status-badge {{ status_class }} candidate-list-status">
               <span></span>
-              Decisão: {{ c.status }} · Análise: {{ c.analysis_state }}
+                Status: {{ c.status }}
             </span>
 
           </div>
@@ -354,53 +365,14 @@
 
         </div>
 
-        <div class="cand-score">
-
-          {% set level = 'mid' %}
-
-          <div class="score-label {{ level }}">
-            Aderência documental
+        <div class="cand-score ranking-candidate-score score-{{ score_level }}">
+          <div class="score-label">Nota</div>
+          <div class="score-pct {{ 'score-pending' if c.score is none else '' }}">
+            {{ '%.2f%%'|format(c.score) if c.score is not none else 'Avaliação pendente' }}
           </div>
-
-          {% if c.analysis %}
-          <div class="field-hint">
-            {{ 'Contextual local · experimental' if c.analysis.contextual_configuration is defined else 'Regras legadas' }}
-          </div>
+          {% if c.score is not none %}
+          <div class="score-meaning">{{ score_label[score_level] }}</div>
           {% endif %}
-
-          {% if c.analysis and c.analysis.undecided %}
-            <div class="score-label">
-              Nenhum requisito decidido
-            </div>
-          {% elif c.analysis and c.analysis.provisional %}
-            <div class="score-label">
-              Provisório · máximo {{ '%.2f'|format(c.analysis.maximum_score) }}%
-              · {{ c.analysis.counts.revisao_necessaria }} pendentes
-            </div>
-          {% endif %}
-
-          <div class="score-pct">
-            {% if c.score is not none and c.analysis.provisional %}
-              Mínimo confirmado
-            {% endif %}
-            {{ '%.2f%%'|format(c.score) if c.score is not none else c.analysis_state }}
-          </div>
-
-          {% if c.analysis and c.analysis.mandatory_alert_ids %}
-          <div class="score-label low">
-            Obrigatórios não identificados ou pendentes:
-            {{ c.analysis.mandatory_alert_ids|length }}.
-            Sem rejeição automática.
-          </div>
-          {% endif %}
-
-          <div class="score-track">
-            <div
-              class="score-fill fill-{{ level }}"
-              style="width: {{ c.score if c.score is not none else 0 }}%;"
-            ></div>
-          </div>
-
         </div>
 
         <div class="chevron">›</div>

@@ -2,6 +2,10 @@
 param([switch]$ConfigureOnly, [switch]$Restart, [int]$Port = 5002)
 $ErrorActionPreference = 'Stop'
 Set-Location (Split-Path $PSScriptRoot -Parent)
+$pythonPath = Join-Path (Get-Location) '.venv-contextual\Scripts\python.exe'
+if (-not $ConfigureOnly -and -not (Test-Path -LiteralPath $pythonPath -PathType Leaf)) {
+    throw "Python do ambiente contextual não encontrado: $pythonPath`nCrie o ambiente e instale as dependências:`npython -m venv --system-site-packages .venv-contextual`n.\.venv-contextual\Scripts\python.exe -m pip install -r requirements.contextual.txt"
+}
 $manifestPath = Join-Path (Get-Location) 'models/contextual/manifest.json'
 if (-not (Test-Path -LiteralPath $manifestPath)) {
     throw 'Prepare os modelos com python -m scripts.preparar_modelos_contextuais'
@@ -35,7 +39,7 @@ if ($Restart -and -not $ConfigureOnly) {
         $record = Get-Content -LiteralPath $tracePath | ForEach-Object { $_ | ConvertFrom-Json } |
             Where-Object { $_.event -eq 'FLASK_PROCESS' } | Select-Object -Last 1
         $serverPid = [int]$response.Headers['X-TalentMatch-PID']
-        $expectedPython = Join-Path (Get-Location) '.venv-contextual/Scripts/python.exe'
+        $expectedPython = [IO.Path]::GetFullPath($pythonPath)
         if (-not $record -or $record.pid -ne $serverPid -or $record.python -ine $expectedPython) {
             throw 'Identidade do servidor não corresponde ao registro local. Nenhum processo foi encerrado.'
         }
@@ -53,6 +57,6 @@ if ($Restart -and -not $ConfigureOnly) {
     }
 }
 if (-not $ConfigureOnly) {
-    & .\.venv-contextual\Scripts\python.exe -m app.run --port $Port
+    & $pythonPath -m app.run --port $Port
     if ($LASTEXITCODE -ne 0) { throw 'Servidor não iniciou. Confira a porta e o diagnóstico acima.' }
 }

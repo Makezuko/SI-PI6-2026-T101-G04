@@ -59,7 +59,7 @@
             required
           >{{ form.description }}</textarea>
           <p class="field-hint">
-            Cole o texto completo da vaga. A IA irá interpretar automaticamente todos os requisitos técnicos e comportamentais e criar um perfil de referência para a triagem dos currículos.
+            Mantenha a descrição completa da vaga e revise os critérios na lista abaixo antes de analisar currículos.
           </p>
         </div>
       </div>
@@ -69,7 +69,7 @@
       <div class="panel-head edit-requirements-head">
         <div>
           <h2>Requisitos da Vaga</h2>
-          <p class="edit-panel-description">Organize os conhecimentos técnicos e comportamentais esperados.</p>
+          <p class="edit-panel-description">Revise os critérios que serão usados na análise dos currículos.</p>
         </div>
 
         <div class="edit-requirements-tools">
@@ -81,10 +81,26 @@
       </div>
 
       <div class="edit-requirements-body">
+        <aside class="requirements-guidance" role="note">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 11v5m0-8h.01"/>
+          </svg>
+          <div>
+            <strong>Prepare os requisitos antes de analisar currículos</strong>
+            <p>
+              Descreva um critério por linha, escolha o tipo e marque a prioridade como
+              <b>Obrigatório</b> ou <b>Desejável</b>. Depois, salve a vaga antes de enviar
+              currículos. Requisitos claros ajudam a IA a comparar as evidências com mais consistência.
+            </p>
+          </div>
+        </aside>
+
         <div class="req-cols" aria-hidden="true">
           <span>Requisito</span>
           <span>Tipo</span>
-          <span>Nível</span>
+          <span>Prioridade</span>
           <span></span>
         </div>
 
@@ -115,7 +131,7 @@
                 {% endfor %}
               </select>
 
-              <select name="req_nivel" class="req-nivel" aria-label="Nível do requisito">
+              <select name="req_nivel" class="req-nivel" aria-label="Prioridade do requisito">
                 {% for key, label in niveis.items() %}
                 <option value="{{ key }}" {{ 'selected' if (r.nivel or 'obrigatorio') == key else '' }}>{{ label }}</option>
                 {% endfor %}
@@ -152,7 +168,7 @@
                 {% endfor %}
               </select>
 
-              <select name="req_nivel" class="req-nivel" aria-label="Nível do requisito">
+              <select name="req_nivel" class="req-nivel" aria-label="Prioridade do requisito">
                 {% for key, label in niveis.items() %}
                 <option value="{{ key }}">{{ label }}</option>
                 {% endfor %}
@@ -191,7 +207,7 @@
               {% endfor %}
             </select>
 
-            <select name="req_nivel" class="req-nivel" aria-label="Nível do requisito">
+            <select name="req_nivel" class="req-nivel" aria-label="Prioridade do requisito">
               {% for key, label in niveis.items() %}
               <option value="{{ key }}">{{ label }}</option>
               {% endfor %}
@@ -208,10 +224,8 @@
         </template>
 
         <p class="field-hint edit-requirements-hint">
-          Defina os requisitos específicos da vaga.
-          <b>Técnico</b>: linguagens, ferramentas e conhecimentos técnicos.
-          <b>Comportamental</b>: postura, comunicação e trabalho em equipe.
-          Linhas vazias são ignoradas.
+          Use uma linha por critério. Requisitos técnicos descrevem conhecimentos e ferramentas;
+          comportamentais descrevem atitudes, comunicação e colaboração. Linhas vazias são ignoradas.
         </p>
       </div>
 

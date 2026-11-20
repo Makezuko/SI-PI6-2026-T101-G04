@@ -202,6 +202,65 @@ class AnalysisWebTests(unittest.TestCase):
         self.assertIn('evidência literal suficiente para python', page)
         self.assertNotIn('Alta aderência', page)
 
+    def test_requirement_overview_precedes_evidence_cards(self):
+        self.prepare()
+        self.upload()
+        page = self.client.get('/vagas/1/candidato/1').data.decode()
+        self.assertIn('Resumo dos requisitos', page)
+        self.assertIn('class="candidate-overview-status is-met">Atendido</span>', page)
+        self.assertIn('evidência literal suficiente para python', page)
+        self.assertLess(page.index('candidate-requirement-overview'), page.index('candidate-requirements-disclosure'))
+        self.assertIn('<details class="candidate-requirements-disclosure">', page)
+        self.assertLess(page.index('candidate-requirements-disclosure'), page.index('candidate-requirement-card'))
+        self.assertIn('<details class="requirement-result candidate-requirement-card"', page)
+        self.assertIn('<summary class="candidate-requirement-heading">', page)
+
+    def test_requirement_overview_matches_contextual_status_and_shows_documental_result(self):
+        self.prepare()
+        self.upload()
+        self.db['analyses'][0]['result']['llm_justification'] = {
+            'status': 'disponivel',
+            'schema_version': 2,
+            'content': {
+                'parecer_executivo': {'resumo_analitico': 'Resumo de teste.'},
+                'analise_requisitos': [{
+                    'requisito': 'Python',
+                    'nivel': 'obrigatorio',
+                    'status': 'nao_evidenciado',
+                    'analise_contextual': 'Não há evidência suficiente.',
+                }],
+            },
+        }
+        page = self.client.get('/vagas/1/candidato/1').data.decode()
+        self.assertIn('class="candidate-overview-status is-unidentified">Não evidenciado (IA)</span>', page)
+        self.assertIn('candidate-overview-secondary">Documental: Atendido</span>', page)
+        self.assertIn('llm-pill nao_evidenciado', page)
+
+    def test_score_colors_use_requested_thresholds_and_status_is_clear(self):
+        self.prepare()
+        self.upload()
+        result = self.db['analyses'][0]['result']
+
+        for score, tone, label in (
+            (49.99, 'low', 'Baixa aderência'),
+            (50, 'mid', 'Aderência intermediária'),
+            (69.99, 'mid', 'Aderência intermediária'),
+            (70, 'high', 'Alta aderência'),
+        ):
+            with self.subTest(score=score):
+                result['score'] = score
+                listing = self.client.get('/vagas/1').data.decode()
+                self.assertIn(f'ranking-candidate-score score-{tone}', listing)
+                self.assertIn(label, listing)
+                detail = self.client.get('/vagas/1/candidato/1').data.decode()
+                self.assertIn(f'cand-detail-badge {tone} candidate-score-badge', detail)
+                self.assertIn(f'stroke="var(--{tone})"', detail)
+
+        self.post('/vagas/1/candidato/1/status', {'status': 'Descartado'})
+        detail = self.client.get('/vagas/1/candidato/1').data.decode()
+        self.assertIn('Candidato: Descartado', detail)
+        self.assertIn('Análise:', detail)
+
     def test_incompatible_saved_results_require_reanalysis_without_template_error(self):
         from copy import deepcopy
         self.prepare(); self.upload()
@@ -396,7 +455,11 @@ class AnalysisWebTests(unittest.TestCase):
         page = self.client.get('/vagas/1').data.decode()
         self.assertLess(page.index('data-score="70.99"'), page.index('data-score="70.01"'))
         self.assertLess(page.index('data-score="70.01"'), page.index('data-score=""'))
-        self.assertIn('Sem rejeição automática', page)
+        self.assertIn('Avaliação pendente', page)
+        self.assertNotIn('Decisão:', page)
+        self.assertNotIn('Sem rejeição automática', page)
+        detail = self.client.get('/vagas/1/candidato/2').data.decode()
+        self.assertIn('Não é uma rejeição automática', detail)
         self.assertIn("parseFloat(b.getAttribute('data-score'))", page)
 
     def test_save_failure_never_reports_complete(self):

@@ -43,10 +43,21 @@
       {% set llm_match.req = llm_reqs[loop.index0] %}
     {% endif %}
 
-    <article class="requirement-result candidate-requirement-card"
+    {% if item.estado == 'atendido' %}
+      {% set document_label = 'Atendido' %}
+      {% set document_class = 'is-met' %}
+    {% elif item.estado == 'nao_identificado' %}
+      {% set document_label = 'Não evidenciado' %}
+      {% set document_class = 'is-unidentified' %}
+    {% else %}
+      {% set document_label = 'Revisão necessária' %}
+      {% set document_class = 'is-review' %}
+    {% endif %}
+
+    <details class="requirement-result candidate-requirement-card"
              aria-labelledby="requirement-{{ loop.index }}">
 
-      <div class="candidate-requirement-heading">
+      <summary class="candidate-requirement-heading">
         <h3 id="requirement-{{ loop.index }}">{{ text(item.text) }}</h3>
 
         <span class="requirement-meta">
@@ -55,196 +66,204 @@
             · <span class="llm-pill {{ llm_match.req.status }}">{{ llm_status_labels.get(llm_match.req.status, llm_match.req.status) }}</span>
           {% endif %}
         </span>
-      </div>
+        <span class="candidate-overview-status {{ document_class }}">{{ document_label }}</span>
+      </summary>
 
-      <p class="candidate-requirement-status">
-        {{ states.get(item.estado, 'Requer revisão') }}
-      </p>
-
-      {% if llm_match.req %}
-        <div class="llm-req-note">
-          <strong>Análise Contextual por Requisito:</strong> {{ text(llm_match.req.analise_contextual) }}
-        </div>
-      {% endif %}
-
-      {% if item.justificativa %}
-        <p class="candidate-requirement-justification">
-          {{ text(item.justificativa) }}
+      <div class="candidate-requirement-card-content">
+        <p class="candidate-requirement-status">
+          {{ states.get(item.estado, 'Requer revisão') }}
         </p>
-      {% endif %}
 
-      {% if main.evidence %}
-        <div class="requirement-evidence candidate-main-evidence">
-          <p><strong>Trecho do currículo:</strong></p>
+        {% if llm_match.req %}
+          <div class="llm-req-note">
+            <strong>Análise Contextual por Requisito:</strong> {{ text(llm_match.req.analise_contextual) }}
+          </div>
+        {% endif %}
 
-          {% set evidence_text = candidate_text(main.evidence.text, candidate) %}
+        {% if item.justificativa %}
+          <p class="candidate-requirement-justification">
+            {{ text(item.justificativa) }}
+          </p>
+        {% endif %}
 
-          <blockquote>
-            “{{ evidence_text[:360] }}{% if evidence_text|length > 360 %}…{% endif %}”
-          </blockquote>
+        {% if main.evidence %}
+          <div class="requirement-evidence candidate-main-evidence">
+            <p><strong>Trecho do currículo:</strong></p>
 
-          <p>Origem: {{ origin(main.evidence.source) }}</p>
+            {% set evidence_text = candidate_text(main.evidence.text, candidate) %}
 
-          {% if evidence_text|length > 360 %}
-            <a href="#requirement-details-{{ loop.index }}"
-               class="evidence-full-link">
-              Ler trecho completo em Detalhes da análise
-            </a>
-          {% endif %}
-        </div>
-      {% else %}
-        <p class="field-hint candidate-no-evidence">
-          {{ 'Nenhuma evidência citada na decisão.'
-             if contextual
-             else 'Sem evidência recuperada.' }}
-        </p>
-      {% endif %}
+            <blockquote>
+              “{{ evidence_text[:360] }}{% if evidence_text|length > 360 %}…{% endif %}”
+            </blockquote>
 
-      <p class="requirement-contribution">Contribuição: {{ ('%.2f'|format(item.contribution_points))|replace('.', ',') }} pontos percentuais de {{ ('%.2f'|format(item.max_points))|replace('.', ',') }} possíveis.{% if item.estado == 'revisao_necessaria' %} Pendente de revisão.{% endif %}</p>
+            <p>Origem: {{ origin(main.evidence.source) }}</p>
 
-      <details id="requirement-details-{{ loop.index }}"
-               class="requirement-details candidate-requirement-details">
-
-        <summary>Detalhes da análise</summary>
-
-        <div class="candidate-requirement-details-content">
-
-          {% for evidence in evidence_list %}
-            <div class="requirement-evidence">
-              <p>
-                <strong>Evidência {{ loop.index }}</strong>
-                ·
-                {{ 'Citada na decisão'
-                   if (evidence.id is defined and evidence.id in cited_ids)
-                      or (not contextual and evidence in item.evidencias)
-                   else 'Recuperada; não citada na decisão' }}
-              </p>
-
-              <blockquote>{{ text(evidence.text) }}</blockquote>
-
-              <p>Origem: {{ origin(evidence.source) }}</p>
-
-              {% if evidence.context_header %}
-                <p>{{ text(evidence.context_header) }}</p>
-              {% endif %}
-
-              {% if evidence.id %}
-                <p>ID: {{ evidence.id }}</p>
-              {% endif %}
-
-              {% if evidence.similarity is defined and evidence.similarity is not none %}
-                <p>Similaridade: {{ '%.4f'|format(evidence.similarity) }}</p>
-              {% endif %}
-            </div>
-          {% endfor %}
-
-          {% if item.original_cosine is defined and item.original_cosine is not none %}
-            <p>Similaridade principal: {{ '%.4f'|format(item.original_cosine) }}</p>
-          {% endif %}
-
-          <p>
-            Requisito: {{ item.id }}
-            · Decisão técnica: {{ item.estado }}
-            {% if contextual.estado %}
-              / {{ contextual.estado }}
+            {% if evidence_text|length > 360 %}
+              <a href="#requirement-details-{{ loop.index }}"
+                 class="evidence-full-link">
+                Ler trecho completo em Detalhes da análise
+              </a>
             {% endif %}
-          </p>
-
-          <p>
-            Método:
-            {{ 'Avaliação contextual local · experimental'
+          </div>
+        {% else %}
+          <p class="field-hint candidate-no-evidence">
+            {{ 'Nenhuma evidência citada na decisão.'
                if contextual
-               else 'Avaliação por regras legadas' }}
-            · Versão: {{ item.method_version }}
+               else 'Sem evidência recuperada.' }}
           </p>
+        {% endif %}
 
-          <p>
-            Fonte da decisão:
-            {{ 'Revisão humana' if item.origem == 'humana' else 'Automática' }}
-            · Peso: {{ item.peso }}
-          </p>
+        <p class="requirement-contribution">Contribuição: {{ ('%.2f'|format(item.contribution_points))|replace('.', ',') }} pontos percentuais de {{ ('%.2f'|format(item.max_points))|replace('.', ',') }} possíveis.{% if item.estado == 'revisao_necessaria' %} Pendente de revisão.{% endif %}</p>
 
-          {% if contextual.base %}
-            <p>Base técnica: {{ contextual.base }}</p>
-          {% endif %}
+        <details id="requirement-details-{{ loop.index }}"
+                 class="requirement-details candidate-requirement-details">
 
-          {% if contextual.limitacoes %}
+          <summary>Detalhes da análise</summary>
+
+          <div class="candidate-requirement-details-content">
+
+            {% for evidence in evidence_list %}
+              <div class="requirement-evidence">
+                <p>
+                  <strong>Evidência {{ loop.index }}</strong>
+                  ·
+                  {{ 'Citada na decisão'
+                     if (evidence.id is defined and evidence.id in cited_ids)
+                        or (not contextual and evidence in item.evidencias)
+                     else 'Recuperada; não citada na decisão' }}
+                </p>
+
+                <blockquote>{{ text(evidence.text) }}</blockquote>
+
+                <p>Origem: {{ origin(evidence.source) }}</p>
+
+                {% if evidence.context_header %}
+                  <p>{{ text(evidence.context_header) }}</p>
+                {% endif %}
+
+                {% if evidence.id %}
+                  <p>ID: {{ evidence.id }}</p>
+                {% endif %}
+
+                {% if evidence.similarity is defined and evidence.similarity is not none %}
+                  <p>Similaridade: {{ '%.4f'|format(evidence.similarity) }}</p>
+                {% endif %}
+              </div>
+            {% endfor %}
+
+            {% if item.original_cosine is defined and item.original_cosine is not none %}
+              <p>Similaridade principal: {{ '%.4f'|format(item.original_cosine) }}</p>
+            {% endif %}
+
             <p>
-              Limitações:
-              {{ text(contextual.limitacoes|join('; ')) }}
+              Requisito: {{ item.id }}
+              · Decisão técnica: {{ item.estado }}
+              {% if contextual.estado %}
+                / {{ contextual.estado }}
+              {% endif %}
             </p>
-          {% endif %}
 
-          {% if diagnostic.rule %}
-            <p>Regra: {{ text(diagnostic.rule) }}</p>
-          {% endif %}
-
-          {% if diagnostic.total_entries is defined %}
-            <p>Entradas completas: {{ diagnostic.total_entries }}.</p>
-          {% endif %}
-
-          {% if diagnostic.semantic_candidates is defined %}
-            <p>Candidatos semânticos: {{ diagnostic.semantic_candidates }}.</p>
-          {% endif %}
-
-          {% if diagnostic.eligible_entries is defined %}
             <p>
-              Entradas elegíveis: {{ diagnostic.eligible_entries }};
-              contextos negados, hipotéticos ou ambíguos:
-              {{ diagnostic.rejected_contexts }}.
+              Método:
+              {{ 'Avaliação contextual local · experimental'
+                 if contextual
+                 else 'Avaliação por regras legadas' }}
+              · Versão: {{ item.method_version }}
             </p>
-          {% endif %}
 
-          {% if diagnostic.matched_terms %}
             <p>
-              Termos reconhecidos:
-              {{ text(diagnostic.matched_terms|join(', ')) }}.
+              Fonte da decisão:
+              {{ 'Revisão humana' if item.origem == 'humana' else 'Automática' }}
+              · Peso: {{ item.peso }}
             </p>
-          {% endif %}
 
-          {% if diagnostic.missing_terms %}
-            <p>
-              Termos pendentes:
-              {{ text(diagnostic.missing_terms|join(', ')) }}.
-            </p>
-          {% endif %}
+            {% if contextual.base %}
+              <p>Base técnica: {{ contextual.base }}</p>
+            {% endif %}
 
-          {% if diagnostic.processing_seconds is defined %}
-            <p>
-              Tempo de processamento:
-              {{ '%.2f'|format(diagnostic.processing_seconds) }} s.
-            </p>
-          {% endif %}
+            {% if contextual.limitacoes %}
+              <p>
+                Limitações:
+                {{ text(contextual.limitacoes|join('; ')) }}
+              </p>
+            {% endif %}
 
-        </div>
-      </details>
-    </article>
+            {% if diagnostic.rule %}
+              <p>Regra: {{ text(diagnostic.rule) }}</p>
+            {% endif %}
+
+            {% if diagnostic.total_entries is defined %}
+              <p>Entradas completas: {{ diagnostic.total_entries }}.</p>
+            {% endif %}
+
+            {% if diagnostic.semantic_candidates is defined %}
+              <p>Candidatos semânticos: {{ diagnostic.semantic_candidates }}.</p>
+            {% endif %}
+
+            {% if diagnostic.eligible_entries is defined %}
+              <p>
+                Entradas elegíveis: {{ diagnostic.eligible_entries }};
+                contextos negados, hipotéticos ou ambíguos:
+                {{ diagnostic.rejected_contexts }}.
+              </p>
+            {% endif %}
+
+            {% if diagnostic.matched_terms %}
+              <p>
+                Termos reconhecidos:
+                {{ text(diagnostic.matched_terms|join(', ')) }}.
+              </p>
+            {% endif %}
+
+            {% if diagnostic.missing_terms %}
+              <p>
+                Termos pendentes:
+                {{ text(diagnostic.missing_terms|join(', ')) }}.
+              </p>
+            {% endif %}
+
+            {% if diagnostic.processing_seconds is defined %}
+              <p>
+                Tempo de processamento:
+                {{ '%.2f'|format(diagnostic.processing_seconds) }} s.
+              </p>
+            {% endif %}
+
+          </div>
+        </details>
+      </div>
+    </details>
   {% endfor %}
 
   {% if not candidate.analysis %}
     {% if llm_reqs %}
       <div class="llm-subtitle" style="margin-bottom:8px;">Análise Contextual por Requisito</div>
       {% for req in llm_reqs %}
-        <article class="requirement-result candidate-requirement-card">
-          <div class="candidate-requirement-heading">
+        <details class="requirement-result candidate-requirement-card">
+          <summary class="candidate-requirement-heading">
             <h3>{{ text(req.requisito) }}</h3>
             <span style="display:inline-flex;gap:6px;align-items:center;">
               <span class="llm-pill neutral">{{ 'Obrigatório' if req.nivel == 'obrigatorio' else 'Desejável' }}</span>
               <span class="llm-pill {{ req.status }}">{{ llm_status_labels.get(req.status, req.status) }}</span>
             </span>
+          </summary>
+          <div class="candidate-requirement-card-content">
+            <p class="candidate-requirement-justification" style="margin-top:6px;">{{ text(req.analise_contextual) }}</p>
           </div>
-          <p class="candidate-requirement-justification" style="margin-top:6px;">{{ text(req.analise_contextual) }}</p>
-        </article>
+        </details>
       {% endfor %}
     {% else %}
       {% for item in job['requirements_data']['items'] %}
-        <article class="requirement-result candidate-requirement-card">
-          <h3>{{ text(item.text) }}</h3>
-          <p>
-            {{ 'Obrigatório' if item.nivel == 'obrigatorio' else 'Desejável' }}
-            · Aguardando análise
-          </p>
-        </article>
+        <details class="requirement-result candidate-requirement-card">
+          <summary class="candidate-requirement-heading">
+            <h3>{{ text(item.text) }}</h3>
+            <span class="requirement-meta">{{ 'Obrigatório' if item.nivel == 'obrigatorio' else 'Desejável' }}</span>
+            <span class="candidate-overview-status is-pending">Aguardando análise</span>
+          </summary>
+          <div class="candidate-requirement-card-content">
+            <p class="candidate-requirement-status">Aguardando análise.</p>
+          </div>
+        </details>
       {% endfor %}
     {% endif %}
   {% endif %}

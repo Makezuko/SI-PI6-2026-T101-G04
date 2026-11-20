@@ -234,6 +234,17 @@ def update_job(client, job_id, title, description, status='Aberta', requirements
     return job_for_template(response.data[0])
 
 
+def delete_job(client, job_id):
+    return client.rpc('delete_job_with_candidates', {'p_job_id': int(job_id)}).execute()
+
+
+def delete_candidate(client, job_id, resume_id):
+    return client.rpc(
+        'delete_candidate',
+        {'p_job_id': int(job_id), 'p_candidate_id': int(resume_id)},
+    ).execute()
+
+
 def list_resumes(client, job_id):
     response = client.table('curriculos').select(RESUME_FIELDS).eq('vaga_id', int(job_id)).order('id', desc=True).execute()
     rows = response.data or []

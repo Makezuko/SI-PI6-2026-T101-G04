@@ -5,14 +5,23 @@
 {% block topbar %}
 <div class="topbar">
   <div>
-    <div class="eyebrow">Detalhes do candidato</div>
-    <h1 class="h1">{{ job.title }}</h1>
+    <div class="eyebrow">Candidatura · {{ candidate.submitted_at }}</div>
+    <div class="candidate-job-heading">
+      <h1 class="h1">{{ job.title }}</h1>
+      {% set status_class = candidate.status|lower %}
+      <span class="status-badge {{ status_class }} candidate-job-status">
+        <span></span>
+        Candidato: {{ candidate.status }}
+      </span>
+    </div>
+    <a class="candidate-back-link" href="{{ url_for('vagas', job_id=job.id) }}">
+      <span aria-hidden="true">←</span> Voltar aos candidatos
+    </a>
   </div>
 </div>
 {% endblock %}
 
 {% block content %}
-{% set level = 'mid' %}
 {# Proteção também no template: processos antigos podem fornecer o JSON legado. #}
 {% if candidate.analysis and (candidate.analysis.score_name != 'aderencia_documental'
       or candidate.analysis.formula_version != '3.1-experimental'
@@ -20,6 +29,11 @@
       or candidate.analysis.weights is not mapping) %}
 {% set candidate = dict(candidate, analysis=none, score=none, mandatory_status=none, analysis_state='Desatualizada') %}
 {% endif %}
+{% set level = 'pending' if candidate.score is none
+  else ('low' if candidate.score < 50 else ('mid' if candidate.score < 70 else 'high')) %}
+{% set score_description = {'low': 'Baixa aderência documental',
+  'mid': 'Aderência documental intermediária',
+  'high': 'Alta aderência documental'} %}
 
 <div class="cand-detail candidate-detail-page">
   <div class="cand-detail-card">
@@ -31,11 +45,8 @@
         <div class="candidate-heading-info">
           <div class="candidate-name-line">
             <div class="cand-detail-name">{{ candidate.name }}</div>
-
-            {% set status_class = candidate.status|lower %}
-            <span class="status-badge {{ status_class }}">
-              <span></span>
-              Decisão: {{ candidate.status }} · Análise: {{ candidate.analysis_state }}
+            <span class="candidate-analysis-state">
+              Análise: {{ candidate.analysis_state }}
             </span>
           </div>
 
@@ -63,7 +74,9 @@
     <div class="cand-detail-body candidate-detail-body">
       <section class="candidate-section adherence-box">
         {% set gauge_score = candidate.score if candidate.score is not none else 0 %}
-        {% set gauge_color = 'var(--high)' if gauge_score >= 75 else ('var(--mid)' if gauge_score >= 45 else 'var(--low)') %}
+        {% set gauge_color = 'var(--low)' if candidate.score is not none and gauge_score < 50
+          else ('var(--mid)' if candidate.score is not none and gauge_score < 70
+          else ('var(--high)' if candidate.score is not none else 'var(--brand-300)')) %}
         <div class="adherence-gauge-layout">
           <div class="gauge-wrap" aria-label="Aderência documental">
             <svg class="gauge-svg" viewBox="0 0 220 124" role="img" aria-label="Medidor de aderência">
@@ -80,7 +93,7 @@
             <div class="gauge-center">
               {% if candidate.score is not none %}
               <div class="gauge-value">{{ '%.2f%%'|format(candidate.score) }}</div>
-              <div class="gauge-caption">{{ 'Mínimo confirmado' if candidate.analysis and candidate.analysis.provisional else 'Aderência documental' }}</div>
+              <div class="gauge-caption">{{ 'Mínimo confirmado' if candidate.analysis and candidate.analysis.provisional else score_description[level] }}</div>
               {% else %}
               <div class="gauge-value is-pending">{{ candidate.analysis_state }}</div>
               <div class="gauge-caption">Aderência documental</div>
@@ -102,6 +115,12 @@
               <span class="kpi-chip provisional">Máximo possível: {{ ('%.2f'|format(candidate.analysis.maximum_score))|replace('.', ',') }}% · {{ pending }} pendente(s)</span>
               {% endif %}
             </div>
+            {% if candidate.analysis.mandatory_alert_ids %}
+            <div class="candidate-mandatory-notice">
+              {{ candidate.analysis.mandatory_alert_ids|length }} requisito(s) obrigatório(s) sem confirmação.
+              Não é uma rejeição automática; revise os itens na aba Requisitos &amp; Evidências.
+            </div>
+            {% endif %}
             {% if candidate.analysis.undecided %}
             <strong style="font-size:13px;">Nenhum requisito decidido. Avaliação pendente. Resultado provisório.</strong>
             {% elif candidate.analysis.provisional %}
@@ -235,8 +254,13 @@
       </div>
 
       <div class="cand-tab-panel" data-cand-panel="requisitos" role="tabpanel">
-      <section class="candidate-section candidate-requirements-section">
-        <div class="section-label">Evidências por requisito</div>
+      {% include '_requirement_overview.html' %}
+      <details class="candidate-requirements-disclosure">
+        <summary class="candidate-requirements-summary">
+          <span>Evidências por requisito</span>
+          <span class="candidate-requirements-count">{{ req_count }} requisito(s)</span>
+        </summary>
+        <section class="candidate-section candidate-requirements-section">
         {% if candidate.analysis %}
         <div class="candidate-technical-box">
           <p class="field-hint">{{ 'Avaliação contextual local · experimental' if candidate.analysis.contextual_configuration is defined else 'Avaliação por regras legadas · interpretação contextual desativada nesta análise' }}</p>
@@ -253,7 +277,8 @@
         <p class="req-list candidate-warning-box"><strong>{{ warning }}</strong> <a href="{{ url_for('editar_vaga', job_id=job.id) }}">Revisar vaga</a></p>
         {% endfor %}
         {% include '_adherence_requirements.html' %}
-      </section>
+        </section>
+      </details>
       </div>
 
       <div class="cand-tab-panel" data-cand-panel="curriculo" role="tabpanel">
@@ -312,6 +337,16 @@
     </div>
 
     <script>
+      document.querySelectorAll('.candidate-requirement-overview a[href^="#requirement-"]').forEach(link => {
+        link.addEventListener('click', () => {
+          const disclosure = document.querySelector('.candidate-requirements-disclosure');
+          if (disclosure) disclosure.open = true;
+          const requirement = document.querySelector(link.getAttribute('href'));
+          const card = requirement && requirement.closest('.candidate-requirement-card');
+          if (card) card.open = true;
+        });
+      });
+
       document.querySelectorAll('[data-cand-tab]').forEach(btn => {
         btn.addEventListener('click', () => {
           const target = btn.getAttribute('data-cand-tab');
@@ -374,31 +409,31 @@
       })();
     </script>
 
+    {% if candidate.status not in ['Aprovado', 'Descartado'] %}
     <div class="cand-detail-foot candidate-detail-footer">
       <form method="POST"
             action="{{ url_for('atualizar_status_candidato', job_id=job.id, candidate_id=candidate.id) }}"
             class="candidate-status-form">
-        {% if candidate.status == 'Aprovado' %}
-          <button type="submit" name="status" value="Pendente"
-                  class="btn btn-outline candidate-action-button">
-            Reverter para Triagem às Cegas
-          </button>
+        <button type="submit" name="status" value="Aprovado"
+                class="btn btn-primary candidate-action-button">
+          Aprovar para Entrevista
+        </button>
 
-          <button type="submit" name="status" value="Descartado"
-                  class="btn btn-outline candidate-action-button candidate-discard-button">
-            Descartar Candidato
-          </button>
-        {% else %}
-          <button type="submit" name="status" value="Aprovado"
-                  class="btn btn-primary candidate-action-button">
-            Aprovar para Entrevista
-          </button>
-
-          <button type="submit" name="status" value="Descartado"
-                  class="btn btn-outline candidate-action-button candidate-discard-button">
-            Descartar Candidato
-          </button>
-        {% endif %}
+        <button type="submit" name="status" value="Descartado"
+                class="btn btn-outline candidate-action-button candidate-discard-button">
+          Descartar Candidato
+        </button>
+      </form>
+    </div>
+    {% endif %}
+    <div class="cand-detail-foot candidate-delete-footer">
+      <form method="POST"
+            action="{{ url_for('excluir_candidato', job_id=job.id, candidate_id=candidate.id) }}"
+            class="candidate-delete-form"
+            onsubmit="return confirm('Excluir este candidato? O currículo e a análise vinculada serão removidos permanentemente.')">
+        <button type="submit" class="btn btn-outline candidate-delete-button">
+          Excluir candidato
+        </button>
       </form>
     </div>
 

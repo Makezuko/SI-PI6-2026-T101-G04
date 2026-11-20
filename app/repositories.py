@@ -164,6 +164,9 @@ def list_jobs(client):
             break
         offset += batch_size
 
+    if not result:
+        return result
+
     try:
         resumes_resp = client.table('curriculos').select('vaga_id').execute()
         counts = {}
@@ -287,6 +290,42 @@ def list_analyses(client, job_id):
         return client.table('analises_aderencia').select(
             'id,vaga_id,curriculo_id,requirements_hash,text_hash,config_hash,result,analisado_em'
         ).eq('vaga_id', int(job_id)).order('analisado_em', desc=True).execute().data or []
+    except Exception as error:
+        if str(getattr(error, 'code', '')) in {'42703', '42P01', 'PGRST204', 'PGRST205'}:
+            raise AnalysisSchemaError(
+                'Esquema de análises incompatível. Confira o esquema legado e aplique '
+                'sql/004_integracao_aderencia.sql antes de usar a integração.'
+            ) from error
+        raise
+
+
+def _fetch_paginated(query_factory, batch_size=500):
+    rows, offset = [], 0
+    while True:
+        batch = query_factory().range(offset, offset + batch_size - 1).execute().data or []
+        rows.extend(batch)
+        if len(batch) < batch_size:
+            break
+        offset += batch_size
+    return rows
+
+
+def list_resumes_for_dashboard(client):
+    """Consulta enxuta para cálculo de média no painel sem rodar extração de texto/skills."""
+    rows = _fetch_paginated(
+        lambda: client.table('curriculos').select('id,vaga_id,texto_extraido').order('id')
+    )
+    return [{'id': str(r.get('id') or ''), 'job_id': str(r.get('vaga_id') or ''), 'raw_text': r.get('texto_extraido') or ''}
+            for r in rows]
+
+
+def list_analyses_for_dashboard(client):
+    try:
+        return _fetch_paginated(
+            lambda: client.table('analises_aderencia').select(
+                'id,vaga_id,curriculo_id,requirements_hash,text_hash,config_hash,result,analisado_em'
+            ).order('id')
+        )
     except Exception as error:
         if str(getattr(error, 'code', '')) in {'42703', '42P01', 'PGRST204', 'PGRST205'}:
             raise AnalysisSchemaError(

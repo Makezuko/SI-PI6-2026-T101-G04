@@ -12,6 +12,7 @@ from app.requisitos import parse_requirements
 from src.data.clean import anonymize_resume_text
 from src.data.privacy import anonymize_for_analysis, personal_spans, valid_entity, latest_role, sanitize_semantic_inputs, uploaded_name_entities
 from src.matching.adherence import calculate_adherence, evaluate_requirements, FORMULA_VERSION, DEFAULT_WEIGHTS, STATES
+from src.matching.llm_justification import generate_llm_justification, is_justification_available
 from src.nlp.skills_extractor import extract_skills
 from src.matching.documental_rules import unsafe
 from src.matching.telemetry import event, execution_id, stage
@@ -145,6 +146,9 @@ def analyze(job, resume):
     }
     result['last_role'] = latest_role(raw, entities)
     result['execution_id'] = execution_id.get()
+    result['llm_justification'] = generate_llm_justification(
+        job, anonymized_text=text, candidate=resume, analysis_result=result
+    )
     return {**versions(job, resume, config), **{k: v for k, v in config.items() if k != 'contextual'}, 'result': result}
 
 
@@ -235,6 +239,7 @@ def attach_analysis(client, job, candidates):
         candidate['analysis_id'] = record.get('id') if record else None
         candidate['analysis'] = record['result'] if record else None
         result = record['result'] if record else {}
+        candidate['llm_justification'] = result.get('llm_justification') if record else None
         candidate['last_role'] = result.get('last_role', 'Não identificado')
         candidate['score'] = result.get('score')
         candidate['ranking_score'] = candidate['score']
@@ -260,6 +265,49 @@ def attach_analysis(client, job, candidates):
     return sorted(candidates, key=ranking_order)
 
 
+def dashboard_scores(client, jobs):
+    """Calcula pontuações atuais para o painel com apenas 2 queries no banco."""
+    if not jobs:
+        return []
+    from app.repositories import list_analyses_for_dashboard, list_resumes_for_dashboard
+    resumes = list_resumes_for_dashboard(client)
+    analyses = list_analyses_for_dashboard(client)
+    config = configuration()
+    config_hash = fingerprint(config)
+    jobs_by_id = {str(job['id']): job for job in jobs}
+    req_hashes = {
+        str(job['id']): fingerprint(parse_requirements(job['requirements_data'])['items'])
+        for job in jobs
+    }
+    analyses_by_pair = {}
+    for row in analyses:
+        key = (str(row.get('vaga_id')), str(row.get('curriculo_id')))
+        analyses_by_pair.setdefault(key, []).append(row)
+
+    scores = []
+    for resume in resumes:
+        job_id = resume['job_id']
+        job = jobs_by_id.get(job_id)
+        if job is None:
+            continue
+        current = {
+            'requirements_hash': req_hashes[job_id],
+            'text_hash': fingerprint(resume['raw_text']),
+            'config_hash': config_hash,
+        }
+        previous = analyses_by_pair.get((job_id, resume['id']), [])
+        valid = [row for row in previous
+                 if all(row.get(k) == v for k, v in current.items())
+                 and result_matches_mode(row.get('result'), config)]
+        if not valid:
+            continue
+        record = max(valid, key=lambda row: (row.get('analisado_em') or '', int(row.get('id') or 0)))
+        result = record.get('result') or {}
+        if not result.get('undecided') and result.get('score') is not None:
+            scores.append(result['score'])
+    return scores
+
+
 def process_resume(client, job, resume):
     from app.repositories import save_analysis, get_resume
     event('ANALYSIS_EFFECTIVE_CONFIG', **process_configuration())
@@ -280,3 +328,32 @@ def process_resume(client, job, resume):
     event('ANALYSIS_SAVED', analysis_id=record.get('id'), persisted_run_id=payload['result']['execution_id'])
     # A decisão manual em curriculos.status nunca é alterada por processamento.
     return payload['result']
+
+
+def ensure_candidate_justification(client, job, candidate, transport=None):
+    """Tenta gerar a justificativa via Gemini quando indisponível ao acessar o currículo."""
+    current = candidate.get('llm_justification')
+    if is_justification_available(current):
+        return current
+    justification = generate_llm_justification(
+        job,
+        anonymized_text=candidate.get('anonymized_text'),
+        candidate=candidate,
+        analysis_result=candidate.get('analysis'),
+        transport=transport,
+    )
+    candidate['llm_justification'] = justification
+    if candidate.get('analysis') is not None and is_justification_available(justification):
+        candidate['analysis']['llm_justification'] = justification
+        try:
+            from app.repositories import save_analysis
+            config = configuration()
+            payload = {
+                **versions(job, candidate, config),
+                **{k: v for k, v in config.items() if k != 'contextual'},
+                'result': candidate['analysis'],
+            }
+            save_analysis(client, job['id'], candidate['id'], payload)
+        except Exception:
+            pass
+    return justification

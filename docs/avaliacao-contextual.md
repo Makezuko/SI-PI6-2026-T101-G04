@@ -139,7 +139,7 @@ não verdade validada.
 
 ## Integração e ativação
 
-Por padrão continua o avaliador legado. Para ensaio local explícito:
+O MVP exige o avaliador contextual. Para iniciar localmente:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\iniciar_contextual.ps1

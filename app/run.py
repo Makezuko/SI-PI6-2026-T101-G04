@@ -9,6 +9,10 @@ def main():
     parser = argparse.ArgumentParser(description='Servidor local com processo e porta explícitos.')
     parser.add_argument('--port', type=int, default=5002)
     args = parser.parse_args()
+    from app.analysis import configuration
+    config = configuration()['contextual']
+    if not config['enabled'] or not config['model'] or not config['revision'] or not Path(config['model']).exists() or (config['backend'] == 'llama_cpp' and (not config['runtime'] or not Path(config['runtime']).exists())):
+        parser.error('Contextual não configurado ou modelo/runtime ausente. Prepare os modelos e execute scripts/iniciar_contextual.ps1; veja docs/avaliacao-contextual.md.')
     logging.basicConfig(level=logging.INFO, format='%(message)s')
     from src.matching.telemetry import event
     trace_path = Path('reports/contextual-server.jsonl')

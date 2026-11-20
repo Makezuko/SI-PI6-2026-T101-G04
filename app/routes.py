@@ -4,7 +4,7 @@ from functools import wraps
 from flask import abort, flash, g, redirect, render_template, request, session, url_for, jsonify
 from supabase_auth.errors import AuthApiError
 
-from app.analysis import AnalysisError, attach_analysis, ensure_candidate_justification, process_resume
+from app.analysis import AnalysisError, attach_analysis, dashboard_scores, ensure_candidate_justification, process_resume
 from app import app
 from app.repositories import (
     AnalysisSchemaError,
@@ -63,7 +63,16 @@ def finish_login(client, response):
     session['user_name'] = profile.get('nome') or verified.email.split('@')[0]
     session['user_role'] = 'RH'
     session['user_initials'] = ''.join(part[0] for part in session['user_name'].split()[:2]).upper()
+    session['user_profile'] = profile
     auth_stage('SESSION_READY')
+
+
+def _cached_profile_matches(profile, user):
+    if not isinstance(profile, dict) or not profile.get('id'):
+        return False
+    if str(profile.get('auth_user_id') or '') != str(user.id):
+        return False
+    return (profile.get('email') or '').lower() == (user.email or '').lower()
 
 
 def login_required(view):
@@ -78,7 +87,7 @@ def login_required(view):
                 session.clear()
                 return redirect(url_for('login'))
             remember_tokens(response.session)
-            user = client.auth.get_user(response.session.access_token).user
+            user = getattr(response, 'user', None) or client.auth.get_user(response.session.access_token).user
             if not user or str(user.id) != session.get('auth_user_id'):
                 session.clear()
                 return redirect(url_for('login'))
@@ -90,7 +99,13 @@ def login_required(view):
             abort(503, description='Não foi possível verificar seu acesso. Tente novamente.')
         try:
             g.supabase = client
-            g.profile = ensure_profile(client, user)
+            use_cached = request.endpoint not in {'configuracoes', 'editar_perfil'}
+            cached_profile = session.get('user_profile') if use_cached else None
+            if _cached_profile_matches(cached_profile, user):
+                g.profile = cached_profile
+            else:
+                g.profile = ensure_profile(client, user)
+                session['user_profile'] = g.profile
         except LegacyProfileError:
             abort(409, description='Perfil antigo: peça à equipe para vincular seu e-mail ao Supabase Auth.')
         except Exception as error:
@@ -202,9 +217,7 @@ def database_job(job_id):
 def dashboard():
     jobs = database_jobs()
     total_resumes = sum(job.get('candidate_count', 0) for job in jobs)
-    scores = []
-    for job in jobs:
-        scores.extend(c['score'] for c in attach_analysis(g.supabase, job, list_resumes(g.supabase, job['id'])) if c['score'] is not None)
+    scores = dashboard_scores(g.supabase, jobs)
     average = f'{sum(scores) / len(scores):.2f}%' if scores else 'Indisponível'
     return render_template('dashboard.html', active_page='dashboard', jobs=jobs,
                            open_jobs_count=sum(job['status'] == 'Aberta' for job in jobs),
@@ -260,7 +273,9 @@ def vagas(job_id=None):
     jobs = database_jobs()
     if job_id is None:
         return redirect(url_for('vagas', job_id=jobs[0]['id'])) if jobs else redirect(url_for('nova_vaga'))
-    job = database_job(job_id)
+    job = next((item for item in jobs if item['id'] == str(job_id)), None)
+    if job is None:
+        job = database_job(job_id)
     candidates = attach_analysis(g.supabase, job, list_resumes(g.supabase, job['id']))
     return render_template('vagas.html', active_page='candidatos', job=job,
                            jobs=jobs, candidates=candidates)
@@ -400,6 +415,7 @@ def editar_perfil():
             abort(503, description='Não foi possível confirmar a atualização do perfil. Reabra a tela antes de tentar novamente.')
 
         g.profile = updated_profile
+        session['user_profile'] = updated_profile
         session['user_name'] = updated_profile['nome']
         session['user_email'] = updated_profile['email']
         session['user_initials'] = ''.join(part[0] for part in updated_profile['nome'].split()[:2]).upper()

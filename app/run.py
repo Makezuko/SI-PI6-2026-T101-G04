@@ -20,12 +20,14 @@ def main():
     from app.auth_diagnostics import logger as auth_logger
     auth_logger.addHandler(trace_file)
     # make_server faz bind exclusivo, sem SO_REUSEADDR que permite colisões no Windows.
+    from socketserver import ThreadingMixIn
     from werkzeug.serving import BaseWSGIServer, WSGIRequestHandler
     class SafeHandler(WSGIRequestHandler):
         def log_request(self, code='-', size='-'):
             logging.getLogger('werkzeug').info('HTTP %s status=%s', self.command, code)
-    class ExclusiveServer(BaseWSGIServer):
+    class ExclusiveServer(ThreadingMixIn, BaseWSGIServer):
         allow_reuse_address = False
+        daemon_threads = True
         def server_bind(self):
             import socket
             if hasattr(socket, 'SO_EXCLUSIVEADDRUSE'):

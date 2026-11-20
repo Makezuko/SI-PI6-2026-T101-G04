@@ -2,6 +2,7 @@ import re
 from functools import wraps
 
 from flask import abort, flash, g, redirect, render_template, request, session, url_for, jsonify
+from postgrest.exceptions import APIError
 from supabase_auth.errors import AuthApiError
 
 from app.analysis import AnalysisError, attach_analysis, dashboard_scores, ensure_candidate_justification, process_resume
@@ -11,6 +12,8 @@ from app.repositories import (
     LegacyProfileError,
     create_job,
     create_resume,
+    delete_candidate,
+    delete_job,
     ensure_profile,
     get_job,
     get_resume,
@@ -315,6 +318,33 @@ def editar_vaga(job_id):
                            job=job, tipos=TIPOS, niveis=NIVEIS, status_options=STATUS_VAGA)
 
 
+@app.route('/vagas/<job_id>/excluir', methods=['POST'])
+@login_required
+def excluir_vaga(job_id):
+    job = database_job(job_id)
+    try:
+        delete_job(g.supabase, job['id'])
+    except APIError as error:
+        app.logger.warning('Falha Supabase ao excluir vaga: código %s', error.code)
+        if error.code == 'PGRST202':
+            abort(
+                503,
+                description='A exclusão ainda não está habilitada no banco. Aplique sql/005_excluir_vagas.sql no Supabase.',
+            )
+        abort(503, description='O Supabase não conseguiu excluir a vaga e os dados vinculados.')
+    except Exception as error:
+        app.logger.warning('Falha ao excluir vaga: %s', type(error).__name__)
+        abort(503, description='Não foi possível excluir a vaga e os dados vinculados.')
+    if job['candidate_count']:
+        flash(
+            f"Vaga excluída. {job['candidate_count']} currículo(s) e análises vinculados foram removidos.",
+            'success',
+        )
+    else:
+        flash('Vaga excluída com sucesso.', 'success')
+    return redirect(url_for('dashboard'))
+
+
 @app.route('/candidatos')
 @login_required
 def candidatos():
@@ -499,3 +529,26 @@ def atualizar_status_candidato(job_id, candidate_id):
         app.logger.warning('Falha ao atualizar status: %s', type(error).__name__)
         abort(503, description='Não foi possível atualizar o status do candidato.')
     return redirect(url_for('candidato_detalhe', job_id=job['id'], candidate_id=candidate_id))
+
+
+@app.route('/vagas/<job_id>/candidato/<candidate_id>/excluir', methods=['POST'])
+@login_required
+def excluir_candidato(job_id, candidate_id):
+    job = database_job(job_id)
+    try:
+        delete_candidate(g.supabase, job['id'], candidate_id)
+    except APIError as error:
+        app.logger.warning('Falha Supabase ao excluir candidato: código %s', error.code)
+        if error.code == 'PGRST202':
+            abort(
+                503,
+                description='A exclusão de candidatos ainda não está habilitada no banco. Aplique sql/005_excluir_vagas.sql no Supabase.',
+            )
+        abort(503, description='O Supabase não conseguiu excluir o candidato e sua análise.')
+    except (LookupError, ValueError) as error:
+        abort(404, description=str(error))
+    except Exception as error:
+        app.logger.warning('Falha ao excluir candidato: %s', type(error).__name__)
+        abort(503, description='Não foi possível excluir o candidato e sua análise.')
+    flash('Candidato excluído com sucesso.', 'success')
+    return redirect(url_for('vagas', job_id=job['id']))

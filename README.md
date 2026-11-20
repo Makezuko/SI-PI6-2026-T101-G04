@@ -66,6 +66,7 @@ Antes de usar a aplicação com um projeto Supabase, revise as migrações no di
 2. [`sql/002_editar_vagas.sql`](sql/002_editar_vagas.sql): edição de vagas.
 3. [`sql/003_editar_perfil.sql`](sql/003_editar_perfil.sql): edição de perfil.
 4. [`sql/004_integracao_aderencia.sql`](sql/004_integracao_aderencia.sql): persistência de currículos e análises.
+5. [`sql/005_excluir_vagas.sql`](sql/005_excluir_vagas.sql): exclusão de vagas próprias e exclusão individual de candidatos, sempre removendo os currículos e análises vinculados, após confirmação.
 
 A migração 004 depende do esquema legado, especialmente da existência e do vínculo de `curriculos.vaga_id`. Antes de aplicá-la, siga a inspeção e as pré-condições descritas em [`docs/integracao-aderencia.md`](docs/integracao-aderencia.md). Não execute migrações sem autorização/revisão e não desative RLS para contornar erros. A aplicação das migrações e as políticas RLS no Supabase real ainda precisam ser confirmadas pela equipe; os testes locais usam um cliente simulado.
 

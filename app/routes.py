@@ -23,7 +23,6 @@ from app.repositories import (
 from app.requisitos import NIVEIS, STATUS_VAGA, TIPOS, build_requirements, rows_from_form
 from app.supabase_client import create_supabase_client
 from src.data.clean import parse_resume_pdf
-from src.matching.documental_rules import suggest_condition
 from src.matching.telemetry import event, execution_id
 from app.auth_diagnostics import stage as auth_stage, failure as auth_failure
 
@@ -321,15 +320,6 @@ def editar_vaga(job_id):
 def candidatos():
     jobs = database_jobs()
     return redirect(url_for('vagas', job_id=jobs[0]['id'])) if jobs else redirect(url_for('nova_vaga'))
-
-
-@app.route('/requisitos/sugerir-condicao', methods=['POST'])
-@login_required
-def suggest_requirement_condition():
-    text = request.form.get('text', '')
-    if len(text) > 300:
-        abort(400)
-    return jsonify(condition=suggest_condition(text))
 
 
 @app.route('/configuracoes')

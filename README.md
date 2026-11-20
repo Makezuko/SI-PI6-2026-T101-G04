@@ -2,9 +2,7 @@
 
 Aplicação Flask para triagem de currículos. As instruções abaixo são para Windows.
 
-O [fluxo contextual experimental](docs/avaliacao-contextual.md) prepara avaliação
-de sustentação por modelo local, separada da recuperação semântica. Está desativado
-por padrão; a qualidade das decisões ainda precisa de avaliação humana.
+O MVP usa PDF → NER e extração híbrida → Sentence Transformer e cosseno para recuperar evidências → Qwen local para avaliar sustentação → aderência ponderada → ranking. A qualidade das decisões ainda precisa de validação humana.
 
 Para o bloqueio de processo/porta e a comprovação de POST, modelo, gravação e tela,
 veja o [diagnóstico operacional](docs/diagnostico-operacional-contextual.md).
@@ -56,6 +54,10 @@ FLASK_SECRET_KEY=UMA_CHAVE_ALEATORIA_LONGA
 
 Cada integrante precisa configurar seu próprio `.env`. Não envie nem compartilhe esse arquivo. Use uma chave publicável do Supabase; não use `service_role` ou `sb_secret` na aplicação. Gere `FLASK_SECRET_KEY` localmente, por exemplo com `python -c "import secrets; print(secrets.token_hex(32))"`.
 
+## Parecer Gemini
+
+Opcionalmente, adicione `GEMINI_API_KEY=SUA_CHAVE` ao `.env` local e reinicie o servidor. `GEMINI_MODEL` permite selecionar outro modelo disponível na API. Para testar, processe um currículo e abra seus detalhes; confira o parecer textual. Sem chave, acesso à API ou resposta válida, a tela informa a indisponibilidade. Qwen avalia a sustentação dos requisitos, a fórmula calcula a pontuação e Gemini produz o parecer textual; sua indisponibilidade não altera a pontuação. Não compartilhe a chave. Para testar a integração sem chamar a API, execute `.\.venv-contextual\Scripts\python.exe -m unittest discover -s tests -p test_llm_justification.py`.
+
 ## Banco Supabase
 
 Antes de usar a aplicação com um projeto Supabase, revise as migrações no diretório `sql/` e aplique as necessárias pelo SQL Editor:
@@ -93,15 +95,16 @@ As consultas dependem das políticas RLS configuradas no Supabase. Não desative
 
 ## Funcionalidades e limites atuais
 
-As telas de cadastro/login, perfil, vagas e currículos estão ligadas às rotas da aplicação. As vagas e os perfis usam Supabase; currículos e análises também dependem da migração de integração e das permissões correspondentes. A tela de análise aceita arquivos PDF, exige requisitos cadastrados e revisados manualmente e apresenta decisões documentais e evidências para revisão humana. No modo contextual, a recuperação semântica fornece trechos ao avaliador local; condições manuais legadas são opcionais e não participam dessa avaliação.
+As telas de cadastro/login, perfil, vagas e currículos estão ligadas às rotas da aplicação. As vagas e os perfis usam Supabase; currículos e análises também dependem da migração de integração e das permissões correspondentes. A tela de análise aceita arquivos PDF, exige requisitos cadastrados e revisados manualmente e apresenta decisões documentais e evidências para revisão humana. A recuperação semântica fornece trechos ao Qwen; condições antigas não participam das decisões.
 
 O índice não é uma probabilidade de contratação nem uma decisão sobre o candidato. O arquivo PDF original não é exibido na tela de detalhes. A qualidade dos modelos em português e a integração com o Supabase real ainda precisam de validação ponta a ponta.
 
 ## Executar
 
-Para o fluxo contextual, o comando oficial é `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\iniciar_contextual.ps1`, após preparar os modelos e o runtime conforme [o guia contextual](docs/avaliacao-contextual.md). Para iniciar com a configuração padrão (legada), com o ambiente virtual ativado:
+Prepare os modelos e o runtime conforme [o guia contextual](docs/avaliacao-contextual.md), depois execute:
+
 ```powershell
-python -m app.run
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\iniciar_contextual.ps1
 ```
 
 Depois, acesse http://127.0.0.1:5002. O servidor usa processo único sem debug/reloader.

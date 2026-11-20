@@ -11,7 +11,7 @@ from threading import RLock
 from app.requisitos import parse_requirements
 from src.data.clean import anonymize_resume_text
 from src.data.privacy import anonymize_for_analysis, personal_spans, valid_entity, latest_role, sanitize_semantic_inputs, uploaded_name_entities
-from src.matching.adherence import calculate_adherence, evaluate_requirements, FORMULA_VERSION, DEFAULT_WEIGHTS, STATES
+from src.matching.adherence import FORMULA_VERSION, DEFAULT_WEIGHTS, STATES
 from src.matching.llm_justification import generate_llm_justification, is_justification_available
 from src.nlp.skills_extractor import extract_skills
 from src.matching.documental_rules import unsafe
@@ -51,7 +51,7 @@ def process_configuration():
 def versions(job, resume, config=None):
     requirements = parse_requirements(job['requirements_data'])
     return {
-        'requirements_hash': fingerprint(requirements['items']),
+        'requirements_hash': fingerprint([{k: v for k, v in item.items() if k != 'condition'} for item in requirements['items']]),
         'text_hash': fingerprint(resume['raw_text']),
         'config_hash': fingerprint(configuration() if config is None else config),
     }
@@ -83,6 +83,8 @@ def load_models(ner_path, embedding_model):
 def analyze(job, resume):
     requirements = confirmed_requirements(job)
     config = configuration()
+    if not config['contextual']['enabled']:
+        raise AnalysisError('Avaliador contextual não configurado. Prepare modelos e runtime e execute scripts/iniciar_contextual.ps1; consulte docs/avaliacao-contextual.md.')
     with MODEL_LOCK:
         with stage('input_extraction'):
             predictor, embedder = load_models(config['ner_model'], config['embedding_model'])
@@ -102,7 +104,7 @@ def analyze(job, resume):
             inputs = sanitize_semantic_inputs(inputs)
             if not inputs and not config['contextual']['enabled']:
                 raise AnalysisError('Nenhuma evidência profissional extraída; análise permanece pendente.')
-            safe_requirements = [dict(item) for item in requirements]
+            safe_requirements = [{k: v for k, v in item.items() if k != 'condition'} for item in requirements]
         from src.matching.semantic import compare, aggregate_requirement_windows
         with stage('requirement_embeddings'):
             queries = embedder.encode([{'text': item['text'], 'source': 'requirement',
@@ -136,8 +138,6 @@ def analyze(job, resume):
             except ContextualTechnicalError as error:
                 event('ANALYSIS_TECHNICAL_ERROR', error_code=error.code)
                 raise AnalysisError(f'Falha técnica contextual [{error.code}]. Execução {execution_id.get()}. Nenhuma nova análise foi salva.') from None
-    else:
-        result = calculate_adherence(safe_requirements, evaluate_requirements(safe_requirements, results, inputs))
     result['extraction_diagnostic'] = {
         'requirements_received': [item['id'] for item in safe_requirements],
         'entries_by_source': {source: sum(entry['source'] == source for entry in inputs)
@@ -209,7 +209,7 @@ def result_matches_mode(result, config):
     ctx = config['contextual']
     actual = result.get('contextual_configuration')
     if not ctx['enabled']:
-        return actual is None
+        return False
     from src.matching.contextual import FORMULA_VERSION as CONTEXTUAL_FORMULA, validate
     if actual != ctx or result.get('contextual_formula_version') != CONTEXTUAL_FORMULA:
         return False
@@ -276,7 +276,7 @@ def dashboard_scores(client, jobs):
     config_hash = fingerprint(config)
     jobs_by_id = {str(job['id']): job for job in jobs}
     req_hashes = {
-        str(job['id']): fingerprint(parse_requirements(job['requirements_data'])['items'])
+        str(job['id']): fingerprint([{k: v for k, v in item.items() if k != 'condition'} for item in parse_requirements(job['requirements_data'])['items']])
         for job in jobs
     }
     analyses_by_pair = {}

@@ -12,7 +12,6 @@ reaproveitado, para que comparações futuras com currículos possam referenciá
 """
 import json
 import re
-from src.matching.documental_rules import condition_from_form, validate_condition
 
 TIPOS = {'tecnico': 'Técnico', 'comportamental': 'Comportamental'}
 NIVEIS = {'obrigatorio': 'Obrigatório', 'desejavel': 'Desejável'}
@@ -104,8 +103,6 @@ def parse_requirements(raw):
             'tipo': entry.get('tipo') if entry.get('tipo') in TIPOS else None,
             'nivel': entry.get('nivel') if entry.get('nivel') in NIVEIS else 'obrigatorio',
         }
-        if entry.get('condition') is not None:
-            item['condition'] = validate_condition(entry['condition'])
         items.append(item)
     stored_next = data.get('proximo_id')
     _assign_ids(items, next_id=stored_next)
@@ -118,14 +115,9 @@ def rows_from_form(form):
     columns = [form.getlist(name) for name in ('req_id', 'req_text', 'req_tipo', 'req_nivel')]
     if len({len(column) for column in columns}) != 1:
         raise ValueError('Formulário de requisitos inválido. Recarregue a página e tente de novo.')
-    modes, terms = form.getlist('req_condition_mode'), form.getlist('req_condition_terms')
-    if (modes or terms) and (len(modes) != len(columns[0]) or len(terms) != len(columns[0])):
-        raise ValueError('Condições desalinhadas. Recarregue o formulário.')
     rows = []
     for index, (identifier, text, tipo, nivel) in enumerate(zip(*columns)):
         row = {'id': identifier.strip(), 'text': text, 'tipo': tipo, 'nivel': nivel}
-        if modes and clean_text(text):
-            row['condition'] = condition_from_form(modes[index], terms[index])
         rows.append(row)
     return rows
 
@@ -154,9 +146,6 @@ def build_requirements(rows, known_ids=(), next_id=None):
             continue
         seen.add(key)
         item = {'id': row.get('id'), 'text': text, 'tipo': tipo, 'nivel': nivel}
-        condition = validate_condition(row.get('condition'))
-        if condition is not None:
-            item['condition'] = condition
         items.append(item)
     if len(items) > MAX_ITEMS:
         raise ValueError(f'Use no máximo {MAX_ITEMS} requisitos por vaga.')

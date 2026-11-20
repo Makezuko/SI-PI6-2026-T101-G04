@@ -1,6 +1,5 @@
 
 {% extends "base.html" %}
-{% from "_requirement_condition.html" import condition_fields %}
 {% block title %}Editar Vaga · TalentMatch AI{% endblock %}
 
 {% block topbar %}
@@ -13,7 +12,6 @@
 {% endblock %}
 
 {% block content %}
-<script src="{{ url_for('static', filename='requirement-conditions.js') }}"></script>
 
 <div class="edit-job-page">
   {% if error %}
@@ -130,7 +128,6 @@
                 </svg>
               </button>
 
-              {{ condition_fields(r if r is defined else {}) }}
             </div>
             {% endfor %}
           {% else %}
@@ -168,7 +165,6 @@
                 </svg>
               </button>
 
-              {{ condition_fields(r if r is defined else {}) }}
             </div>
             {% endfor %}
           {% endif %}
@@ -208,7 +204,6 @@
               </svg>
             </button>
 
-            {{ condition_fields({}) }}
           </div>
         </template>
 
@@ -336,8 +331,6 @@
         row.querySelector('.req-text').value = '';
         row.querySelector('.req-tipo').value = '';
         row.querySelector('.req-nivel').value = 'obrigatorio';
-        row.querySelector('[name=req_condition_mode]').value = 'auto';
-        row.querySelector('[name=req_condition_terms]').value = '';
       }
 
       refresh();

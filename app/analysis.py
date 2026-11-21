@@ -9,13 +9,10 @@ from pathlib import Path
 from threading import RLock
 
 from app.requisitos import parse_requirements
-from src.data.clean import anonymize_resume_text
-from src.data.privacy import anonymize_for_analysis, personal_spans, valid_entity, latest_role, sanitize_semantic_inputs, uploaded_name_entities
 from src.matching.adherence import FORMULA_VERSION, DEFAULT_WEIGHTS, STATES
+from src.matching.facade import PipelineExecutionError, TalentMatchPipelineFacade
 from src.matching.llm_justification import generate_llm_justification, is_justification_available
-from src.nlp.skills_extractor import extract_skills
-from src.matching.documental_rules import unsafe
-from src.matching.telemetry import event, execution_id, stage
+from src.matching.telemetry import event
 
 MODEL_LOCK = RLock()
 PIPELINE_VERSION = 'web-8-contextual-window-mean'
@@ -83,72 +80,21 @@ def load_models(ner_path, embedding_model):
 def analyze(job, resume):
     requirements = confirmed_requirements(job)
     config = configuration()
-    if not config['contextual']['enabled']:
-        raise AnalysisError('Avaliador contextual não configurado. Prepare modelos e runtime e execute scripts/iniciar_contextual.ps1; consulte docs/avaliacao-contextual.md.')
-    with MODEL_LOCK:
-        with stage('input_extraction'):
-            predictor, embedder = load_models(config['ner_model'], config['embedding_model'])
-            prediction = predictor.predict(text=resume['raw_text'], minimum_confidence=0.0)
-            raw = resume['raw_text']
-            entities = prediction['entities'] + uploaded_name_entities(raw, resume.get('anonymized_text'))
-            text = anonymize_for_analysis(raw, entities)
-            spans = personal_spans(raw, entities)
-            skills = [dict(label='SKILLS', text=anonymize_resume_text(entity['text']),
-                           confidence=entity.get('confidence', 0))
-                      for entity in entities if entity['label'] == 'SKILLS'
-                      and valid_entity(raw, entity)
-                      and not unsafe(raw[raw.rfind('\n', 0, entity['start']) + 1:
-                                         raw.find('\n', entity['end']) if '\n' in raw[entity['end']:] else len(raw)])
-                      and not any(a < entity['end'] and entity['start'] < b for a, b in spans)]
-            inputs = extract_skills(text=text, ner_entities=skills)['semantic_inputs']
-            inputs = sanitize_semantic_inputs(inputs)
-            if not inputs and not config['contextual']['enabled']:
-                raise AnalysisError('Nenhuma evidência profissional extraída; análise permanece pendente.')
-            safe_requirements = [{k: v for k, v in item.items() if k != 'condition'} for item in requirements]
-        from src.matching.semantic import compare, aggregate_requirement_windows
-        with stage('requirement_embeddings'):
-            queries = embedder.encode([{'text': item['text'], 'source': 'requirement',
-                                        'requirement_id': item['id']} for item in safe_requirements])
-        with stage('requirement_window_validation'):
-            query_vectors = aggregate_requirement_windows(safe_requirements, queries)
-            event('ANALYSIS_SHAPE', stage='requirement_window_validation', count=len(requirements),
-                  windows=len(queries['records']), dimension=len(query_vectors[0]))
-        if inputs:
-            with stage('evidence_embeddings'):
-                embedded = embedder.encode(inputs)
-                event('ANALYSIS_SHAPE', stage='evidence_embeddings', count=len(inputs),
-                      windows=len(embedded['records']), dimension=len(embedded['embeddings'][0]))
-            with stage('semantic_comparison'):
-                results, _ = compare(safe_requirements, query_vectors, embedded)
-        else:
-            results = [dict(id=item['id'], ranking=[]) for item in safe_requirements]
-    if config['contextual']['enabled']:
-        from src.matching.contextual import evaluate_batch
-        with MODEL_LOCK:
-            from src.matching.contextual import ContextualTechnicalError
-            ctx = config['contextual']
-            event('MODEL_LOAD_START')
-            try:
-                adapter = load_contextual_model(ctx['model'], ctx['revision'], ctx['backend'],
-                                               ctx['runtime'], ctx['runtime_revision'])
-                if adapter is None:
-                    raise ContextualTechnicalError('MODEL_LOAD_ERROR')
-                event('MODEL_LOAD_OK')
-                result = evaluate_batch(safe_requirements, results, inputs, adapter)
-            except ContextualTechnicalError as error:
-                event('ANALYSIS_TECHNICAL_ERROR', error_code=error.code)
-                raise AnalysisError(f'Falha técnica contextual [{error.code}]. Execução {execution_id.get()}. Nenhuma nova análise foi salva.') from None
-    result['extraction_diagnostic'] = {
-        'requirements_received': [item['id'] for item in safe_requirements],
-        'entries_by_source': {source: sum(entry['source'] == source for entry in inputs)
-                              for source in sorted({entry['source'] for entry in inputs})},
-        'entries_considered': len(inputs),
-    }
-    result['last_role'] = latest_role(raw, entities)
-    result['execution_id'] = execution_id.get()
-    result['llm_justification'] = generate_llm_justification(
-        job, anonymized_text=text, candidate=resume, analysis_result=result
+    facade = TalentMatchPipelineFacade(
+        models_loader=load_models,
+        contextual_loader=load_contextual_model,
+        justification_generator=generate_llm_justification,
+        lock=MODEL_LOCK,
     )
+    try:
+        result = facade.analyze_resume(
+            job=job,
+            resume=resume,
+            requirements=requirements,
+            config=config,
+        )
+    except PipelineExecutionError as exc:
+        raise AnalysisError(str(exc)) from None
     return {**versions(job, resume, config), **{k: v for k, v in config.items() if k != 'contextual'}, 'result': result}
 
 

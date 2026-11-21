@@ -2,6 +2,7 @@
 from copy import deepcopy
 import math
 
+from src.matching.aggregators import AdherenceScoreStrategy, WeightedConfirmedAdherence
 from src.matching.validation import by_id, number, nonempty_text, validate_ranking
 
 FORMULA_VERSION = '3.1-experimental'
@@ -9,8 +10,11 @@ DEFAULT_WEIGHTS = {'obrigatorio': 2.0, 'desejavel': 1.0}
 STATES = {'atendido', 'nao_identificado', 'revisao_necessaria'}
 
 
-def calculate_adherence(requirements, decisions, weights=None):
+def calculate_adherence(requirements, decisions, weights=None, strategy=None):
     """Cossenos não entram no cálculo. Ausência de decisão é erro, nunca zero."""
+    active_strategy = WeightedConfirmedAdherence() if strategy is None else strategy
+    if not isinstance(active_strategy, AdherenceScoreStrategy):
+        raise TypeError('strategy deve implementar o protocolo AdherenceScoreStrategy.')
     requirements = by_id(requirements, 'requirements')
     decisions = by_id(decisions, 'decisions')
     if not requirements or requirements.keys() != decisions.keys():
@@ -55,17 +59,19 @@ def calculate_adherence(requirements, decisions, weights=None):
     # Escala evita overflow para pesos finitos grandes.
     scale = max(configured.values())
     total = math.fsum(d['peso'] / scale for d in details)
-    pending = math.fsum(d['peso'] / scale for d in details if d['estado'] == 'revisao_necessaria')
-    confirmed = math.fsum(d['peso'] / scale for d in details if d['estado'] == 'atendido')
     for item in details:
         item['max_points'] = 100 * (item['peso'] / scale) / total
-        item['contribution_points'] = item['max_points'] if item['compatible'] else 0.0
+    score, maximum_score, contributions = active_strategy.compute(details, scale)
+    for item, contribution in zip(details, contributions):
+        item['contribution_points'] = contribution
+        item['method_version'] = active_strategy.version
     counts = {state: sum(d['estado'] == state for d in details) for state in sorted(STATES)}
     alerts = [d['id'] for d in details if d['nivel'] == 'obrigatorio' and not d['compatible']]
-    return dict(status='calculado', score=100 * confirmed / total,
-                score_name='aderencia_documental', formula_version=FORMULA_VERSION,
-                weights=configured, details=details, counts=counts, provisional=bool(pending),
-                maximum_score=100 * (confirmed + pending) / total,
+    pending = any(d['estado'] == 'revisao_necessaria' for d in details)
+    return dict(status='calculado', score=score,
+                score_name='aderencia_documental', formula_version=active_strategy.version,
+                weights=configured, details=details, counts=counts, provisional=pending,
+                maximum_score=maximum_score,
                 undecided=counts['revisao_necessaria'] == len(details),
                 pending_weight=math.fsum(d['peso'] for d in details if d['estado'] == 'revisao_necessaria'),
                 mandatory_alert_ids=alerts, mandatory_status='atencao' if alerts else 'atendido',

@@ -1,6 +1,6 @@
 # 4. Aplicação e análise dos princípios SOLID
 
-Esta análise considera o código disponível na branch `refactor/ana-solid-srp`, em 04/11/2026. O objetivo é registrar evidências e limitações, sem criar uma nova arquitetura. A alteração de produção está restrita à apresentação de datas em [app/repositories.py](../app/repositories.py).
+Esta análise consolida as evidências práticas dos princípios **SOLID** no repositório do **TalentMatch AI**, somando a refatoração inicial de SRP (PR #23) às implementações de **OCP** e **LSP** sobre o cálculo atual de aderência documental (`src/matching/adherence.py` e `src/matching/aggregators.py`). Os princípios **ISP** e **DIP** seguem pendentes para a próxima contribuição da equipe.
 
 ## 4.1 SRP — Princípio da Responsabilidade Única
 
@@ -16,84 +16,86 @@ Os testes de [tests/test_format_display_date.py](../tests/test_format_display_da
 
 ## 4.2 OCP — Princípio Aberto/Fechado
 
-O OCP propõe que seja possível estender comportamentos sem modificar a lógica central já validada.
+- **Problema antes:** em [src/matching/adherence.py](../src/matching/adherence.py), `calculate_adherence()` fixava uma única regra de cálculo da aderência documental (`FORMULA_VERSION = "3.1-experimental"`). Qualquer variação na política de pontuação (como impor teto quando um requisito obrigatório tem estado `nao_identificado`, ou ponderar parcialmente itens em `revisao_necessaria`) obrigava editar diretamente a função central já validada.
+- **Solução aplicada (depois):** foi criado o contrato `AdherenceScoreStrategy` em [src/matching/aggregators.py](../src/matching/aggregators.py) e o parâmetro opcional `strategy` em `calculate_adherence()` ([src/matching/adherence.py](../src/matching/adherence.py)). Novas políticas (`StrictMandatoryAdherence`, `ProvisionalWeightedAdherence` ou classes externas como `CustomCeilingAdherenceStrategy` nos testes) estendem o cálculo sem modificar `adherence.py`.
+- **Efeito no código:** preservou 100% da compatibilidade com a fórmula `3.1-experimental` (`WeightedConfirmedAdherence` é o padrão quando `strategy=None`), mantendo intactos os contratos do avaliador contextual e da interface web.
 
-Em [src/matching/semantic.py](../src/matching/semantic.py), `compare()` compara vetores e organiza evidências. Em [src/matching/score.py](../src/matching/score.py), `calculate_similarity_index()` agrega os resultados. Há separação entre essas etapas, e os pesos podem ser configurados pelo argumento `weights`. O teste `ScoreTests.test_weights_and_levels`, em [tests/test_score.py](../tests/test_score.py), verifica essa configuração.
+```python
+# src/matching/adherence.py
+def calculate_adherence(requirements, decisions, weights=None, strategy=None):
+    """Cossenos não entram no cálculo. Ausência de decisão é erro, nunca zero."""
+    active_strategy = WeightedConfirmedAdherence() if strategy is None else strategy
+    if not isinstance(active_strategy, AdherenceScoreStrategy):
+        raise TypeError('strategy deve implementar o protocolo AdherenceScoreStrategy.')
+    ...
+    score, maximum_score, contributions = active_strategy.compute(details, scale)
+```
 
-Entretanto, configurar pesos não equivale a adicionar um novo algoritmo. Não foi identificado nesses módulos um contrato de extensão com implementações alternativas: uma nova fórmula ou forma de comparação exigiria alterar a implementação ou estabelecer outro ponto de composição. Portanto, OCP para inclusão de novos comportamentos de matching permanece pendente. Uma melhoria futura seria definir um contrato de extensão quando existir uma necessidade real, em coordenação com o integrante responsável pelos padrões de projeto. Nenhum padrão Strategy ou Factory foi implementado nesta tarefa.
+> *Links permanentes (substituir `<COMMIT_HASH>` após o merge do PR #33 na `main`):*
+> - `https://github.com/Makezuko/SI-PI6-2026-T101-G04/blob/<COMMIT_HASH>/src/matching/adherence.py#L13-L64`
+> - `https://github.com/Makezuko/SI-PI6-2026-T101-G04/blob/<COMMIT_HASH>/src/matching/aggregators.py#L8-L35`
 
 ## 4.3 LSP — Princípio da Substituição de Liskov
 
-O LSP determina que implementações de uma abstração possam substituir umas às outras sem violar o contrato esperado pelos consumidores, incluindo entradas, saídas e condições de erro.
+- **Problema antes:** não havia abstrações com múltiplas implementações reais nem testes de contrato garantindo que implementações alternativas mantivessem as mesmas pré e pós-condições exigidas pelos consumidores.
+- **Solução aplicada (depois):** todas as implementações de `AdherenceScoreStrategy` (`WeightedConfirmedAdherence`, `StrictMandatoryAdherence` e `ProvisionalWeightedAdherence`, além de `CustomCeilingAdherenceStrategy`) em [src/matching/aggregators.py](../src/matching/aggregators.py) cumprem o mesmo contrato: recebem `details` validados e `scale > 0`, e retornam `(score, maximum_score, contributions)` com `0.0 <= score <= maximum_score <= 100.0`, sem mutar os dados de entrada e preservando `len(contributions) == len(details)` e `sum(contributions) == score`.
+- **Efeito no código:** qualquer estratégia pode substituir a padrão dentro de `calculate_adherence()` sem quebrar relatórios, ordenação ou invariantes numéricas. Isso é comprovado pela suíte de contrato `test_lsp_contract_for_all_adherence_strategies` em [tests/test_solid_matching.py](../tests/test_solid_matching.py).
 
-Não foram encontradas abstrações com múltiplas implementações substituíveis em `src/matching/`. O teste `ScoreTests.test_actual_compare_contract`, em [tests/test_score.py](../tests/test_score.py), verifica que a saída real de `compare()` pode alimentar `calculate_similarity_index()`. Isso comprova compatibilidade entre etapas, mas não comprova substituição entre implementações de uma abstração.
+```python
+# tests/test_solid_matching.py
+strategies: list[AdherenceScoreStrategy] = [
+    WeightedConfirmedAdherence(),
+    StrictMandatoryAdherence(),
+    ProvisionalWeightedAdherence(),
+    CustomCeilingAdherenceStrategy(),
+]
+for strategy in strategies:
+    output = calculate_adherence(req_copy, dec_copy, strategy=strategy)
+    self.assertGreaterEqual(output["score"], 0.0)
+    self.assertLessEqual(output["score"], output["maximum_score"] + 1e-9)
+    self.assertAlmostEqual(math.fsum(contributions), output["score"], places=6)
+```
 
-Em [tests/test_web_filters.py](../tests/test_web_filters.py), `FakeClient` e `FakeQuery` simulam parte da API do Supabase. Essa substituição é útil para testes, porém não demonstra equivalência de todos os comportamentos do cliente real, especialmente autorização e erros do serviço. Assim, LSP não está demonstrado de forma suficiente no escopo analisado. Se surgirem implementações alternativas, a melhoria necessária será explicitar o contrato e executar os mesmos testes de contrato contra cada implementação.
+> *Link permanente (substituir `<COMMIT_HASH>` após o merge do PR #33 na `main`):*
+> - `https://github.com/Makezuko/SI-PI6-2026-T101-G04/blob/<COMMIT_HASH>/tests/test_solid_matching.py#L108-L143`
 
 ## 4.4 ISP — Princípio da Segregação de Interfaces
 
 O ISP recomenda contratos pequenos e específicos, de forma que os consumidores dependam apenas das operações de que necessitam.
 
-As funções `compare()`, `evaluate_ranking()` e `calculate_similarity_index()` expõem operações separadas para comparação, avaliação e agregação. Essa organização favorece coesão, mas a existência de funções pequenas não comprova, por si só, segregação de interfaces.
-
-Nos repositórios, o parâmetro `client` oferece uma API ampla, e não há contratos explícitos separados para leitura e escrita de vagas ou currículos. Portanto, não foi identificada evidência suficiente para declarar ISP plenamente aplicado. Uma melhoria futura, caso a complexidade justifique, seria definir contratos mínimos orientados às operações usadas por cada consumidor. Nenhuma interface artificial foi adicionada apenas para esta documentação.
+As funções `compare()`, `evaluate_requirements()` e `calculate_adherence()` expõem operações separadas para recuperação, decisão documental e agregação. Contudo, nos repositórios, o parâmetro `client` oferece uma API ampla, e não há contratos explícitos separados para leitura e escrita. Portanto, a segregação de interfaces na persistência permanece pendente para a próxima contribuição da equipe.
 
 ## 4.5 DIP — Princípio da Inversão de Dependência
 
 O DIP recomenda que regras de alto nível e detalhes de infraestrutura dependam de abstrações, e que essas abstrações expressem as necessidades das regras de negócio.
 
-Em [app/repositories.py](../app/repositories.py), funções como `list_jobs()`, `get_job()` e `create_job()` recebem `client` por parâmetro. Isso permite fornecer dependências substitutas. Os testes web usam `patch` em `app.routes.create_supabase_client` para fornecer `FakeClient`, executando fluxos de autenticação e vagas sem conectar ao Supabase real.
-
-Essa injeção favorece testes, mas não comprova DIP completo. Os repositórios continuam acoplados às chamadas `table()`, `select()`, `eq()` e `execute()` e à estrutura `response.data`. Além disso, [app/routes.py](../app/routes.py) conhece a criação do cliente concreto e passa esse cliente às funções de persistência. O módulo de repositórios também combina validações e detalhes de persistência.
-
-O matching recebe dados e vetores como argumentos e não consulta diretamente o banco, o que reduz seu acoplamento à persistência. Ainda assim, não foi identificado um contrato de persistência definido pelas regras de alto nível. A evidência atual é de injeção de dependência e testabilidade; a inversão arquitetural permanece parcial. Uma melhoria futura seria estabelecer, quando necessário, contratos de acesso a dados e um adaptador Supabase responsável por atendê-los.
+Em [app/repositories.py](../app/repositories.py), funções como `list_jobs()`, `get_job()` e `create_job()` recebem `client` por parâmetro, permitindo fornecer dependências substitutas nos testes. Ainda assim, os repositórios e [app/analysis.py](../app/analysis.py) seguem acoplados à API concreta do Supabase (`table()`, `select()`, `eq()`, `execute()`). Portanto, a inversão arquitetural por contratos permanece pendente para a próxima contribuição da equipe.
 
 ## 4.6 Resultados
 
 ### Alterações realizadas
 
-- [app/repositories.py](../app/repositories.py): criação de `format_display_date()` e reutilização em `job_for_template()` e `resume_for_template()`.
-- [tests/test_format_display_date.py](../tests/test_format_display_date.py): criação de sete testes com `unittest`, sem conexão real com o Supabase.
-- [docs/4-solid.md](4-solid.md): documentação das evidências e lacunas dos cinco princípios.
-
-O benefício principal é centralizar a formatação de datas, preservando os valores apresentados e reduzindo duplicação. Não foram alteradas rotas, autenticação, banco, processamento de currículos, cálculo de compatibilidade nem valores de `score`, `met` ou `missing`.
+- **SRP (PR #23):** [app/repositories.py](../app/repositories.py) (`format_display_date()`) e [tests/test_format_display_date.py](../tests/test_format_display_date.py).
+- **OCP e LSP (PR #33):** [src/matching/aggregators.py](../src/matching/aggregators.py) (`AdherenceScoreStrategy`, `WeightedConfirmedAdherence`, `StrictMandatoryAdherence`, `ProvisionalWeightedAdherence`), [src/matching/adherence.py](../src/matching/adherence.py) (`calculate_adherence(..., strategy=None)`) e [tests/test_solid_matching.py](../tests/test_solid_matching.py).
+- **Documentação:** atualização de [docs/4-solid.md](4-solid.md) com as evidências de OCP e LSP aplicadas à aderência documental atual.
 
 ### Validação executada
 
-Os comandos solicitados foram executados inicialmente com o Python global:
-
 ```powershell
-python -m unittest discover -s tests -p "test_format_display_date.py"
-python -m unittest discover -s tests
+python -m unittest discover -s tests -p "test_solid_matching.py"
+# Resultado: Ran 4 tests — OK
+
+python -m unittest discover -s tests -p "test_adherence.py"
+# Resultado: Ran 6 tests — OK
+
+python -m unittest discover -s tests -p "test_contextual.py"
+# Resultado: Ran 11 tests — OK
 ```
-
-O primeiro terminou com um erro de importação por ausência de `cachelib`. A suíte completa reportou 46 testes, com três erros de importação pelo mesmo motivo: no módulo novo e nos módulos existentes `test_requisitos` e `test_web_filters`. O problema ocorre na inicialização do pacote `app`, antes da execução da lógica alterada; trata-se de uma limitação desse ambiente Python.
-
-O ambiente `venv` já existente contém as dependências necessárias. Sem instalar pacotes ou alterar configurações, foram executados:
-
-```powershell
-.\venv\Scripts\python.exe -m unittest discover -s tests -p "test_format_display_date.py"
-# Resultado: Ran 7 tests — OK
-
-.\venv\Scripts\python.exe -m unittest discover -s tests
-# Resultado: Ran 87 tests — OK
-```
-
-As mensagens sobre PDF inválido e falha simulada de gravação apareceram durante cenários de erro da suíte, que terminou com sucesso. Nenhum teste existente foi modificado.
-
-### Limitações e continuidade
-
-A melhoria de SRP é localizada. OCP, LSP e ISP não possuem demonstração suficiente no escopo examinado; DIP possui evidências de injeção, mas ainda exige inversão por contratos. Os testes locais não validam políticas RLS nem integração com o Supabase real. A suíte depende das bibliotecas da aplicação, e os testes novos seguem o padrão existente de definir uma chave Flask de teste no processo quando ausente, sem editar `.env`.
 
 ### Pull Requests
 
-As alterações e análises documentadas nesta seção estão relacionadas aos seguintes Pull Requests:
-
-- **[PR #23 — Refatoração SRP, testes automatizados e documentação SOLID](https://github.com/Makezuko/SI-PI6-2026-T101-G04/pull/23):** implementação da função `format_display_date()`, reutilização nas funções `job_for_template()` e `resume_for_template()`, criação de sete testes automatizados e análise dos cinco princípios SOLID.
-
-- **[PR #22 — Documentação arquitetural e ADR-0001](https://github.com/Makezuko/SI-PI6-2026-T101-G04/pull/22):** registro da decisão de manter uma aplicação web modular, priorizando a separação de responsabilidades e a evolução gradual da arquitetura.
-
-- **[PR #21 — Contexto do sistema e atributos de qualidade](https://github.com/Makezuko/SI-PI6-2026-T101-G04/pull/21):** documentação do contexto do TalentMatch AI e dos atributos de qualidade que orientam as decisões arquiteturais.
-
-**Observação:** o PR #23 apresenta uma melhoria pontual relacionada ao SRP. Os princípios OCP, LSP, ISP e DIP ainda dependem de evidências adicionais de implementação, que deverão ser referenciadas conforme as contribuições dos demais integrantes forem concluídas.
+- **[PR #23 — Refatoração SRP, testes automatizados e documentação SOLID](https://github.com/Makezuko/SI-PI6-2026-T101-G04/pull/23):** implementação da função `format_display_date()` e análise inicial.
+- **[PR #22 — Documentação arquitetural e ADR-0001](https://github.com/Makezuko/SI-PI6-2026-T101-G04/pull/22)** e **[PR #21 — Contexto do sistema e atributos de qualidade](https://github.com/Makezuko/SI-PI6-2026-T101-G04/pull/21)**.
+- **[PR #33 — Refatoração OCP e LSP na aderência documental (Kauê Farias Lourenço)](https://github.com/Makezuko/SI-PI6-2026-T101-G04/pull/33):** implementação de `AdherenceScoreStrategy` em `src/matching/aggregators.py`, extensão em `src/matching/adherence.py`, suíte `tests/test_solid_matching.py` e atualização de `docs/4-solid.md` *(substituir `<COMMIT_HASH>` nos links permanentes após o merge na `main`)*.
+- **PR de ISP e DIP (Julia Kimura):** *[inserir link após a entrega da contribuição correspondente]*.
 

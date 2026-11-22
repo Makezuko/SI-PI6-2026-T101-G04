@@ -87,12 +87,10 @@ def settings():
 
 def create_adapter(path=None):
     config = settings()
-    if config['backend'] == 'llama_cpp':
-        from src.matching.local_runtime import LlamaCppAdapter
-        return LlamaCppAdapter(path or config['model'], config['runtime'])
-    if config['backend'] != 'transformers':
-        raise ValueError('Backend contextual desconhecido')
-    return LocalTransformersAdapter(path or config['model'])
+    from src.matching.factory import get_contextual_adapter_factory
+
+    factory = get_contextual_adapter_factory(config['backend'])
+    return factory.create_adapter(path or config['model'], config['runtime'])
 
 
 def retrieve(row, entries, k=5):
@@ -161,7 +159,7 @@ def evaluate(requirement, evidence, adapter, strict=False):
                                 f'Tipo de falha: {type(exc).__name__}.'])
 
 
-def evaluate_batch(requirements, rows, entries, adapter, progress=None):
+def evaluate_batch(requirements, rows, entries, adapter, progress=None, strategy=None):
     from src.matching.adherence import calculate_adherence
     by_id = {r['id']: r for r in rows}
     decisions = []
@@ -180,7 +178,7 @@ def evaluate_batch(requirements, rows, entries, adapter, progress=None):
                               processing_seconds=elapsed,
                               retrieved_evidence=evidence,
                               human_review=None)))
-    result = calculate_adherence(requirements, decisions)
+    result = calculate_adherence(requirements, decisions, strategy=strategy)
     result['contextual_formula_version'] = FORMULA_VERSION
     result['contextual_configuration'] = config
     result['minimum_confirmed'] = result['score']

@@ -32,29 +32,80 @@ class ScoreTests(unittest.TestCase):
     def test_known_example_and_contributions(self):
         output = self.calculate()
         self.assertEqual(output["status"], "calculado")
-        self.assertAlmostEqual(output["score"], 60)
+        self.assertAlmostEqual(output["score"], 63)
         self.assertEqual(output["score_name"], "indice_compatibilidade_semantica")
-        self.assertEqual(output["formula_version"], "1.0")
+        self.assertEqual(output["formula_version"], "2.1")
         self.assertEqual(output["score"], math.fsum(
             item["contribution_points"] for item in output["details"]))
+        self.assertEqual([item["contribution_points"] for item in output["details"]],
+                         [36, 27, 0])
+        self.assertEqual(output["mandatory_status"], "atendido")
         self.assertEqual(output["details"][0]["best_evidence"], {
             "text": self.results[0]["ranking"][0]["text"], "source": "project",
             "input_index": 0, "chunk_index": 0})
         json.dumps(output, allow_nan=False)
 
     def test_weights_and_levels(self):
-        output = self.calculate({"obrigatorio": 2, "desejavel": 1})
-        self.assertAlmostEqual(output["score"], 64)
-        self.assertAlmostEqual(output["indices_by_level"]["obrigatorio"], 70)
-        self.assertAlmostEqual(output["indices_by_level"]["desejavel"], 40)
-        self.assertEqual([r["weight"] for r in output["details"]], [2, 2, 1])
-        self.assertEqual(self.calculate({"desejavel": 3})["weights"]["obrigatorio"], 1)
+        output = self.calculate({"obrigatorio": 80, "desejavel": 20})
+        self.assertAlmostEqual(output["score"], 56)
+        self.assertAlmostEqual(output["indices_by_level"]["obrigatorio"], 56)
+        self.assertAlmostEqual(output["indices_by_level"]["desejavel"], 0)
+        self.assertEqual([r["max_points"] for r in output["details"]], [40, 40, 20])
+        self.assertEqual(self.calculate({"desejavel": 20})["weights"]["obrigatorio"], 90)
         for requirement in self.requirements:
             requirement["tipo"] = "comportamental"
-        changed = self.calculate({"obrigatorio": 2, "desejavel": 1})
+        changed = self.calculate({"obrigatorio": 80, "desejavel": 20})
         self.assertEqual(output["score"], changed["score"])
-        self.assertEqual([d["weight"] for d in output["details"]],
-                         [d["weight"] for d in changed["details"]])
+        self.assertEqual([d["max_points"] for d in output["details"]],
+                         [d["max_points"] for d in changed["details"]])
+
+    def test_requested_90_10_example(self):
+        requirements = [
+            {"id": f"M{i}", "text": f"Obrigatório {i}", "nivel": "obrigatorio"}
+            for i in range(3)
+        ] + [
+            {"id": f"D{i}", "text": f"Desejável {i}", "nivel": "desejavel"}
+            for i in range(2)
+        ]
+        results = [
+            {"id": item["id"], "top_similarity": similarity,
+             "ranking": [{"text": item["text"], "source": "skill",
+                          "similarity": similarity, "input_index": index,
+                          "chunk_index": 0}]}
+            for index, (item, similarity) in enumerate(zip(
+                requirements, [1.0, 1.0, 1.0, 0.8, 0.8]))
+        ]
+        output = calculate_similarity_index(requirements, results)
+        self.assertAlmostEqual(output["score"], 98)
+        self.assertEqual([item["max_points"] for item in output["details"]],
+                         [30, 30, 30, 5, 5])
+        self.assertEqual([item["contribution_points"] for item in output["details"]],
+                         [30, 30, 30, 4, 4])
+
+    def test_similarity_threshold_is_inclusive_and_zeroes_lower_matches(self):
+        self.set_similarity(.50, index=0)
+        self.set_similarity(.499, index=1)
+        output = self.calculate()
+        self.assertTrue(output["details"][0]["compatible"])
+        self.assertFalse(output["details"][1]["compatible"])
+        self.assertEqual(output["details"][0]["aggregation_value"], .50)
+        self.assertEqual(output["details"][1]["aggregation_value"], 0)
+        self.assertEqual(output["details"][1]["contribution_points"], 0)
+        self.assertEqual(output["mandatory_status"], "incompativel")
+
+    def test_single_present_category_receives_all_100_points(self):
+        requirement = [{"id": "R1", "text": "Python", "nivel": "obrigatorio"}]
+        result = [{"id": "R1", "top_similarity": .6,
+                   "ranking": [{"text": "Python", "source": "skill",
+                                "similarity": .6, "input_index": 0, "chunk_index": 0}]}]
+        output = calculate_similarity_index(requirement, result)
+        self.assertEqual(output["score"], 60)
+        self.assertEqual(output["details"][0]["max_points"], 100)
+
+        requirement[0]["nivel"] = "desejavel"
+        output = calculate_similarity_index(requirement, result)
+        self.assertEqual(output["score"], 60)
+        self.assertEqual(output["details"][0]["max_points"], 100)
 
     def test_reordered_results_match_by_id(self):
         expected = self.calculate()
@@ -68,16 +119,17 @@ class ScoreTests(unittest.TestCase):
         self.assertEqual(detail["original_cosine"], -.8)
         self.assertEqual(detail["aggregation_value"], 0)
         self.assertEqual(detail["contribution_points"], 0)
-        self.assertAlmostEqual(output["score"], 100 / 3)
+        self.assertAlmostEqual(output["score"], 27)
+        self.assertEqual(output["mandatory_status"], "incompativel")
 
     def test_missing_level_and_empty_groups(self):
         self.requirements[0].pop("nivel")
         self.requirements[1]["nivel"] = None
-        output = self.calculate({"obrigatorio": 4, "desejavel": 1})
-        self.assertAlmostEqual(output["score"], 60)
+        output = self.calculate()
+        self.assertAlmostEqual(output["score"], 63)
         self.assertEqual(len(output["warnings"]), 2)
-        self.assertEqual(output["details"][0]["weight"], 1)
-        self.assertIsNone(output["indices_by_level"]["obrigatorio"])
+        self.assertEqual(output["details"][0]["max_points"], 45)
+        self.assertEqual(output["indices_by_level"]["obrigatorio"], 63)
 
     def test_empty_ranking_incomplete_not_zero(self):
         self.results[0]["ranking"] = []
@@ -87,10 +139,11 @@ class ScoreTests(unittest.TestCase):
         self.assertIsNone(output["score"])
         self.assertEqual(output["incomplete_requirement_ids"], ["R1"])
         self.assertIsNone(output["indices_by_level"]["obrigatorio"])
-        self.assertAlmostEqual(output["indices_by_level"]["desejavel"], 40)
+        self.assertIsNone(output["indices_by_level"]["desejavel"])
         self.assertTrue(all(d["contribution_points"] is None for d in output["details"]))
         self.assertIsNone(output["details"][0]["best_evidence"])
         self.assertIsNone(output["details"][0]["aggregation_value"])
+        self.assertEqual(output["mandatory_status"], "incompleto")
 
     def test_all_incomplete_even_with_numeric_top(self):
         for row in self.results:
@@ -143,10 +196,10 @@ class ScoreTests(unittest.TestCase):
         self.set_similarity(.8)
         self.results[0]["ranking"][0]["similarity"] += 5e-10
         self.calculate()
-        for value in (0, 1, -1):
+        for value in (0, .5, 1, -1):
             for index in range(3):
                 self.set_similarity(value, index)
-            self.assertEqual(self.calculate()["score"], 100 * max(0, value))
+            self.assertEqual(self.calculate()["score"], 100 * value if value >= .5 else 0)
 
     def test_bad_weights_and_level(self):
         for weights in ([], True, {"unknown": 1}, {"obrigatorio": 0},
@@ -162,7 +215,7 @@ class ScoreTests(unittest.TestCase):
 
     def test_large_finite_weights(self):
         self.assertAlmostEqual(self.calculate({"obrigatorio": 1e308,
-                                               "desejavel": 1e308})["score"], 60)
+                                               "desejavel": 1e308})["score"], 35)
 
     def test_ranking_required_order_and_coherence(self):
         for mutation in (lambda row: row.pop("ranking"),
@@ -216,11 +269,12 @@ class CliTests(unittest.TestCase):
             stdout = io.StringIO()
             with redirect_stdout(stdout):
                 main(["--input", str(EXAMPLE), "--output", str(output)])
-            self.assertIn("60.00/100", stdout.getvalue())
-            self.assertAlmostEqual(json.loads(output.read_text(encoding="utf-8"))["score"], 60)
+            self.assertIn("63.00/100", stdout.getvalue())
+            self.assertAlmostEqual(json.loads(output.read_text(encoding="utf-8"))["score"], 63)
             with redirect_stdout(io.StringIO()):
                 main(["--input", str(EXAMPLE), "--output", str(output), "--weights", str(weights)])
-            self.assertAlmostEqual(json.loads(output.read_text(encoding="utf-8"))["score"], 64)
+            self.assertAlmostEqual(json.loads(output.read_text(encoding="utf-8"))["score"],
+                                   100 * (2 / 3) * (.8 / 2 + .6 / 2))
 
     def test_invalid_files_and_incomplete(self):
         with tempfile.TemporaryDirectory() as directory:

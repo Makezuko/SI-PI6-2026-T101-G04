@@ -15,7 +15,7 @@ class SemanticStageTests(unittest.TestCase):
         results=[{'id':'R1','ranking':[{'input_index':0,'similarity':.9},{'input_index':1,'similarity':.8}]},
                  {'id':'R2','ranking':[{'input_index':0,'similarity':.7}]},
                  {'id':'R3','ranking':[{'input_index':0,'similarity':.2}]}]
-        req=[{'acceptable_input_indices':[1]},{'acceptable_input_indices':[]},{}]
+        req=[{'id':'R1','acceptable_input_indices':[1]},{'id':'R2','acceptable_input_indices':[]},{'id':'R3'}]
         m=evaluate_ranking(results,req)
         self.assertEqual(m['evaluated_positive_count'],1)
         self.assertEqual(m['no_evidence_count'],1)
@@ -26,6 +26,6 @@ class SemanticStageTests(unittest.TestCase):
         self.assertAlmostEqual(m['per_requirement'][0]['top1_top2_margin'],.1)
         self.assertIsNone(m['per_requirement'][1]['top1_top2_margin'])
         self.assertIsNone(evaluate_ranking(results[1:],req[1:])['mrr'])
-        missing=evaluate_ranking(results[:1],[{'acceptable_input_indices':[99]}])
+        missing=evaluate_ranking(results[:1],[{'id':'R1','acceptable_input_indices':[99]}])
         self.assertEqual(missing['mrr'],0)
 if __name__=='__main__': unittest.main()

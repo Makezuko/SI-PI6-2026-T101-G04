@@ -5,37 +5,8 @@ from typing import Any
 
 from src.nlp.skills_extractor import (
     extract_skills,
-    normalize_heading,
     repair_common_encoding,
-    split_heading_and_content,
 )
-
-EDUCATION_HEADINGS = {
-    "education": "education",
-    "academic background": "education",
-    "academic qualifications": "education",
-    "educational qualification": "education",
-    "formação": "education",
-    "formação acadêmica": "education",
-    "formacao academica": "education",
-    "educação": "education",
-    "educacao": "education",
-}
-
-EDUCATION_STOP_HEADINGS = {
-    "skills",
-    "technical skills",
-    "experience",
-    "professional experience",
-    "work experience",
-    "projects",
-    "languages",
-    "certifications",
-    "experiência",
-    "projetos",
-    "habilidades",
-}
-
 
 def extract_pdf_text(source: Any) -> str:
     if isinstance(source, (str, Path)):
@@ -89,47 +60,9 @@ def extract_pdf_text(source: Any) -> str:
 
 
 def extract_education_blocks(text: str) -> list[dict[str, Any]]:
-    blocks = []
-    current_source = None
-    current_heading = None
-    current_lines = []
-    start_line = None
-
-    def close_block(end_line: int):
-        nonlocal current_source, current_heading, current_lines, start_line
-        block_text = "\n".join(current_lines).strip()
-        if current_source is not None and block_text:
-            blocks.append({
-                "text": block_text,
-                "source": current_source,
-                "heading": current_heading,
-                "start_line": start_line,
-                "end_line": end_line,
-            })
-        current_source = None
-        current_heading = None
-        current_lines = []
-        start_line = None
-
-    lines = text.splitlines()
-    for line_number, line in enumerate(lines, start=1):
-        heading, inline_content = split_heading_and_content(line)
-        normalized = normalize_heading(heading)
-
-        if normalized in EDUCATION_HEADINGS:
-            close_block(line_number - 1)
-            current_source = EDUCATION_HEADINGS[normalized]
-            current_heading = heading
-            start_line = line_number
-            if inline_content:
-                current_lines.append(inline_content)
-        elif normalized in EDUCATION_STOP_HEADINGS:
-            close_block(line_number - 1)
-        elif current_source is not None:
-            current_lines.append(line)
-
-    close_block(len(lines))
-    return blocks
+    """Usa o mesmo caminho de segmentacao do pipeline documental."""
+    from src.nlp.skills_extractor import extract_context_blocks
+    return [block for block in extract_context_blocks(text) if block['source'] == 'education']
 
 
 def extract_contact_info(text: str) -> dict[str, str | None]:
@@ -146,15 +79,41 @@ def extract_contact_info(text: str) -> dict[str, str | None]:
 
 def anonymize_resume_text(text: str, candidate_name: str | None = None) -> str:
     anonymized = text
-    if candidate_name and candidate_name.strip() and candidate_name.lower() != "candidato":
+    if candidate_name and len(candidate_name.split()) >= 2 and candidate_name.lower() != "candidato":
         escaped_name = re.escape(candidate_name.strip())
-        anonymized = re.sub(rf"\b{escaped_name}\b", "[NOME OCULTO]", anonymized, flags=re.IGNORECASE)
+        anonymized = re.sub(rf"^{escaped_name}\s*$", "[NOME OCULTO]", anonymized, flags=re.IGNORECASE | re.MULTILINE)
 
     anonymized = re.sub(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b", "[E-MAIL OCULTO]", anonymized)
-    anonymized = re.sub(r"(?:\+?\d{1,3}[\s-]?)?(?:\(?\d{2,3}\)?[\s-]?)?\d{4,5}[\s-]?\d{4}\b", "[TELEFONE OCULTO]", anonymized)
+    def mask_phone(match):
+        value = match.group(0)
+        if re.fullmatch(r'(?:19|20)\d{2}\s*-\s*(?:19|20)\d{2}', value.strip()):
+            return value
+        return '[TELEFONE OCULTO]'
+    anonymized = re.sub(r"(?<![\w.])(?:\+?\d{1,3}[ -]?)?(?:\(?\d{2,3}\)?[ -]?)?\d{4,5}[ -]?\d{4}(?![\w.])", mask_phone, anonymized)
     anonymized = re.sub(r"\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b", "[CPF OCULTO]", anonymized)
+    anonymized = re.sub(r"\bRG:?\s*\d{1,2}\.?\d{3}\.?\d{3}-?[\dX]\b", "[RG OCULTO]", anonymized, flags=re.IGNORECASE)
+    anonymized = re.sub(r"\bCEP:?\s*\d{5}-?\d{3}\b", "[CEP OCULTO]", anonymized, flags=re.IGNORECASE)
     anonymized = re.sub(r"(?:https?://|www\.)\S+", "[LINK OCULTO]", anonymized, flags=re.IGNORECASE)
     anonymized = re.sub(r"\b(?:linkedin\.com|github\.com)/\S+", "[LINK OCULTO]", anonymized, flags=re.IGNORECASE)
+
+    anonymized = re.sub(r"(?i)\b(?:foto(?:\s*3x4)?|photo|picture)\s*:\s*(?:\[[^\]\n]+\]|\S+)", "[FOTO OCULTA]", anonymized)
+    anonymized = re.sub(r"(?i)\[\s*(?:foto(?:\s*3x4)?|photo|picture|imagem|image)\s*\]", "[FOTO OCULTA]", anonymized)
+
+    anonymized = re.sub(r"(?i)\b(?:gênero|genero|sexo|gender|sex)\s*:\s*[A-Za-zÀ-ÿ/-]+", "[GÊNERO OCULTO]", anonymized)
+    anonymized = re.sub(r"(?i)\b(?:pronomes?|pronouns?)\s*:\s*[A-Za-zÀ-ÿ/-]+", "[PRONOMES OCULTOS]", anonymized)
+    anonymized = re.sub(r"(?i)^\s*(?:ele/dele|ela/dela|elu/delu|he/him|she/her|they/them)\s*$", "[PRONOMES OCULTOS]", anonymized, flags=re.MULTILINE)
+
+    anonymized = re.sub(r"(?i)\b(?:idade|age)\s*:\s*\d{1,2}(?:[ \t]*(?:anos?(?:\s+de\s+idade)?|years?(?:\s+old)?))?", "[IDADE OCULTA]", anonymized)
+    anonymized = re.sub(r"(?i)\b\d{1,2}[ \t]*(?:anos(?:\s+de\s+idade)?|years?(?:\s+old)?)\b(?!\s+(?:de\s+(?:experiência|experiencia|atuação|atuacao|carreira|mercado|prática|pratica)|com\b|em\b))", "[IDADE OCULTA]", anonymized)
+    anonymized = re.sub(r"(?i)\b(?:data\s+de\s+nascimento|data\s+nasc\.?|nascimento|nasc\.?|date\s+of\s+birth|dob)\s*:\s*\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b", "[DATA DE NASCIMENTO OCULTA]", anonymized)
+    anonymized = re.sub(r"(?i)\b(?:nascido|nascida|born)\s+(?:em|on)?\s*\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b", "[DATA DE NASCIMENTO OCULTA]", anonymized)
+
+    anonymized = re.sub(r"(?i)\b(?:estado\s+civil|marital\s+status)\s*:\s*[A-Za-zÀ-ÿ\s/-]+(?=[\n,;]|$)", "[ESTADO CIVIL OCULTO]", anonymized)
+    anonymized = re.sub(r"(?i)\b(?:nacionalidade|nationality|naturalidade)\s*:\s*[A-Za-zÀ-ÿ\s/-]+(?=[\n,;]|$)", "[NACIONALIDADE OCULTA]", anonymized)
+    anonymized = re.sub(r"(?i)\b(?:solteir[oa]|casad[oa]|divorciad[oa]|viúv[oa]|união\s+estável)\b", "[ESTADO CIVIL OCULTO]", anonymized)
+    anonymized = re.sub(r"(?i)\b(?:brasileir[oa]|brasileir[oa]s)\b", "[NACIONALIDADE OCULTA]", anonymized)
+
+    anonymized = re.sub(r"(?i)(?<!\bIP\s)(?<!\bMAC\s)(?<!\bMemory\s)\b(?:endereço|endereco|address)\s*:\s*[^\n]+", "[ENDEREÇO OCULTO]", anonymized)
     return anonymized
 
 
@@ -195,7 +154,8 @@ def parse_resume_pdf(
     initials = "".join(part[0] for part in (guessed_name or "CV").split()[:2]).upper()
 
     education_summary = education_blocks[0]["text"].splitlines()[0] if education_blocks else "Não especificada"
-    experience_summary = hybrid_extraction["context_blocks"][0]["text"].splitlines()[0] if hybrid_extraction.get("context_blocks") else "Não especificada"
+    from src.data.privacy import latest_role
+    experience_summary = latest_role(text, ner_entities)
 
     anonymized = anonymize_resume_text(text, guessed_name)
 

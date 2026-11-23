@@ -1,0 +1,7 @@
+-r requirements.backend.txt
+transformers==4.57.6
+sentence-transformers==3.4.1
+torch>=2.4,<2.16
+accelerate>=1,<2
+pypdf>=6,<7
+pdfminer.six>=20240706

@@ -1,0 +1,130 @@
+{% macro origin(source) -%}
+{{ {'experience': 'Experiência profissional', 'education': 'Formação acadêmica', 'project': 'Projeto', 'skill': 'Habilidade declarada', 'skill_context': 'Habilidades em contexto', 'summary': 'Resumo profissional'}.get(source, 'Outra seção do currículo') }}
+{%- endmacro %}
+
+{% macro text(value) -%}
+{{ candidate_text(value, candidate) }}
+{%- endmacro %}
+
+{% set llm_reqs = (candidate.llm_justification.content.analise_requisitos if candidate.llm_justification and candidate.llm_justification.status == 'disponivel' and candidate.llm_justification.content and candidate.llm_justification.content.analise_requisitos else []) %}
+{% set llm_status_labels = {'atendido': 'Atendido (IA)', 'parcial': 'Parcial (IA)', 'nao_evidenciado': 'Não evidenciado (IA)'} %}
+
+<section class="candidate-requirement-overview" aria-labelledby="requirement-overview-title">
+  <div class="candidate-requirement-overview-head">
+    <div>
+      <h2 id="requirement-overview-title">Resumo dos requisitos</h2>
+      <p>Veja rapidamente o resultado e o principal motivo de cada item.</p>
+    </div>
+    <span class="candidate-overview-count">{{ req_count }} requisito(s)</span>
+  </div>
+
+  <div class="candidate-requirement-table-wrap" role="region" aria-label="Resumo dos requisitos e evidências" tabindex="0">
+    <table class="candidate-requirement-table">
+      <thead>
+        <tr>
+          <th scope="col">Requisito</th>
+          <th scope="col">Resultado</th>
+          <th scope="col">Evidência principal / motivo</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if candidate.analysis %}
+          {% for item in candidate.analysis.details %}
+            {% set diagnostic = item.diagnostic or {} %}
+            {% set contextual = diagnostic.contextual|default({}) %}
+            {% set cited_ids = contextual.evidence_ids|default([]) %}
+            {% set evidence_list = diagnostic.retrieved_evidence|default(item.evidencias|default([]), true) %}
+            {% set main = namespace(evidence=none) %}
+            {% for evidence in evidence_list %}
+              {% if evidence.id is defined and evidence.id in cited_ids and main.evidence is none %}
+                {% set main.evidence = evidence %}
+              {% endif %}
+            {% endfor %}
+            {% if not contextual and item.best_evidence %}
+              {% set main.evidence = item.best_evidence %}
+            {% endif %}
+
+            {% set llm_match = namespace(req=none) %}
+            {% for req in llm_reqs %}
+              {% if llm_match.req is none and req.requisito|lower == item.text|lower %}
+                {% set llm_match.req = req %}
+              {% endif %}
+            {% endfor %}
+            {% if llm_match.req is none and loop.index0 < llm_reqs|length %}
+              {% set llm_match.req = llm_reqs[loop.index0] %}
+            {% endif %}
+
+            {% if llm_match.req and llm_match.req.status in llm_status_labels %}
+              {% set result_label = llm_status_labels[llm_match.req.status] %}
+              {% set result_class = 'is-met' if llm_match.req.status == 'atendido' else ('is-unidentified' if llm_match.req.status == 'nao_evidenciado' else 'is-review') %}
+            {% elif item.estado == 'atendido' %}
+              {% set result_label = 'Atendido' %}
+              {% set result_class = 'is-met' %}
+            {% elif item.estado == 'nao_identificado' %}
+              {% set result_label = 'Não evidenciado' %}
+              {% set result_class = 'is-unidentified' %}
+            {% else %}
+              {% set result_label = 'Revisão necessária' %}
+              {% set result_class = 'is-review' %}
+            {% endif %}
+
+            <tr>
+              <td class="candidate-overview-requirement">
+                <a href="#requirement-{{ loop.index }}">{{ text(item.text) }}</a>
+                <span>{{ 'Obrigatório' if item.nivel == 'obrigatorio' else 'Desejável' }}</span>
+              </td>
+              <td>
+                <span class="candidate-overview-status {{ result_class }}">{{ result_label }}</span>
+                {% if llm_match.req and llm_match.req.status in llm_status_labels %}
+                  {% if item.estado == 'atendido' %}
+                    {% set document_label = 'Atendido' %}
+                  {% elif item.estado == 'nao_identificado' %}
+                    {% set document_label = 'Não evidenciado' %}
+                  {% else %}
+                    {% set document_label = 'Revisão necessária' %}
+                  {% endif %}
+                  <span class="candidate-overview-secondary">Documental: {{ document_label }}</span>
+                {% endif %}
+              </td>
+              <td class="candidate-overview-evidence">
+                {% if main.evidence %}
+                  {% set overview_text = candidate_text(main.evidence.text, candidate) %}
+                  <blockquote>“{{ overview_text[:220] }}{% if overview_text|length > 220 %}…{% endif %}”</blockquote>
+                  <span>{{ origin(main.evidence.source) }}</span>
+                {% else %}
+                  <p>{{ text(item.justificativa) or 'Nenhuma evidência citada na decisão.' }}</p>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        {% elif llm_reqs %}
+          {% for req in llm_reqs %}
+            {% set status_label = llm_status_labels.get(req.status, req.status) %}
+            {% set status_class = 'is-met' if req.status == 'atendido' else ('is-unidentified' if req.status == 'nao_evidenciado' else 'is-review') %}
+            <tr>
+              <td class="candidate-overview-requirement">
+                {{ text(req.requisito) }}
+                <span>{{ 'Obrigatório' if req.nivel == 'obrigatorio' else 'Desejável' }}</span>
+              </td>
+              <td><span class="candidate-overview-status {{ status_class }}">{{ status_label }}</span></td>
+              <td class="candidate-overview-evidence"><p>{{ text(req.analise_contextual) }}</p></td>
+            </tr>
+          {% endfor %}
+        {% else %}
+          {% for item in job['requirements_data']['items'] %}
+            <tr>
+              <td class="candidate-overview-requirement">
+                {{ text(item.text) }}
+                <span>{{ 'Obrigatório' if item.nivel == 'obrigatorio' else 'Desejável' }}</span>
+              </td>
+              <td><span class="candidate-overview-status is-pending">Aguardando análise</span></td>
+              <td class="candidate-overview-evidence"><p>A evidência será exibida após a análise do currículo.</p></td>
+            </tr>
+          {% endfor %}
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="candidate-overview-note">“Não evidenciado” indica que a análise não encontrou evidência no currículo; não comprova ausência da competência.</p>
+</section>

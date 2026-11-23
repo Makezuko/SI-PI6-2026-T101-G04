@@ -1,3 +1,4 @@
+
 {% extends "base.html" %}
 {% block title %}Editar Vaga · TalentMatch AI{% endblock %}
 
@@ -11,125 +12,228 @@
 {% endblock %}
 
 {% block content %}
-<div style="max-width:860px">
-  {% if error %}
-  <div class="auth-error" style="margin-bottom:16px;">{{ error }}</div>
-  {% endif %}
-  <form method="POST" action="{{ url_for('editar_vaga', job_id=job.id) }}" id="editar-vaga-form">
-    <div class="panel">
-      <div class="panel-head"><h2>Informações da Vaga</h2></div>
 
-      <div style="padding:24px">
+<div class="edit-job-page">
+  {% if error %}
+  <div class="auth-error edit-job-error" role="alert">{{ error }}</div>
+  {% endif %}
+
+  <form method="POST" action="{{ url_for('editar_vaga', job_id=job.id) }}" id="editar-vaga-form">
+
+    <section class="panel edit-job-panel">
+      <div class="panel-head">
+        <div>
+          <h2>Informações da Vaga</h2>
+          <p class="edit-panel-description">Dados principais e descrição da oportunidade.</p>
+        </div>
+      </div>
+
+      <div class="edit-job-panel-body">
         <div class="field">
           <label for="title">Título da Vaga</label>
-          <input type="text" id="title" name="title" value="{{ form.title }}" placeholder="Ex: Desenvolvedor Backend Python" required>
+          <input
+            type="text"
+            id="title"
+            name="title"
+            value="{{ form.title }}"
+            placeholder="Ex: Desenvolvedor Backend Python"
+            required
+          >
         </div>
 
-        <div class="field" style="max-width:240px">
+        <div class="field edit-job-status-field">
           <label for="status">Status da Vaga</label>
-          <select id="status" name="status" style="width:100%;font-family:inherit;font-size:13.5px;color:var(--ink);border:1px solid var(--line-strong);border-radius:9px;padding:11px 13px;background:#fff;cursor:pointer;">
+          <select id="status" name="status">
             {% for opt in status_options %}
             <option value="{{ opt }}" {{ 'selected' if form.status == opt else '' }}>{{ opt }}</option>
             {% endfor %}
           </select>
         </div>
 
-        <div class="field" style="margin-bottom:0">
+        <div class="field edit-job-description-field">
           <label for="description">Descrição Completa / Requisitos</label>
-          <textarea id="description" name="description"
+          <textarea
+            id="description"
+            name="description"
             placeholder="Cole aqui a descrição completa da vaga, incluindo responsabilidades, requisitos técnicos, experiências desejadas e perfil comportamental..."
-            required>{{ form.description }}</textarea>
-          <p class="field-hint">Cole o texto completo da vaga. A IA irá interpretar automaticamente todos os requisitos técnicos e comportamentais e criar um perfil de referência para a triagem dos currículos.</p>
+            required
+          >{{ form.description }}</textarea>
+          <p class="field-hint">
+            Mantenha a descrição completa da vaga e revise os critérios na lista abaixo antes de analisar currículos.
+          </p>
         </div>
       </div>
-    </div>
+    </section>
 
-    <div class="panel" style="margin-top:20px">
-      <div class="panel-head">
-        <h2>Requisitos da Vaga (Técnicos e Comportamentais)</h2>
-        <div style="display:flex;align-items:center;gap:14px">
+    <section class="panel edit-job-panel edit-requirements-panel">
+      <div class="panel-head edit-requirements-head">
+        <div>
+          <h2>Requisitos da Vaga</h2>
+          <p class="edit-panel-description">Revise os critérios que serão usados na análise dos currículos.</p>
+        </div>
+
+        <div class="edit-requirements-tools">
           <span class="count" id="req-count"></span>
-          <button type="button" class="btn btn-ghost" id="req-add" style="padding:7px 14px;font-size:12.5px">+ Adicionar requisito</button>
+          <button type="button" class="btn btn-ghost" id="req-add">
+            + Adicionar requisito
+          </button>
         </div>
       </div>
-      <div style="padding:20px 24px 24px">
-        <div class="req-cols" aria-hidden="true"><span>Requisito</span><span>Tipo</span><span>Nível</span><span></span></div>
+
+      <div class="edit-requirements-body">
+        <aside class="requirements-guidance" role="note">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 11v5m0-8h.01"/>
+          </svg>
+          <div>
+            <strong>Prepare os requisitos antes de analisar currículos</strong>
+            <p>
+              Descreva um critério por linha, escolha o tipo e marque a prioridade como
+              <b>Obrigatório</b> ou <b>Desejável</b>. Depois, salve a vaga antes de enviar
+              currículos. Requisitos claros ajudam a IA a comparar as evidências com mais consistência.
+            </p>
+          </div>
+        </aside>
+
+        <div class="req-cols" aria-hidden="true">
+          <span>Requisito</span>
+          <span>Tipo</span>
+          <span>Prioridade</span>
+          <span></span>
+        </div>
+
         <div id="req-list">
+          {% for warning in requirement_warnings(form.description, {'items': form.requirements}) %}
+          <p class="field-hint edit-requirement-warning"><strong>{{ warning }}</strong></p>
+          {% endfor %}
+
           {% if form and form.requirements %}
             {% for r in form.requirements %}
             <div class="req-row" data-req-row>
               <input type="hidden" name="req_id" value="{{ r.id or '' }}">
-              <input type="text" name="req_text" class="req-text" value="{{ r.text or '' }}" maxlength="300"
-                     placeholder="Ex.: Python, SQL avançado, comunicação clara" aria-label="Descrição do requisito">
+
+              <input
+                type="text"
+                name="req_text"
+                class="req-text"
+                value="{{ r.text or '' }}"
+                maxlength="300"
+                placeholder="Ex.: Python, SQL avançado, comunicação clara"
+                aria-label="Descrição do requisito"
+              >
+
               <select name="req_tipo" class="req-tipo" aria-label="Tipo do requisito">
                 <option value="" {{ 'selected' if not r.tipo else '' }}>Tipo…</option>
                 {% for key, label in tipos.items() %}
                 <option value="{{ key }}" {{ 'selected' if r.tipo == key else '' }}>{{ label }}</option>
                 {% endfor %}
               </select>
-              <select name="req_nivel" class="req-nivel" aria-label="Nível do requisito">
+
+              <select name="req_nivel" class="req-nivel" aria-label="Prioridade do requisito">
                 {% for key, label in niveis.items() %}
                 <option value="{{ key }}" {{ 'selected' if (r.nivel or 'obrigatorio') == key else '' }}>{{ label }}</option>
                 {% endfor %}
               </select>
+
               <button type="button" class="req-remove" data-req-remove title="Remover requisito" aria-label="Remover requisito">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                  <line x1="18" y1="6" x2="6" y2="18"/>
+                  <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
               </button>
+
             </div>
             {% endfor %}
           {% else %}
             {% for _ in range(3) %}
             <div class="req-row" data-req-row>
               <input type="hidden" name="req_id" value="">
-              <input type="text" name="req_text" class="req-text" value="" maxlength="300"
-                     placeholder="Ex.: Python, SQL avançado, comunicação clara" aria-label="Descrição do requisito">
+
+              <input
+                type="text"
+                name="req_text"
+                class="req-text"
+                value=""
+                maxlength="300"
+                placeholder="Ex.: Python, SQL avançado, comunicação clara"
+                aria-label="Descrição do requisito"
+              >
+
               <select name="req_tipo" class="req-tipo" aria-label="Tipo do requisito">
                 <option value="" selected>Tipo…</option>
                 {% for key, label in tipos.items() %}
                 <option value="{{ key }}">{{ label }}</option>
                 {% endfor %}
               </select>
-              <select name="req_nivel" class="req-nivel" aria-label="Nível do requisito">
+
+              <select name="req_nivel" class="req-nivel" aria-label="Prioridade do requisito">
                 {% for key, label in niveis.items() %}
                 <option value="{{ key }}">{{ label }}</option>
                 {% endfor %}
               </select>
+
               <button type="button" class="req-remove" data-req-remove title="Remover requisito" aria-label="Remover requisito">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                  <line x1="18" y1="6" x2="6" y2="18"/>
+                  <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
               </button>
+
             </div>
             {% endfor %}
           {% endif %}
         </div>
+
         <template id="req-row-template">
           <div class="req-row" data-req-row>
             <input type="hidden" name="req_id" value="">
-            <input type="text" name="req_text" class="req-text" value="" maxlength="300"
-                   placeholder="Ex.: Python, SQL avançado, comunicação clara" aria-label="Descrição do requisito">
+
+            <input
+              type="text"
+              name="req_text"
+              class="req-text"
+              value=""
+              maxlength="300"
+              placeholder="Ex.: Python, SQL avançado, comunicação clara"
+              aria-label="Descrição do requisito"
+            >
+
             <select name="req_tipo" class="req-tipo" aria-label="Tipo do requisito">
               <option value="" selected>Tipo…</option>
               {% for key, label in tipos.items() %}
               <option value="{{ key }}">{{ label }}</option>
               {% endfor %}
             </select>
-            <select name="req_nivel" class="req-nivel" aria-label="Nível do requisito">
+
+            <select name="req_nivel" class="req-nivel" aria-label="Prioridade do requisito">
               {% for key, label in niveis.items() %}
               <option value="{{ key }}">{{ label }}</option>
               {% endfor %}
             </select>
+
             <button type="button" class="req-remove" data-req-remove title="Remover requisito" aria-label="Remover requisito">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="18" x2="18" y2="6"/>
+              </svg>
             </button>
+
           </div>
         </template>
-        <p class="field-hint" style="margin-top:14px">Defina os requisitos específicos da vaga. <b>Técnico</b>: linguagens, ferramentas e conhecimentos técnicos. <b>Comportamental</b>: postura, comunicação e trabalho em equipe. Linhas vazias são ignoradas.</p>
+
+        <p class="field-hint edit-requirements-hint">
+          Use uma linha por critério. Requisitos técnicos descrevem conhecimentos e ferramentas;
+          comportamentais descrevem atitudes, comunicação e colaboração. Linhas vazias são ignoradas.
+        </p>
       </div>
 
-      <div class="form-actions" style="display:flex;justify-content:flex-end;gap:10px;padding:18px 24px;border-top:1px solid var(--line);">
+      <div class="form-actions edit-job-actions">
         <a href="{{ url_for('vagas', job_id=job.id) }}" class="btn btn-ghost">Cancelar</a>
         <button type="submit" class="btn btn-primary" id="btn-save-job">Salvar Alterações</button>
       </div>
-    </div>
+    </section>
   </form>
 </div>
 
@@ -140,6 +244,7 @@
   gap: 10px;
   align-items: center;
 }
+
 .req-cols {
   font-size: 11.5px;
   font-weight: 500;
@@ -147,11 +252,15 @@
   margin-bottom: 8px;
   padding: 0 2px;
 }
+
 .req-row {
   margin-bottom: 10px;
 }
-.req-row input[type="text"], .req-row select {
+
+.req-row input[type="text"],
+.req-row select {
   width: 100%;
+  min-width: 0;
   font-family: inherit;
   font-size: 13.5px;
   color: var(--ink);
@@ -160,14 +269,18 @@
   padding: 10px 12px;
   background: #fff;
 }
+
 .req-row select {
   cursor: pointer;
 }
-.req-row input[type="text"]:focus, .req-row select:focus {
+
+.req-row input[type="text"]:focus,
+.req-row select:focus {
   outline: 2px solid var(--brand-400);
   outline-offset: 1px;
   border-color: var(--brand-400);
 }
+
 .req-remove {
   width: 34px;
   height: 34px;
@@ -180,10 +293,12 @@
   justify-content: center;
   cursor: pointer;
 }
+
 .req-remove:hover {
   background: var(--low-soft);
   color: var(--low);
 }
+
 @media (max-width: 720px) {
   .req-cols { display: none; }
   .req-row { grid-template-columns: 1fr 1fr 34px; }
@@ -216,10 +331,13 @@
     }
 
     document.getElementById('req-add').addEventListener('click', addRow);
+
     list.addEventListener('click', function (event) {
       var button = event.target.closest('[data-req-remove]');
       if (!button) return;
+
       var row = button.closest('[data-req-row]');
+
       if (rows().length > 1) {
         row.remove();
       } else {
@@ -228,10 +346,14 @@
         row.querySelector('.req-tipo').value = '';
         row.querySelector('.req-nivel').value = 'obrigatorio';
       }
+
       refresh();
     });
+
     list.addEventListener('input', refresh);
+    setupConditionSuggestions(list);
     list.addEventListener('change', refresh);
+
     list.addEventListener('keydown', function (event) {
       if (event.key === 'Enter' && event.target.classList.contains('req-text')) {
         event.preventDefault();
@@ -244,6 +366,7 @@
       btn.disabled = true;
       btn.textContent = 'Salvando alterações...';
     });
+
     refresh();
   })();
 </script>

@@ -1,0 +1,818 @@
+{
+  "requirements_received": [
+    {
+      "id": "R1",
+      "text": "Python",
+      "tipo": "tecnico",
+      "nivel": "obrigatorio"
+    },
+    {
+      "id": "R2",
+      "text": "SQL com alternativa PostgreSQL",
+      "tipo": "tecnico",
+      "nivel": "obrigatorio",
+      "condition": {
+        "kind": "any",
+        "terms": [
+          "sql",
+          "postgresql"
+        ]
+      }
+    },
+    {
+      "id": "R3",
+      "text": "Pandas e NumPy",
+      "tipo": "tecnico",
+      "nivel": "obrigatorio",
+      "condition": {
+        "kind": "all",
+        "terms": [
+          "pandas",
+          "numpy"
+        ]
+      }
+    },
+    {
+      "id": "R4",
+      "text": "Git e Docker",
+      "tipo": "tecnico",
+      "nivel": "obrigatorio",
+      "condition": {
+        "kind": "all",
+        "terms": [
+          "git",
+          "docker"
+        ]
+      }
+    },
+    {
+      "id": "R5",
+      "text": "Desenvolver APIs em Python",
+      "tipo": "tecnico",
+      "nivel": "obrigatorio"
+    },
+    {
+      "id": "R6",
+      "text": "Inglês intermediário",
+      "tipo": "tecnico",
+      "nivel": "obrigatorio"
+    },
+    {
+      "id": "R7",
+      "text": "Bacharelado em Sistemas de Informação",
+      "tipo": "tecnico",
+      "nivel": "obrigatorio"
+    },
+    {
+      "id": "R8",
+      "text": "Experiência de cinco anos em liderança",
+      "tipo": "tecnico",
+      "nivel": "desejavel"
+    },
+    {
+      "id": "R9",
+      "text": "React",
+      "tipo": "tecnico",
+      "nivel": "desejavel"
+    }
+  ],
+  "extracted_entries": [
+    {
+      "text": "SQL",
+      "source": "skill",
+      "extraction_sources": [
+        "section"
+      ],
+      "evidence": [
+        "SQL, Python, Pandas, NumPy, Git, Docker, PostgreSQL"
+      ],
+      "categories": [],
+      "source_categories": [],
+      "technical_category": "Programming Languages"
+    },
+    {
+      "text": "Python",
+      "source": "skill",
+      "extraction_sources": [
+        "section"
+      ],
+      "evidence": [
+        "SQL, Python, Pandas, NumPy, Git, Docker, PostgreSQL"
+      ],
+      "categories": [],
+      "source_categories": [],
+      "technical_category": "Programming Languages"
+    },
+    {
+      "text": "Pandas",
+      "source": "skill",
+      "extraction_sources": [
+        "section"
+      ],
+      "evidence": [
+        "SQL, Python, Pandas, NumPy, Git, Docker, PostgreSQL"
+      ],
+      "categories": [],
+      "source_categories": [],
+      "technical_category": "Frameworks and Libraries"
+    },
+    {
+      "text": "NumPy",
+      "source": "skill",
+      "extraction_sources": [
+        "section"
+      ],
+      "evidence": [
+        "SQL, Python, Pandas, NumPy, Git, Docker, PostgreSQL"
+      ],
+      "categories": [],
+      "source_categories": [],
+      "technical_category": "Frameworks and Libraries"
+    },
+    {
+      "text": "Git",
+      "source": "skill",
+      "extraction_sources": [
+        "section"
+      ],
+      "evidence": [
+        "SQL, Python, Pandas, NumPy, Git, Docker, PostgreSQL"
+      ],
+      "categories": [],
+      "source_categories": [],
+      "technical_category": "Cloud and DevOps"
+    },
+    {
+      "text": "Docker",
+      "source": "skill",
+      "extraction_sources": [
+        "section"
+      ],
+      "evidence": [
+        "SQL, Python, Pandas, NumPy, Git, Docker, PostgreSQL"
+      ],
+      "categories": [],
+      "source_categories": [],
+      "technical_category": "Cloud and DevOps"
+    },
+    {
+      "text": "PostgreSQL",
+      "source": "skill",
+      "extraction_sources": [
+        "section"
+      ],
+      "evidence": [
+        "SQL, Python, Pandas, NumPy, Git, Docker, PostgreSQL"
+      ],
+      "categories": [],
+      "source_categories": [],
+      "technical_category": "Databases"
+    },
+    {
+      "text": "Atuação em desenvolvimento de software e análise de dados.",
+      "source": "summary",
+      "heading": "RESUMO PROFISSIONAL",
+      "start_line": 3,
+      "end_line": 3
+    },
+    {
+      "text": "Desenvolvi APIs em Python para consulta de dados.",
+      "source": "experience",
+      "heading": "EXPERIÊNCIA PROFISSIONAL",
+      "evidence_type": "responsibility",
+      "context_header": "Desenvolvedor de software\n2022-2024",
+      "start_line": 9,
+      "end_line": 9,
+      "parent_start_line": 6,
+      "parent_end_line": 10
+    },
+    {
+      "text": "Utilizei Git no controle de versões.",
+      "source": "experience",
+      "heading": "EXPERIÊNCIA PROFISSIONAL",
+      "evidence_type": "responsibility",
+      "context_header": "Desenvolvedor de software\n2022-2024",
+      "start_line": 10,
+      "end_line": 10,
+      "parent_start_line": 6,
+      "parent_end_line": 10
+    },
+    {
+      "text": "Projeto de integração",
+      "source": "project",
+      "heading": "PROJETOS APLICADOS EM DADOS & IA",
+      "start_line": 12,
+      "end_line": 12
+    },
+    {
+      "text": "Utilizei Pandas e NumPy no processamento de tabelas.",
+      "source": "project",
+      "heading": "PROJETOS APLICADOS EM DADOS & IA",
+      "start_line": 13,
+      "end_line": 13
+    },
+    {
+      "text": "Implementei um serviço com Docker.",
+      "source": "project",
+      "heading": "PROJETOS APLICADOS EM DADOS & IA",
+      "start_line": 14,
+      "end_line": 14
+    },
+    {
+      "text": "Bacharelado em Sistemas de Informação concluído em 2024.",
+      "source": "education",
+      "heading": "FORMAÇÃO ACADÊMICA & CERTIFICAÇÕES",
+      "start_line": 16,
+      "end_line": 16
+    },
+    {
+      "text": "Inglês intermediário (B2)",
+      "source": "language",
+      "heading": "IDIOMAS",
+      "start_line": 18,
+      "end_line": 18
+    },
+    {
+      "text": "Português nativo",
+      "source": "language",
+      "heading": "IDIOMAS",
+      "start_line": 19,
+      "end_line": 19
+    },
+    {
+      "text": "| Página 1",
+      "source": "language",
+      "heading": "IDIOMAS",
+      "start_line": 20,
+      "end_line": 20
+    }
+  ],
+  "semantic_top1": "SQL (sintético, deliberadamente errado para Python)",
+  "result": {
+    "status": "calculado",
+    "score": 87.5,
+    "score_name": "aderencia_documental",
+    "formula_version": "3.1-experimental",
+    "weights": {
+      "obrigatorio": 2.0,
+      "desejavel": 1.0
+    },
+    "details": [
+      {
+        "id": "R1",
+        "text": "Python",
+        "nivel": "obrigatorio",
+        "tipo": "tecnico",
+        "peso": 2.0,
+        "estado": "atendido",
+        "origem": "automatica",
+        "justificativa": "Regra all: evidência literal suficiente para python.",
+        "evidencias": [
+          {
+            "text": "Python",
+            "source": "skill",
+            "extraction_sources": [
+              "section"
+            ],
+            "evidence": [
+              "SQL, Python, Pandas, NumPy, Git, Docker, PostgreSQL"
+            ],
+            "categories": [],
+            "source_categories": [],
+            "technical_category": "Programming Languages",
+            "input_index": 1,
+            "chunk_index": 0
+          },
+          {
+            "text": "Desenvolvi APIs em Python para consulta de dados.",
+            "source": "experience",
+            "heading": "EXPERIÊNCIA PROFISSIONAL",
+            "evidence_type": "responsibility",
+            "context_header": "Desenvolvedor de software\n2022-2024",
+            "start_line": 9,
+            "end_line": 9,
+            "parent_start_line": 6,
+            "parent_end_line": 10,
+            "input_index": 8,
+            "chunk_index": 0
+          }
+        ],
+        "best_evidence": {
+          "text": "Python",
+          "source": "skill",
+          "extraction_sources": [
+            "section"
+          ],
+          "evidence": [
+            "SQL, Python, Pandas, NumPy, Git, Docker, PostgreSQL"
+          ],
+          "categories": [],
+          "source_categories": [],
+          "technical_category": "Programming Languages",
+          "input_index": 1,
+          "chunk_index": 0
+        },
+        "original_cosine": null,
+        "compatible": true,
+        "method_version": "3.1-experimental",
+        "diagnostic": {
+          "rule": "all",
+          "total_entries": 17,
+          "semantic_candidates": 1,
+          "retrieval_top_similarity": 0.9,
+          "eligible_entries": 18,
+          "rejected_contexts": 2,
+          "matched_terms": [
+            "python"
+          ],
+          "missing_terms": []
+        },
+        "max_points": 12.5,
+        "contribution_points": 12.5
+      },
+      {
+        "id": "R2",
+        "text": "SQL com alternativa PostgreSQL",
+        "nivel": "obrigatorio",
+        "tipo": "tecnico",
+        "peso": 2.0,
+        "estado": "atendido",
+        "origem": "automatica",
+        "justificativa": "Regra any: evidência literal suficiente para postgresql, sql.",
+        "evidencias": [
+          {
+            "text": "SQL",
+            "source": "skill",
+            "extraction_sources": [
+              "section"
+            ],
+            "evidence": [
+              "SQL, Python, Pandas, NumPy, Git, Docker, PostgreSQL"
+            ],
+            "categories": [],
+            "source_categories": [],
+            "technical_category": "Programming Languages",
+            "input_index": 0,
+            "chunk_index": 0
+          },
+          {
+            "text": "PostgreSQL",
+            "source": "skill",
+            "extraction_sources": [
+              "section"
+            ],
+            "evidence": [
+              "SQL, Python, Pandas, NumPy, Git, Docker, PostgreSQL"
+            ],
+            "categories": [],
+            "source_categories": [],
+            "technical_category": "Databases",
+            "input_index": 6,
+            "chunk_index": 0
+          },
+          {
+            "text": "SQL",
+            "source": "skill",
+            "similarity": 0.9,
+            "input_index": 0,
+            "chunk_index": 0
+          }
+        ],
+        "best_evidence": {
+          "text": "SQL",
+          "source": "skill",
+          "extraction_sources": [
+            "section"
+          ],
+          "evidence": [
+            "SQL, Python, Pandas, NumPy, Git, Docker, PostgreSQL"
+          ],
+          "categories": [],
+          "source_categories": [],
+          "technical_category": "Programming Languages",
+          "input_index": 0,
+          "chunk_index": 0
+        },
+        "original_cosine": null,
+        "compatible": true,
+        "method_version": "3.1-experimental",
+        "diagnostic": {
+          "rule": "any",
+          "total_entries": 17,
+          "semantic_candidates": 1,
+          "retrieval_top_similarity": 0.9,
+          "eligible_entries": 18,
+          "rejected_contexts": 2,
+          "matched_terms": [
+            "postgresql",
+            "sql"
+          ],
+          "missing_terms": []
+        },
+        "max_points": 12.5,
+        "contribution_points": 12.5
+      },
+      {
+        "id": "R3",
+        "text": "Pandas e NumPy",
+        "nivel": "obrigatorio",
+        "tipo": "tecnico",
+        "peso": 2.0,
+        "estado": "atendido",
+        "origem": "automatica",
+        "justificativa": "Regra all: evidência literal suficiente para numpy, pandas.",
+        "evidencias": [
+          {
+            "text": "Pandas",
+            "source": "skill",
+            "extraction_sources": [
+              "section"
+            ],
+            "evidence": [
+              "SQL, Python, Pandas, NumPy, Git, Docker, PostgreSQL"
+            ],
+            "categories": [],
+            "source_categories": [],
+            "technical_category": "Frameworks and Libraries",
+            "input_index": 2,
+            "chunk_index": 0
+          },
+          {
+            "text": "NumPy",
+            "source": "skill",
+            "extraction_sources": [
+              "section"
+            ],
+            "evidence": [
+              "SQL, Python, Pandas, NumPy, Git, Docker, PostgreSQL"
+            ],
+            "categories": [],
+            "source_categories": [],
+            "technical_category": "Frameworks and Libraries",
+            "input_index": 3,
+            "chunk_index": 0
+          }
+        ],
+        "best_evidence": {
+          "text": "Pandas",
+          "source": "skill",
+          "extraction_sources": [
+            "section"
+          ],
+          "evidence": [
+            "SQL, Python, Pandas, NumPy, Git, Docker, PostgreSQL"
+          ],
+          "categories": [],
+          "source_categories": [],
+          "technical_category": "Frameworks and Libraries",
+          "input_index": 2,
+          "chunk_index": 0
+        },
+        "original_cosine": null,
+        "compatible": true,
+        "method_version": "3.1-experimental",
+        "diagnostic": {
+          "rule": "all",
+          "total_entries": 17,
+          "semantic_candidates": 1,
+          "retrieval_top_similarity": 0.9,
+          "eligible_entries": 18,
+          "rejected_contexts": 2,
+          "matched_terms": [
+            "numpy",
+            "pandas"
+          ],
+          "missing_terms": []
+        },
+        "max_points": 12.5,
+        "contribution_points": 12.5
+      },
+      {
+        "id": "R4",
+        "text": "Git e Docker",
+        "nivel": "obrigatorio",
+        "tipo": "tecnico",
+        "peso": 2.0,
+        "estado": "atendido",
+        "origem": "automatica",
+        "justificativa": "Regra all: evidência literal suficiente para docker, git.",
+        "evidencias": [
+          {
+            "text": "Git",
+            "source": "skill",
+            "extraction_sources": [
+              "section"
+            ],
+            "evidence": [
+              "SQL, Python, Pandas, NumPy, Git, Docker, PostgreSQL"
+            ],
+            "categories": [],
+            "source_categories": [],
+            "technical_category": "Cloud and DevOps",
+            "input_index": 4,
+            "chunk_index": 0
+          },
+          {
+            "text": "Docker",
+            "source": "skill",
+            "extraction_sources": [
+              "section"
+            ],
+            "evidence": [
+              "SQL, Python, Pandas, NumPy, Git, Docker, PostgreSQL"
+            ],
+            "categories": [],
+            "source_categories": [],
+            "technical_category": "Cloud and DevOps",
+            "input_index": 5,
+            "chunk_index": 0
+          },
+          {
+            "text": "Implementei um serviço com Docker.",
+            "source": "project",
+            "heading": "PROJETOS APLICADOS EM DADOS & IA",
+            "start_line": 14,
+            "end_line": 14,
+            "input_index": 12,
+            "chunk_index": 0
+          }
+        ],
+        "best_evidence": {
+          "text": "Git",
+          "source": "skill",
+          "extraction_sources": [
+            "section"
+          ],
+          "evidence": [
+            "SQL, Python, Pandas, NumPy, Git, Docker, PostgreSQL"
+          ],
+          "categories": [],
+          "source_categories": [],
+          "technical_category": "Cloud and DevOps",
+          "input_index": 4,
+          "chunk_index": 0
+        },
+        "original_cosine": null,
+        "compatible": true,
+        "method_version": "3.1-experimental",
+        "diagnostic": {
+          "rule": "all",
+          "total_entries": 17,
+          "semantic_candidates": 1,
+          "retrieval_top_similarity": 0.9,
+          "eligible_entries": 18,
+          "rejected_contexts": 2,
+          "matched_terms": [
+            "docker",
+            "git"
+          ],
+          "missing_terms": []
+        },
+        "max_points": 12.5,
+        "contribution_points": 12.5
+      },
+      {
+        "id": "R5",
+        "text": "Desenvolver APIs em Python",
+        "nivel": "obrigatorio",
+        "tipo": "tecnico",
+        "peso": 2.0,
+        "estado": "atendido",
+        "origem": "automatica",
+        "justificativa": "Regra api: evidência literal suficiente para python.",
+        "evidencias": [
+          {
+            "text": "Desenvolvi APIs em Python para consulta de dados.",
+            "source": "experience",
+            "heading": "EXPERIÊNCIA PROFISSIONAL",
+            "evidence_type": "responsibility",
+            "context_header": "Desenvolvedor de software\n2022-2024",
+            "start_line": 9,
+            "end_line": 9,
+            "parent_start_line": 6,
+            "parent_end_line": 10,
+            "input_index": 8,
+            "chunk_index": 0
+          }
+        ],
+        "best_evidence": {
+          "text": "Desenvolvi APIs em Python para consulta de dados.",
+          "source": "experience",
+          "heading": "EXPERIÊNCIA PROFISSIONAL",
+          "evidence_type": "responsibility",
+          "context_header": "Desenvolvedor de software\n2022-2024",
+          "start_line": 9,
+          "end_line": 9,
+          "parent_start_line": 6,
+          "parent_end_line": 10,
+          "input_index": 8,
+          "chunk_index": 0
+        },
+        "original_cosine": null,
+        "compatible": true,
+        "method_version": "3.1-experimental",
+        "diagnostic": {
+          "rule": "api",
+          "total_entries": 17,
+          "semantic_candidates": 1,
+          "retrieval_top_similarity": 0.9,
+          "eligible_entries": 18,
+          "rejected_contexts": 2,
+          "matched_terms": [
+            "python"
+          ],
+          "missing_terms": []
+        },
+        "max_points": 12.5,
+        "contribution_points": 12.5
+      },
+      {
+        "id": "R6",
+        "text": "Inglês intermediário",
+        "nivel": "obrigatorio",
+        "tipo": "tecnico",
+        "peso": 2.0,
+        "estado": "atendido",
+        "origem": "automatica",
+        "justificativa": "Regra language: evidência literal suficiente para ingles.",
+        "evidencias": [
+          {
+            "text": "Inglês intermediário (B2)",
+            "source": "language",
+            "heading": "IDIOMAS",
+            "start_line": 18,
+            "end_line": 18,
+            "input_index": 14,
+            "chunk_index": 0
+          }
+        ],
+        "best_evidence": {
+          "text": "Inglês intermediário (B2)",
+          "source": "language",
+          "heading": "IDIOMAS",
+          "start_line": 18,
+          "end_line": 18,
+          "input_index": 14,
+          "chunk_index": 0
+        },
+        "original_cosine": null,
+        "compatible": true,
+        "method_version": "3.1-experimental",
+        "diagnostic": {
+          "rule": "language",
+          "total_entries": 17,
+          "semantic_candidates": 1,
+          "retrieval_top_similarity": 0.9,
+          "eligible_entries": 18,
+          "rejected_contexts": 2,
+          "matched_terms": [
+            "ingles"
+          ],
+          "missing_terms": []
+        },
+        "max_points": 12.5,
+        "contribution_points": 12.5
+      },
+      {
+        "id": "R7",
+        "text": "Bacharelado em Sistemas de Informação",
+        "nivel": "obrigatorio",
+        "tipo": "tecnico",
+        "peso": 2.0,
+        "estado": "atendido",
+        "origem": "automatica",
+        "justificativa": "Regra education: evidência literal suficiente para sistemas de informacao.",
+        "evidencias": [
+          {
+            "text": "Bacharelado em Sistemas de Informação concluído em 2024.",
+            "source": "education",
+            "heading": "FORMAÇÃO ACADÊMICA & CERTIFICAÇÕES",
+            "start_line": 16,
+            "end_line": 16,
+            "input_index": 13,
+            "chunk_index": 0
+          }
+        ],
+        "best_evidence": {
+          "text": "Bacharelado em Sistemas de Informação concluído em 2024.",
+          "source": "education",
+          "heading": "FORMAÇÃO ACADÊMICA & CERTIFICAÇÕES",
+          "start_line": 16,
+          "end_line": 16,
+          "input_index": 13,
+          "chunk_index": 0
+        },
+        "original_cosine": null,
+        "compatible": true,
+        "method_version": "3.1-experimental",
+        "diagnostic": {
+          "rule": "education",
+          "total_entries": 17,
+          "semantic_candidates": 1,
+          "retrieval_top_similarity": 0.9,
+          "eligible_entries": 18,
+          "rejected_contexts": 2,
+          "matched_terms": [
+            "sistemas de informacao"
+          ],
+          "missing_terms": []
+        },
+        "max_points": 12.5,
+        "contribution_points": 12.5
+      },
+      {
+        "id": "R8",
+        "text": "Experiência de cinco anos em liderança",
+        "nivel": "desejavel",
+        "tipo": "tecnico",
+        "peso": 1.0,
+        "estado": "revisao_necessaria",
+        "origem": "automatica",
+        "justificativa": "Requisito sem regra inequívoca. Configure condições na edição da vaga ou solicite revisão humana.",
+        "evidencias": [
+          {
+            "text": "SQL",
+            "source": "skill",
+            "similarity": 0.9,
+            "input_index": 0,
+            "chunk_index": 0
+          }
+        ],
+        "best_evidence": {
+          "text": "SQL",
+          "source": "skill",
+          "similarity": 0.9,
+          "input_index": 0,
+          "chunk_index": 0
+        },
+        "original_cosine": 0.9,
+        "compatible": false,
+        "method_version": "3.1-experimental",
+        "diagnostic": {
+          "rule": "human_review",
+          "total_entries": 17,
+          "semantic_candidates": 1,
+          "retrieval_top_similarity": 0.9
+        },
+        "max_points": 6.25,
+        "contribution_points": 0.0
+      },
+      {
+        "id": "R9",
+        "text": "React",
+        "nivel": "desejavel",
+        "tipo": "tecnico",
+        "peso": 1.0,
+        "estado": "revisao_necessaria",
+        "origem": "automatica",
+        "justificativa": "Regra all: evidência insuficiente ou ambígua; falta confirmar react.",
+        "evidencias": [
+          {
+            "text": "SQL",
+            "source": "skill",
+            "similarity": 0.9,
+            "input_index": 0,
+            "chunk_index": 0
+          }
+        ],
+        "best_evidence": {
+          "text": "SQL",
+          "source": "skill",
+          "similarity": 0.9,
+          "input_index": 0,
+          "chunk_index": 0
+        },
+        "original_cosine": 0.9,
+        "compatible": false,
+        "method_version": "3.1-experimental",
+        "diagnostic": {
+          "rule": "all",
+          "total_entries": 17,
+          "semantic_candidates": 1,
+          "retrieval_top_similarity": 0.9,
+          "eligible_entries": 18,
+          "rejected_contexts": 2,
+          "matched_terms": [],
+          "missing_terms": [
+            "react"
+          ]
+        },
+        "max_points": 6.25,
+        "contribution_points": 0.0
+      }
+    ],
+    "counts": {
+      "atendido": 7,
+      "nao_identificado": 0,
+      "revisao_necessaria": 2
+    },
+    "provisional": true,
+    "maximum_score": 100.0,
+    "undecided": false,
+    "pending_weight": 2.0,
+    "mandatory_alert_ids": [],
+    "mandatory_status": "atendido",
+    "warnings": [],
+    "incomplete_requirement_ids": []
+  }
+}

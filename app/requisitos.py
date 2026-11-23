@@ -98,11 +98,12 @@ def parse_requirements(raw):
         text = clean_text(entry.get('text'))
         if not text:
             continue
-        items.append({
+        item = {
             'id': entry.get('id'), 'text': text,
             'tipo': entry.get('tipo') if entry.get('tipo') in TIPOS else None,
             'nivel': entry.get('nivel') if entry.get('nivel') in NIVEIS else 'obrigatorio',
-        })
+        }
+        items.append(item)
     stored_next = data.get('proximo_id')
     _assign_ids(items, next_id=stored_next)
     return {'versao': SCHEMA_VERSION, 'status': requirements_status(items),
@@ -114,8 +115,11 @@ def rows_from_form(form):
     columns = [form.getlist(name) for name in ('req_id', 'req_text', 'req_tipo', 'req_nivel')]
     if len({len(column) for column in columns}) != 1:
         raise ValueError('Formulário de requisitos inválido. Recarregue a página e tente de novo.')
-    return [{'id': identifier.strip(), 'text': text, 'tipo': tipo, 'nivel': nivel}
-            for identifier, text, tipo, nivel in zip(*columns)]
+    rows = []
+    for index, (identifier, text, tipo, nivel) in enumerate(zip(*columns)):
+        row = {'id': identifier.strip(), 'text': text, 'tipo': tipo, 'nivel': nivel}
+        rows.append(row)
+    return rows
 
 
 def build_requirements(rows, known_ids=(), next_id=None):
@@ -141,7 +145,8 @@ def build_requirements(rows, known_ids=(), next_id=None):
         if key in seen:
             continue
         seen.add(key)
-        items.append({'id': row.get('id'), 'text': text, 'tipo': tipo, 'nivel': nivel})
+        item = {'id': row.get('id'), 'text': text, 'tipo': tipo, 'nivel': nivel}
+        items.append(item)
     if len(items) > MAX_ITEMS:
         raise ValueError(f'Use no máximo {MAX_ITEMS} requisitos por vaga.')
     _assign_ids(items, known_ids, next_id)
@@ -151,3 +156,18 @@ def build_requirements(rows, known_ids=(), next_id=None):
 
 def serialize(requirements):
     return json.dumps(requirements, ensure_ascii=False)
+
+
+def requirement_warnings(description, requirements):
+    """Aponta divergências para revisão explícita, sem modificar o JSON salvo."""
+    from src.matching.documental_rules import fold
+    items = requirements.get('items', [])
+    warnings = []
+    education = r'\b(?:formacao|graduacao|bacharelado|superior|bachelor|degree|education)\b'
+    if re.search(education, fold(description or '')) and not any(
+            re.search(education, fold(item['text'])) for item in items):
+        warnings.append('A descrição menciona formação, mas os requisitos confirmados não a incluem. Revise a vaga para incluir ou dispensar explicitamente esse requisito.')
+    for item in items:
+        if re.match(r'^xperi[eê]ncia\b', item['text'], re.I):
+            warnings.append(f"{item['id']}: texto salvo começa com ‘xperiência’. Corrija explicitamente na edição; o processamento não altera o texto.")
+    return warnings

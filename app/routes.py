@@ -1,24 +1,44 @@
+import re
 from functools import wraps
 
-from flask import abort, g, redirect, render_template, request, session, url_for
+from flask import abort, flash, g, redirect, render_template, request, session, url_for, jsonify
+from postgrest.exceptions import APIError
 from supabase_auth.errors import AuthApiError
 
+from app.analysis import AnalysisError, attach_analysis, dashboard_scores, ensure_candidate_justification, process_resume
 from app import app
 from app.repositories import (
+    AnalysisSchemaError,
     LegacyProfileError,
     create_job,
     create_resume,
+    delete_candidate,
+    delete_job,
     ensure_profile,
     get_job,
     get_resume,
     list_jobs,
     list_resumes,
     update_job,
+    update_profile,
     update_resume_status,
 )
 from app.requisitos import NIVEIS, STATUS_VAGA, TIPOS, build_requirements, rows_from_form
 from app.supabase_client import create_supabase_client
 from src.data.clean import parse_resume_pdf
+from src.matching.telemetry import event, execution_id
+from app.auth_diagnostics import stage as auth_stage, failure as auth_failure
+
+
+@app.context_processor
+def requirement_review_helpers():
+    from app.requisitos import requirement_warnings
+    return {'requirement_warnings': requirement_warnings}
+
+
+@app.errorhandler(AnalysisSchemaError)
+def analysis_schema_error(error):
+    return str(error), 503
 
 
 def remember_tokens(auth_session):
@@ -27,12 +47,15 @@ def remember_tokens(auth_session):
 
 
 def finish_login(client, response):
+    auth_stage('AUTH_RESPONSE')
     if not response.session:
         raise ValueError('Confirme seu e-mail e faça login.')
+    auth_stage('AUTH_VERIFY_USER')
     verified = client.auth.get_user(response.session.access_token).user
     if not verified:
         raise ValueError('Não foi possível verificar a sessão.')
     profile = ensure_profile(client, verified)
+    auth_stage('SESSION_CREATE')
     session.clear()
     session['auth_user_id'] = str(verified.id)
     app.session_interface.regenerate(session)
@@ -42,6 +65,16 @@ def finish_login(client, response):
     session['user_name'] = profile.get('nome') or verified.email.split('@')[0]
     session['user_role'] = 'RH'
     session['user_initials'] = ''.join(part[0] for part in session['user_name'].split()[:2]).upper()
+    session['user_profile'] = profile
+    auth_stage('SESSION_READY')
+
+
+def _cached_profile_matches(profile, user):
+    if not isinstance(profile, dict) or not profile.get('id'):
+        return False
+    if str(profile.get('auth_user_id') or '') != str(user.id):
+        return False
+    return (profile.get('email') or '').lower() == (user.email or '').lower()
 
 
 def login_required(view):
@@ -56,7 +89,7 @@ def login_required(view):
                 session.clear()
                 return redirect(url_for('login'))
             remember_tokens(response.session)
-            user = client.auth.get_user(response.session.access_token).user
+            user = getattr(response, 'user', None) or client.auth.get_user(response.session.access_token).user
             if not user or str(user.id) != session.get('auth_user_id'):
                 session.clear()
                 return redirect(url_for('login'))
@@ -68,7 +101,13 @@ def login_required(view):
             abort(503, description='Não foi possível verificar seu acesso. Tente novamente.')
         try:
             g.supabase = client
-            g.profile = ensure_profile(client, user)
+            use_cached = request.endpoint not in {'configuracoes', 'editar_perfil'}
+            cached_profile = session.get('user_profile') if use_cached else None
+            if _cached_profile_matches(cached_profile, user):
+                g.profile = cached_profile
+            else:
+                g.profile = ensure_profile(client, user)
+                session['user_profile'] = g.profile
         except LegacyProfileError:
             abort(409, description='Perfil antigo: peça à equipe para vincular seu e-mail ao Supabase Auth.')
         except Exception as error:
@@ -87,16 +126,20 @@ def login():
     if not email or not password:
         return render_template('login.html', error='Informe e-mail e senha.'), 400
     try:
+        auth_stage('CLIENT_CREATE')
         client = create_supabase_client()
+        auth_stage('AUTH_SIGN_IN')
         response = client.auth.sign_in_with_password({'email': email, 'password': password})
         finish_login(client, response)
-    except AuthApiError:
+    except AuthApiError as error:
+        auth_failure(error)
         return render_template('login.html', error='Não foi possível entrar. Confira as credenciais e a confirmação do e-mail.'), 401
-    except LegacyProfileError:
+    except LegacyProfileError as error:
+        auth_failure(error)
         return render_template('login.html', error='Seu perfil antigo precisa ser vinculado ao Supabase Auth pela equipe.'), 409
     except Exception as error:
-        app.logger.warning('Falha no login: %s', type(error).__name__)
-        return render_template('login.html', error='Não foi possível concluir o login. Confira a conexão e a migração do banco.'), 503
+        auth_failure(error)
+        return render_template('login.html', error=f'Não foi possível concluir o login. Diagnóstico local: {execution_id.get()}.'), 503
     return redirect(url_for('dashboard'))
 
 
@@ -176,9 +219,11 @@ def database_job(job_id):
 def dashboard():
     jobs = database_jobs()
     total_resumes = sum(job.get('candidate_count', 0) for job in jobs)
+    scores = dashboard_scores(g.supabase, jobs)
+    average = f'{sum(scores) / len(scores):.2f}%' if scores else 'Indisponível'
     return render_template('dashboard.html', active_page='dashboard', jobs=jobs,
                            open_jobs_count=sum(job['status'] == 'Aberta' for job in jobs),
-                           total_resumes=total_resumes if total_resumes else '—', avg_match_rate='—')
+                           total_resumes=total_resumes if total_resumes else '—', avg_match_rate=average)
 
 
 def read_job_form(known_ids=(), next_id=None):
@@ -230,8 +275,10 @@ def vagas(job_id=None):
     jobs = database_jobs()
     if job_id is None:
         return redirect(url_for('vagas', job_id=jobs[0]['id'])) if jobs else redirect(url_for('nova_vaga'))
-    job = database_job(job_id)
-    candidates = list_resumes(g.supabase, job['id'])
+    job = next((item for item in jobs if item['id'] == str(job_id)), None)
+    if job is None:
+        job = database_job(job_id)
+    candidates = attach_analysis(g.supabase, job, list_resumes(g.supabase, job['id']))
     return render_template('vagas.html', active_page='candidatos', job=job,
                            jobs=jobs, candidates=candidates)
 
@@ -271,6 +318,33 @@ def editar_vaga(job_id):
                            job=job, tipos=TIPOS, niveis=NIVEIS, status_options=STATUS_VAGA)
 
 
+@app.route('/vagas/<job_id>/excluir', methods=['POST'])
+@login_required
+def excluir_vaga(job_id):
+    job = database_job(job_id)
+    try:
+        delete_job(g.supabase, job['id'])
+    except APIError as error:
+        app.logger.warning('Falha Supabase ao excluir vaga: código %s', error.code)
+        if error.code == 'PGRST202':
+            abort(
+                503,
+                description='A exclusão ainda não está habilitada no banco. Aplique sql/005_excluir_vagas.sql no Supabase.',
+            )
+        abort(503, description='O Supabase não conseguiu excluir a vaga e os dados vinculados.')
+    except Exception as error:
+        app.logger.warning('Falha ao excluir vaga: %s', type(error).__name__)
+        abort(503, description='Não foi possível excluir a vaga e os dados vinculados.')
+    if job['candidate_count']:
+        flash(
+            f"Vaga excluída. {job['candidate_count']} currículo(s) e análises vinculados foram removidos.",
+            'success',
+        )
+    else:
+        flash('Vaga excluída com sucesso.', 'success')
+    return redirect(url_for('dashboard'))
+
+
 @app.route('/candidatos')
 @login_required
 def candidatos():
@@ -281,14 +355,104 @@ def candidatos():
 @app.route('/configuracoes')
 @login_required
 def configuracoes():
-    return render_template('configuracoes.html', active_page='configuracoes')
+    return redirect(url_for('editar_perfil'))
+
+
+@app.route('/perfil', methods=['GET', 'POST'])
+@login_required
+def editar_perfil():
+    form = {
+        'name': g.profile.get('nome') or '',
+        'email': g.profile.get('email') or '',
+        'company': g.profile.get('empresa') or '',
+    }
+    if request.method == 'POST':
+        form.update({
+            'name': request.form.get('name', '').strip(),
+            'email': request.form.get('email', '').strip().lower(),
+            'company': request.form.get('company', '').strip(),
+        })
+        password = request.form.get('password', '')
+        password_confirm = request.form.get('password_confirm', '')
+        error = None
+
+        if not all(form.values()):
+            error = 'Preencha nome, e-mail e empresa.'
+        elif len(form['name']) > 120 or len(form['company']) > 120:
+            error = 'Nome e empresa devem ter no máximo 120 caracteres.'
+        elif len(form['email']) > 254 or not re.fullmatch(r'[^@\s]+@[^@\s]+\.[^@\s]+', form['email']):
+            error = 'Informe um endereço de e-mail válido.'
+        elif password and password != password_confirm:
+            error = 'As senhas não coincidem.'
+        elif password and (len(password) < 8 or len(password) > 128):
+            error = 'A nova senha deve ter entre 8 e 128 caracteres.'
+
+        if error:
+            return render_template('editar_perfil.html', active_page='configuracoes',
+                                   form=form, error=error), 400
+
+        profile_changes = {}
+        if form['name'] != (g.profile.get('nome') or ''):
+            profile_changes['nome'] = form['name']
+        if form['company'] != (g.profile.get('empresa') or ''):
+            profile_changes['empresa'] = form['company']
+        if form['email'] != (g.profile.get('email') or '').lower():
+            profile_changes['email'] = form['email']
+
+        attributes = {}
+        if 'nome' in profile_changes or 'empresa' in profile_changes:
+            attributes['data'] = {'name': form['name'], 'company': form['company']}
+        if 'email' in profile_changes:
+            attributes['email'] = form['email']
+        if password:
+            attributes['password'] = password
+
+        try:
+            if attributes:
+                response = g.supabase.auth.update_user(attributes)
+                if not response.user:
+                    raise RuntimeError('Supabase não retornou o usuário atualizado.')
+                if 'email' in profile_changes:
+                    effective_email = (response.user.email or g.profile['email']).lower()
+                    profile_changes['email'] = effective_email
+            updated_profile = g.profile
+            if profile_changes:
+                updated_profile = update_profile(
+                    g.supabase, g.profile['id'], session['auth_user_id'], profile_changes,
+                )
+        except AuthApiError:
+            return render_template(
+                'editar_perfil.html', active_page='configuracoes', form=form,
+                error='Não foi possível atualizar o perfil. Confira o e-mail e os requisitos da nova senha.',
+            ), 400
+        except Exception as error:
+            app.logger.warning(
+                'Falha ao atualizar perfil (%s, código=%s): %s',
+                type(error).__name__,
+                getattr(error, 'code', None),
+                getattr(error, 'message', str(error)),
+            )
+            abort(503, description='Não foi possível confirmar a atualização do perfil. Reabra a tela antes de tentar novamente.')
+
+        g.profile = updated_profile
+        session['user_profile'] = updated_profile
+        session['user_name'] = updated_profile['nome']
+        session['user_email'] = updated_profile['email']
+        session['user_initials'] = ''.join(part[0] for part in updated_profile['nome'].split()[:2]).upper()
+        if updated_profile['email'] != form['email']:
+            flash('Perfil atualizado. Confirme o link enviado ao novo e-mail para concluir a alteração.', 'success')
+        else:
+            flash('Perfil atualizado com sucesso.', 'success')
+        return redirect(url_for('editar_perfil'))
+
+    return render_template('editar_perfil.html', active_page='configuracoes', form=form, error=None)
 
 
 @app.route('/vagas/<job_id>/adicionar-curriculos', methods=['GET', 'POST'])
 @login_required
 def adicionar_curriculos(job_id):
     job = database_job(job_id)
-    candidates = list_resumes(g.supabase, job['id'])
+    candidates = attach_analysis(g.supabase, job, list_resumes(g.supabase, job['id']))
 
     if request.method == 'POST':
         uploaded = request.files.getlist('files')
@@ -298,27 +462,33 @@ def adicionar_curriculos(job_id):
         if not valid_files and not selected_ids:
             abort(400, description='Selecione ao menos um arquivo PDF ou currículo existente.')
 
-        for cid in selected_ids:
-            try:
-                update_resume_status(g.supabase, job['id'], cid, 'Analisado')
-            except Exception as error:
-                app.logger.warning('Falha ao atualizar status do candidato %s: %s', cid, type(error).__name__)
-
+        targets = {c['id']: c for c in candidates if c['id'] in selected_ids}
+        event('ANALYSIS_TARGETS', selected_count=len(targets))
+        for missing in selected_ids - targets.keys():
+            flash('Currículo selecionado não encontrado nesta vaga ou sem acesso.', 'error')
         for file_storage in valid_files:
-            lower_name = file_storage.filename.lower()
-            if not lower_name.endswith('.pdf'):
-                abort(400, description=f'Arquivo inválido: {file_storage.filename}. Envie arquivos no formato PDF.')
             try:
+                if not file_storage.filename.lower().endswith('.pdf'):
+                    raise AnalysisError('Envie arquivos no formato PDF.')
                 parsed = parse_resume_pdf(file_storage, filename=file_storage.filename)
+                resume = create_resume(g.supabase, job['id'], parsed['filename'], parsed['raw_text'], parsed['anonymized_text'])
+                targets[resume['id']] = resume
+            except AnalysisError as error:
+                flash(str(error), 'error')
             except Exception as error:
-                app.logger.warning('Falha ao processar PDF %s: %s', file_storage.filename, type(error).__name__)
-                abort(400, description=f'Não foi possível extrair texto de {file_storage.filename}: {error}')
-
+                app.logger.warning('Falha no upload: %s', type(error).__name__)
+                flash('Não foi possível extrair ou salvar um arquivo. Confira o cadastro antes de reenviar.', 'error')
+        for resume in targets.values():
             try:
-                create_resume(g.supabase, job['id'], parsed['filename'], parsed['raw_text'], parsed['anonymized_text'], status='Analisado')
+                result = process_resume(g.supabase, job, resume)
+                flash(f"Currículo {resume['id']}: análise salva. Execução {execution_id.get()}." if result['score'] is not None else
+                      f"Currículo {resume['id']}: análise incompleta salva; sem índice.", 'success')
+            except AnalysisError as error:
+                flash(f"Currículo {resume['id']}: {error}", 'error')
             except Exception as error:
-                app.logger.warning('Falha ao gravar currículo: %s', type(error).__name__)
-                abort(503, description='Não foi possível salvar os currículos no banco.')
+                from src.matching.telemetry import failure
+                failure(error, 'processing')
+                flash(f"Falha tecnica no processamento do curriculo {resume['id']} [{type(error).__name__}]. Execucao {execution_id.get()}. Nenhuma nova analise foi salva. Consulte ANALYSIS_STAGE_ERROR no terminal.", 'error')
 
         return redirect(url_for('vagas', job_id=job['id']))
 
@@ -337,6 +507,12 @@ def candidato_detalhe(job_id, candidate_id):
         abort(503, description='Não foi possível consultar os dados do candidato.')
     if candidate is None:
         abort(404, description='Candidato não encontrado nesta vaga.')
+    candidate = attach_analysis(g.supabase, job, [candidate])[0]
+    ensure_candidate_justification(g.supabase, job, candidate)
+    event('ANALYSIS_SELECTED', found=candidate['analysis'] is not None,
+          analysis_id=candidate.get('analysis_id'),
+          persisted_run_id=(candidate.get('analysis') or {}).get('execution_id'),
+          method='contextual' if (candidate.get('analysis') or {}).get('contextual_configuration') else 'legacy_or_unavailable')
     return render_template('candidato.html', active_page='candidatos', job=job, candidate=candidate)
 
 
@@ -353,3 +529,26 @@ def atualizar_status_candidato(job_id, candidate_id):
         app.logger.warning('Falha ao atualizar status: %s', type(error).__name__)
         abort(503, description='Não foi possível atualizar o status do candidato.')
     return redirect(url_for('candidato_detalhe', job_id=job['id'], candidate_id=candidate_id))
+
+
+@app.route('/vagas/<job_id>/candidato/<candidate_id>/excluir', methods=['POST'])
+@login_required
+def excluir_candidato(job_id, candidate_id):
+    job = database_job(job_id)
+    try:
+        delete_candidate(g.supabase, job['id'], candidate_id)
+    except APIError as error:
+        app.logger.warning('Falha Supabase ao excluir candidato: código %s', error.code)
+        if error.code == 'PGRST202':
+            abort(
+                503,
+                description='A exclusão de candidatos ainda não está habilitada no banco. Aplique sql/005_excluir_vagas.sql no Supabase.',
+            )
+        abort(503, description='O Supabase não conseguiu excluir o candidato e sua análise.')
+    except (LookupError, ValueError) as error:
+        abort(404, description=str(error))
+    except Exception as error:
+        app.logger.warning('Falha ao excluir candidato: %s', type(error).__name__)
+        abort(503, description='Não foi possível excluir o candidato e sua análise.')
+    flash('Candidato excluído com sucesso.', 'success')
+    return redirect(url_for('vagas', job_id=job['id']))

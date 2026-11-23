@@ -1,0 +1,20 @@
+Pessoa Sintética
+RESUMO PROFISSIONAL
+Atuação em desenvolvimento de software e análise de dados.
+HABILIDADES TÉCNICAS
+SQL, Python, Pandas, NumPy, Git, Docker, PostgreSQL
+EXPERIÊNCIA PROFISSIONAL
+Desenvolvedor de software
+2022-2024
+- Desenvolvi APIs em Python para consulta de dados.
+- Utilizei Git no controle de versões.
+PROJETOS APLICADOS EM DADOS & IA
+Projeto de integração
+- Utilizei Pandas e NumPy no processamento de tabelas.
+- Implementei um serviço com Docker.
+FORMAÇÃO ACADÊMICA & CERTIFICAÇÕES
+Bacharelado em Sistemas de Informação concluído em 2024.
+IDIOMAS
+Inglês intermediário (B2)
+Português nativo
+Pessoa Sintética | Página 1

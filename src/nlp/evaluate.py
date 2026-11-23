@@ -36,6 +36,10 @@ Exemplo:
 from __future__ import annotations
 
 import argparse
+import csv
+import warnings
+import platform
+from importlib.metadata import version, PackageNotFoundError
 import json
 from collections import defaultdict
 from pathlib import Path
@@ -58,7 +62,7 @@ from transformers import (
     TrainingArguments,
 )
 
-from src.nlp.labels import ID2LABEL
+from src.nlp.labels import ID2LABEL, BIO_LABELS, ENTITY_LABELS, normalize_entity_label
 
 
 # Somente estas colunas podem ser enviadas diretamente ao modelo.
@@ -645,6 +649,85 @@ def count_entity_support(
     return support
 
 
+def select_evaluation_split(dataset, split, train_subset):
+    """Seleciona janelas originais sem remover metadados."""
+    if split == "train" and train_subset == "original":
+        if "is_augmented" not in dataset.column_names:
+            raise ValueError("train original exige a coluna is_augmented; nao e seguro inferir sinteticos.")
+        return dataset.filter(lambda row: row["is_augmented"] is False)
+    return dataset
+
+
+def build_confusion_matrix(label_sequences, prediction_sequences):
+    """Linhas verdadeiras, colunas previstas; unidade: token consolidado."""
+    matrix = np.zeros((len(BIO_LABELS), len(BIO_LABELS)), dtype=np.int64)
+    indices = {tag: i for i, tag in enumerate(BIO_LABELS)}
+    if len(label_sequences) != len(prediction_sequences):
+        raise ValueError("Quantidade de documentos incompativel.")
+    for gold, predicted in zip(label_sequences, prediction_sequences):
+        if len(gold) != len(predicted):
+            raise ValueError("Quantidade de tokens incompativel.")
+        for expected, actual in zip(gold, predicted):
+            matrix[indices[expected], indices[actual]] += 1
+    support = matrix.sum(axis=1, keepdims=True)
+    normalized = np.divide(matrix, support, out=np.zeros_like(matrix, dtype=float), where=support != 0)
+    return matrix, normalized
+
+
+def entity_table(report):
+    return [{"entity": normalize_entity_label(entity), **report.get(
+        normalize_entity_label(entity),
+        {"precision": 0.0, "recall": 0.0, "f1-score": 0.0, "support": 0})}
+        for entity in ENTITY_LABELS]
+
+
+def save_evaluation_tables(directory, labels, predictions, report):
+    directory.mkdir(parents=True, exist_ok=True)
+    rows = entity_table(report)
+    save_json(rows, directory / "entity_metrics.json")
+    with (directory / "entity_metrics.csv").open("w", encoding="utf-8", newline="") as file:
+        writer = csv.DictWriter(file, fieldnames=["entity", "precision", "recall", "f1-score", "support"])
+        writer.writeheader()
+        writer.writerows(rows)
+    matrix, normalized = build_confusion_matrix(labels, predictions)
+    for name, values in [("confusion_matrix", matrix), ("confusion_matrix_normalized", normalized)]:
+        save_json({"labels": BIO_LABELS, "rows": "true", "columns": "predicted",
+                   "evaluation_unit": "consolidated_token", "matrix": values}, directory / f"{name}.json")
+        with (directory / f"{name}.csv").open("w", encoding="utf-8", newline="") as file:
+            writer = csv.writer(file)
+            writer.writerow(["true/predicted", *BIO_LABELS])
+            writer.writerows([tag, *row] for tag, row in zip(BIO_LABELS, values.tolist()))
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except ImportError:
+        warnings.warn("PNG nao gerado: instale matplotlib (python -m pip install matplotlib).")
+        return
+    for name, values in [("confusion_matrix", matrix), ("confusion_matrix_normalized", normalized)]:
+        fig, ax = plt.subplots(figsize=(17, 15))
+        im = ax.imshow(values, cmap="Blues", vmin=0)
+        ax.set_xticks(range(len(BIO_LABELS)), BIO_LABELS, rotation=90)
+        ax.set_yticks(range(len(BIO_LABELS)), BIO_LABELS)
+        ax.set_xlabel("Tag prevista")
+        ax.set_ylabel("Tag verdadeira")
+        ax.set_title("Tokens consolidados por documento: " + name)
+        fig.colorbar(im, ax=ax)
+        fig.tight_layout()
+        fig.savefig(directory / f"{name}.png", dpi=160)
+        plt.close(fig)
+
+
+def library_versions():
+    versions = {"python": platform.python_version()}
+    for package in ["numpy", "datasets", "transformers", "torch", "accelerate", "seqeval", "matplotlib"]:
+        try:
+            versions[package] = version(package)
+        except PackageNotFoundError:
+            versions[package] = None
+    return versions
+
+
 def parse_args() -> argparse.Namespace:
     """
     Define os argumentos da avaliação.
@@ -670,6 +753,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--split",
         choices=[
+            "train",
             "validation",
             "test",
         ],
@@ -702,6 +786,8 @@ def parse_args() -> argparse.Namespace:
         default=100,
     )
 
+    parser.add_argument("--train-subset", choices=["original", "all"], default="original")
+    parser.add_argument("--overwrite", action="store_true", help="Sobrescrever relatorios existentes com aviso.")
     return parser.parse_args()
 
 
@@ -733,9 +819,16 @@ def main() -> None:
             f"{args.split}"
         )
 
-    original_split = dataset[
-        args.split
-    ]
+    original_split = select_evaluation_split(dataset[args.split], args.split, args.train_subset)
+    if not len(original_split):
+        raise ValueError("Nenhuma janela disponivel para a avaliacao solicitada.")
+    subset = args.train_subset if args.split == "train" else None
+    folder = f"train_{subset}" if args.split == "train" else args.split
+    result_directory = args.output_dir / args.model_dir.parent.name / folder
+    if result_directory.exists() and any(result_directory.iterdir()):
+        if not args.overwrite:
+            raise FileExistsError(f"Relatorios existentes em {result_directory}. Use outro --output-dir ou --overwrite.")
+        warnings.warn(f"Sobrescrevendo relatorios em {result_directory}.")
 
     validate_required_columns(
         original_split
@@ -831,6 +924,15 @@ def main() -> None:
         zero_division=0,
     )
 
+    for row in entity_table(detailed_report):
+        detailed_report[row["entity"]] = {key: value for key, value in row.items() if key != "entity"}
+    window_loss = prediction_output.metrics.get("test_loss")
+    if window_loss is None or not np.isfinite(window_loss):
+        window_loss = None
+        warnings.warn("Perda por janela indisponivel; registrada como null.")
+    else:
+        window_loss = float(window_loss)
+
     entity_support = count_entity_support(
         detailed_report
     )
@@ -874,12 +976,20 @@ def main() -> None:
         ),
 
         # A loss continua sendo calculada por janela pelo Trainer.
-        "window_test_loss": float(
-            prediction_output.metrics.get(
-                "test_loss",
-                0.0,
-            )
-        ),
+        "window_loss": window_loss,
+        "window_test_loss": window_loss,
+        "loss_scope": "window",
+        "dataset": str(args.dataset_dir.resolve()),
+        "model_path": str(args.model_dir.resolve()),
+        "train_subset": subset,
+        "subset": subset if subset else "all",
+        "evaluated_tokens": consolidation_statistics["evaluated_tokens"],
+        "library_versions": library_versions(),
+        "seqeval_mode": "default (non-strict), zero_division=0; no BIO repair",
+        "checkpoint_evaluation_only": True,
+        "training_performed": False,
+        "macro_avg": detailed_report["macro avg"],
+        "weighted_avg": detailed_report["weighted avg"],
 
         "entity_support": (
             entity_support
@@ -904,15 +1014,7 @@ def main() -> None:
         )
     )
 
-    model_name = (
-        args.model_dir.parent.name
-    )
-
-    result_directory = (
-        args.output_dir
-        / model_name
-        / args.split
-    )
+    save_evaluation_tables(result_directory, label_sequences, prediction_sequences, detailed_report)
 
     save_json(
         summary_metrics,

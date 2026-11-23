@@ -14,6 +14,7 @@ os.environ.setdefault('FLASK_SECRET_KEY', 'test-only-secret-not-for-deployment')
 
 from app import app
 from app.repositories import PROFILE_FIELDS
+from postgrest.exceptions import APIError
 from supabase_auth.errors import AuthApiError
 
 
@@ -23,6 +24,7 @@ class FakeQuery:
         self.filters, self.payload, self.columns = {}, None, None
         self.limit_value, self.bounds, self.desc = None, None, False
         self.returning, self.update_payload = 'representation', None
+        self.delete_requested = False
 
     def select(self, columns): self.columns = columns; return self
     def eq(self, key, value): self.filters[key] = value; return self
@@ -32,10 +34,15 @@ class FakeQuery:
     def insert(self, value, returning='representation'):
         self.payload, self.returning = value, returning
         return self
+    def upsert(self, value, on_conflict):
+        self.conflict_fields = on_conflict.split(',')
+        self.payload = value
+        return self
     def update(self, value):
-        assert set(value) <= {'titulo', 'descricao', 'requisitos', 'status'}
+        assert set(value) <= {'titulo', 'descricao', 'requisitos', 'status', 'email', 'nome', 'empresa'}
         self.update_payload = value
         return self
+    def delete(self): self.delete_requested = True; return self
 
     def execute(self):
         db, uid = self.client.db, self.client.uid
@@ -48,6 +55,9 @@ class FakeQuery:
         elif self.table_name == 'vagas':
             rows = db['jobs']
             visible = [r for r in rows if r['criado_por'] in profile_ids]
+        elif self.table_name == 'analises_aderencia':
+            rows = db.setdefault('analyses', [])
+            visible = [r for r in rows if r.get('vaga_id') in job_ids]
         else:
             rows = db.setdefault('resumes', [])
             visible = [r for r in rows if r.get('vaga_id') in job_ids]
@@ -58,6 +68,11 @@ class FakeQuery:
             if self.table_name == 'curriculos' and db.get('fail_insert_resumes'):
                 raise RuntimeError('database unavailable')
             value = dict(self.payload)
+            if hasattr(self, 'conflict_fields'):
+                for row in visible:
+                    if all(row.get(key) == value.get(key) for key in self.conflict_fields):
+                        row.update(value)
+                        return SimpleNamespace(data=[dict(row)])
             if self.table_name == 'usuarios':
                 assert value['auth_user_id'] == uid
                 assert self.returning == 'minimal', 'Não retornar senha_hash na criação de perfil.'
@@ -73,10 +88,31 @@ class FakeQuery:
 
         for key, value in self.filters.items():
             visible = [r for r in visible if str(r.get(key)) == str(value)]
+        if self.delete_requested:
+            if db.get('fail_delete'):
+                raise RuntimeError('database unavailable')
+            if self.table_name == 'vagas' and any(
+                str(resume.get('vaga_id')) in {str(row['id']) for row in visible}
+                for resume in db.get('resumes', [])
+            ):
+                raise RuntimeError('vaga possui currículos vinculados')
+            removed = [dict(row) for row in visible]
+            for row in visible:
+                rows.remove(row)
+            if self.columns:
+                selected_columns = self.columns.split(',')
+                removed = [{key: row[key] for key in selected_columns if key in row} for row in removed]
+            return SimpleNamespace(data=removed)
         if self.update_payload is not None:
             if db.get('fail_update'):
                 raise RuntimeError('database unavailable')
             for row in visible: row.update(self.update_payload)
+            if self.columns:
+                selected_columns = self.columns.split(',')
+                visible = [
+                    {key: row[key] for key in selected_columns if key in row}
+                    for row in visible
+                ]
             return SimpleNamespace(data=[dict(r) for r in visible])
         if self.desc: visible = sorted(visible, key=lambda r:r['id'], reverse=True)
         if self.bounds: visible = visible[self.bounds[0]:self.bounds[1]+1]
@@ -88,6 +124,7 @@ class FakeQuery:
 class FakeClient:
     def __init__(self, db): self.db, self.uid, self.auth = db, None, self
     def table(self, name): return FakeQuery(self, name)
+    def rpc(self, name, params): return FakeRpcQuery(self, name, params)
     def user(self):
         info = self.db['users'][self.uid]
         return SimpleNamespace(id=self.uid, email=info['email'], user_metadata=info.get('metadata', {}))
@@ -112,7 +149,72 @@ class FakeClient:
         self.uid = 'new-user'
         self.db['users'][self.uid] = {'email':values['email'], 'password':values['password'], 'metadata':values['options']['data']}
         return self.response()
+    def update_user(self, attributes):
+        if self.db.get('fail_auth_update'):
+            raise AuthApiError('invalid', 400, 'validation_failed')
+        info = self.db['users'][self.uid]
+        if 'email' in attributes:
+            info['email'] = attributes['email']
+        if 'password' in attributes:
+            info['password'] = attributes['password']
+        if 'data' in attributes:
+            info['metadata'] = attributes['data']
+        return SimpleNamespace(user=self.user())
     def sign_out(self, *args): pass
+
+
+class FakeRpcQuery:
+    def __init__(self, client, name, params):
+        self.client, self.name, self.params = client, name, params
+
+    def execute(self):
+        if self.name != 'delete_job_with_candidates':
+            if self.name == 'delete_candidate':
+                return self.execute_delete_candidate()
+            raise AssertionError(f'RPC inesperada: {self.name}')
+        db, uid = self.client.db, self.client.uid
+        if db.get('fail_delete'):
+            if db['fail_delete'] == 'PGRST202':
+                raise APIError({
+                    'code': 'PGRST202',
+                    'message': 'function unavailable',
+                    'details': None,
+                    'hint': None,
+                })
+            raise RuntimeError('database unavailable')
+        profile_ids = {row['id'] for row in db['profiles'] if row['auth_user_id'] == uid}
+        job_id = int(self.params['p_job_id'])
+        job = next((row for row in db['jobs']
+                    if row['id'] == job_id and row['criado_por'] in profile_ids), None)
+        if job is None:
+            raise LookupError('vaga indisponível')
+        db['analyses'] = [row for row in db.get('analyses', [])
+                          if str(row.get('vaga_id')) != str(job_id)]
+        db['resumes'] = [row for row in db.get('resumes', [])
+                         if str(row.get('vaga_id')) != str(job_id)]
+        db['jobs'].remove(job)
+        return SimpleNamespace(data=None)
+
+    def execute_delete_candidate(self):
+        db, uid = self.client.db, self.client.uid
+        if db.get('fail_delete'):
+            raise RuntimeError('database unavailable')
+        profile_ids = {row['id'] for row in db['profiles'] if row['auth_user_id'] == uid}
+        job_id = int(self.params['p_job_id'])
+        candidate_id = int(self.params['p_candidate_id'])
+        job = next((row for row in db['jobs']
+                    if row['id'] == job_id and row['criado_por'] in profile_ids), None)
+        if job is None:
+            raise LookupError('vaga indisponível')
+        resume = next((row for row in db.get('resumes', [])
+                       if row['id'] == candidate_id and row.get('vaga_id') == job_id), None)
+        if resume is None:
+            raise LookupError('Candidato não encontrado nesta vaga.')
+        db['analyses'] = [row for row in db.get('analyses', [])
+                          if not (row.get('vaga_id') == job_id
+                                  and row.get('curriculo_id') == candidate_id)]
+        db['resumes'].remove(resume)
+        return SimpleNamespace(data=None)
 
 
 class WebFiltersTestCase(unittest.TestCase):
@@ -156,6 +258,59 @@ class WebFiltersTestCase(unittest.TestCase):
         self.assertNotIn('senha_hash',self.db['profiles'][0])
         self.assertNotIn('access-u1',str(response.headers.getlist('Set-Cookie')))
         self.assertEqual(self.client.get('/').status_code,200)
+    def test_edit_profile_page_shows_current_values(self):
+        self.login()
+        response=self.client.get('/perfil')
+        page=response.data.decode()
+        self.assertEqual(response.status_code,200)
+        self.assertIn('name="name" value="ana"',page)
+        self.assertIn('name="email" value="ana@example.test"',page)
+        self.assertIn('name="company" value=""',page)
+        self.assertIn('name="password"',page)
+        self.assertIn('href="/logout"',page)
+        self.assertGreater(page.index('Salvar alterações'), page.index('Alterar senha'))
+        self.assertGreater(page.index('Sair da conta'), page.index('Salvar alterações'))
+        self.assertIn('class="profile-logout-link"',page)
+    def test_configuracoes_opens_profile_page(self):
+        self.login()
+        response=self.client.get('/configuracoes')
+        self.assertEqual(response.status_code,302)
+        self.assertEqual(response.headers['Location'],'/perfil')
+    def test_edit_profile_updates_auth_and_profile(self):
+        self.login()
+        self.db['profiles'][0]['senha_hash']='legacy-hash'
+        response=self.post('/perfil',{
+            'name':'Ana Silva','email':'ana.silva@example.test','company':'Empresa Nova',
+            'password':'newpassword1','password_confirm':'newpassword1',
+        })
+        self.assertEqual(response.status_code,302)
+        self.assertEqual(self.db['users']['u1']['email'],'ana.silva@example.test')
+        self.assertEqual(self.db['users']['u1']['password'],'newpassword1')
+        self.assertEqual(self.db['users']['u1']['metadata'],{'name':'Ana Silva','company':'Empresa Nova'})
+        profile=self.db['profiles'][0]
+        self.assertEqual((profile['nome'],profile['email'],profile['empresa']),
+                         ('Ana Silva','ana.silva@example.test','Empresa Nova'))
+        with self.client.session_transaction() as sess:
+            self.assertEqual(sess['user_name'],'Ana Silva')
+            self.assertEqual(sess['user_email'],'ana.silva@example.test')
+    def test_password_change_does_not_require_profile_database_update(self):
+        self.login()
+        self.db['profiles'][0]['empresa']='Empresa'
+        self.db['fail_update']=True
+        response=self.post('/perfil',{
+            'name':'ana','email':'ana@example.test','company':'Empresa',
+            'password':'newpassword1','password_confirm':'newpassword1',
+        })
+        self.assertEqual(response.status_code,302)
+        self.assertEqual(self.db['users']['u1']['password'],'newpassword1')
+    def test_edit_profile_rejects_mismatched_passwords(self):
+        self.login()
+        response=self.post('/perfil',{
+            'name':'Ana','email':'ana@example.test','company':'Empresa',
+            'password':'newpassword1','password_confirm':'different',
+        })
+        self.assertEqual(response.status_code,400)
+        self.assertEqual(self.db['users']['u1']['password'],'password1')
     def test_create_and_reopen_job(self):
         self.login();response=self.create()
         self.assertEqual(response.status_code,302)
@@ -165,6 +320,13 @@ class WebFiltersTestCase(unittest.TestCase):
         self.assertEqual(json.loads(row['requisitos'])['status'],'pendente_revisao')
         self.assertIn(b'Vaga de teste',self.client.get('/').data)
         self.assertEqual(self.client.get('/vagas/1').status_code,200)
+
+    def test_job_form_shows_save_action_feedback(self):
+        self.login()
+        page=self.client.get('/nova-vaga').data.decode()
+        self.assertIn('Salvar Vaga',page)
+        self.assertIn("btn.textContent = 'Salvando vaga...';",page)
+        self.assertNotIn('Processando os requisitos da vaga com IA...',page)
     def test_persists_after_logout(self):
         self.login();self.create();self.client.get('/logout');self.login()
         self.assertIn(b'Vaga de teste',self.client.get('/').data)
@@ -208,16 +370,46 @@ class WebFiltersTestCase(unittest.TestCase):
         self.assertIn('[E-MAIL OCULTO]', saved['texto_anonimizado'])
 
         vagas_page = self.client.get('/vagas/1').data.decode('utf-8')
-        self.assertIn('Marcos Lima', vagas_page)
-        self.assertIn('marcos_cv.pdf', vagas_page)
+        self.assertIn('Candidato #1', vagas_page)
+        self.assertNotIn('Marcos Lima', vagas_page)
 
         detalhe_page = self.client.get('/vagas/1/candidato/1').data.decode('utf-8')
-        self.assertIn('Marcos Lima', detalhe_page)
-        self.assertIn('marcos@test.com', detalhe_page)
+        self.assertIn('Candidato #1', detalhe_page)
+        self.assertNotIn('Marcos Lima', detalhe_page)
+        self.assertIn('Oculto (disponível após aprovação)', detalhe_page)
+        self.assertIn('candidate-status-form', detalhe_page)
 
         status_update = self.post('/vagas/1/candidato/1/status', {'status': 'Aprovado'})
         self.assertEqual(status_update.status_code, 302)
         self.assertEqual(self.db['resumes'][0]['status'], 'Aprovado')
+
+        detalhe_aprovado = self.client.get('/vagas/1/candidato/1').data.decode('utf-8')
+        self.assertIn('Marcos Lima', detalhe_aprovado)
+        self.assertIn('marcos@test.com', detalhe_aprovado)
+        self.assertNotIn('candidate-status-form', detalhe_aprovado)
+
+        status_update = self.post('/vagas/1/candidato/1/status', {'status': 'Descartado'})
+        self.assertEqual(status_update.status_code, 302)
+        detalhe_descartado = self.client.get('/vagas/1/candidato/1').data.decode('utf-8')
+        self.assertIn('Descartado', detalhe_descartado)
+        self.assertNotIn('candidate-status-form', detalhe_descartado)
+
+    def test_upload_page_advertises_only_pdf_and_reports_other_formats(self):
+        import io
+        self.login();self.create()
+        page=self.client.get('/vagas/1/adicionar-curriculos').data.decode()
+        self.assertIn('Formato aceito: PDF.',page)
+        self.assertNotIn('.docx',page)
+        self.assertIn('accept=".pdf"',page)
+        response=self.client.post(
+            '/vagas/1/adicionar-curriculos',
+            data={'files':(io.BytesIO(b'not a PDF'),'curriculo.docx')},
+            content_type='multipart/form-data',
+            headers={'Origin':'http://localhost'},
+        )
+        self.assertEqual(response.status_code,302)
+        self.assertIn('Envie arquivos no formato PDF.',self.client.get('/vagas/1').data.decode())
+        self.assertFalse(self.db['resumes'])
 
     def test_original_filters_render(self):
         self.login();self.create()
@@ -261,12 +453,76 @@ class WebFiltersTestCase(unittest.TestCase):
         self.assertEqual(row['titulo'],'Vaga Atualizada')
         self.assertEqual(row['status'],'Encerrada')
         self.assertEqual(row['descricao'],'Python avançado')
+    def test_requirement_guidance_on_create_and_edit(self):
+        self.login();self.create()
+        for path in ('/nova-vaga', '/vagas/1/editar'):
+            with self.subTest(path=path):
+                response=self.client.get(path)
+                self.assertEqual(response.status_code,200)
+                page=response.data.decode('utf-8')
+                self.assertIn('Prepare os requisitos antes de analisar currículos',page)
+                self.assertIn('Prioridade',page)
+                self.assertIn('Ajustes avançados (opcional)',page)
     def test_edit_other_owner_job_forbidden(self):
         self.login();self.create()
         second=app.test_client();self.login(second,'bia@example.test','password2')
         self.assertEqual(second.get('/vagas/1/editar').status_code,404)
         self.assertEqual(self.post('/vagas/1/editar',{'title':'Hacked','description':'X','status':'Aberta'},second).status_code,404)
         self.assertEqual(self.db['jobs'][0]['titulo'],'Vaga de teste')
+    def test_dashboard_lists_vagas_with_contextual_actions(self):
+        self.login();self.create()
+        page=self.client.get('/').data.decode()
+        self.assertIn('Vagas cadastradas',page)
+        self.assertIn('Opções da vaga',page)
+        self.assertIn('Editar vaga',page)
+        self.assertIn('Excluir vaga',page)
+    def test_delete_empty_job_from_dashboard_action(self):
+        self.login();self.create()
+        response=self.post('/vagas/1/excluir',{})
+        self.assertEqual(response.status_code,302)
+        self.assertEqual(response.headers['Location'],'/')
+        self.assertEqual(self.db['jobs'],[])
+        self.assertIn('Vaga excluída com sucesso',self.client.get('/').data.decode())
+    def test_delete_job_with_candidates_after_confirmation(self):
+        self.login();self.create()
+        self.db['resumes'].append({'id':1,'vaga_id':1})
+        self.db['analyses'] = [{'id':1,'vaga_id':1,'curriculo_id':1}]
+        page=self.client.get('/').data.decode()
+        self.assertIn('onsubmit="return confirm(',page)
+        self.assertIn('Todos os currículos e análises vinculados também serão removidos',page)
+        response=self.post('/vagas/1/excluir',{})
+        self.assertEqual(response.status_code,302)
+        self.assertEqual(self.db['jobs'],[])
+        self.assertEqual(self.db['resumes'],[])
+        self.assertEqual(self.db['analyses'],[])
+        self.assertIn('1 currículo(s) e análises vinculados foram removidos',
+                      self.client.get('/').data.decode())
+    def test_delete_candidate_after_confirmation(self):
+        self.login();self.create()
+        self.db['resumes'].append({'id':1,'vaga_id':1,'status':'Pendente'})
+        self.db['analyses'] = [{'id':1,'vaga_id':1,'curriculo_id':1}]
+        page=self.client.get('/vagas/1/candidato/1').data.decode()
+        self.assertIn('Excluir candidato',page)
+        self.assertIn('O currículo e a análise vinculada serão removidos permanentemente',page)
+        response=self.post('/vagas/1/candidato/1/excluir',{})
+        self.assertEqual(response.status_code,302)
+        self.assertEqual(response.headers['Location'],'/vagas/1')
+        self.assertEqual(self.db['resumes'],[])
+        self.assertEqual(self.db['analyses'],[])
+        ranking=self.client.get('/vagas/1').data.decode()
+        self.assertIn('Candidato excluído com sucesso',ranking)
+    def test_delete_other_owner_job_forbidden(self):
+        self.login();self.create()
+        second=app.test_client();self.login(second,'bia@example.test','password2')
+        self.assertEqual(self.post('/vagas/1/excluir',{},second).status_code,404)
+        self.assertEqual(len(self.db['jobs']),1)
+    def test_missing_delete_migration_has_actionable_error(self):
+        self.login();self.create()
+        self.db['fail_delete']='PGRST202'
+        response=self.post('/vagas/1/excluir',{})
+        self.assertEqual(response.status_code,503)
+        self.assertIn('sql/005_excluir_vagas.sql',response.data.decode())
+        self.assertEqual(len(self.db['jobs']),1)
     def test_create_and_edit_job_with_classified_requirements(self):
         self.login()
         res=self.post('/nova-vaga',{

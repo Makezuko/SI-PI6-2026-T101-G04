@@ -44,6 +44,21 @@ class AnalysisWebTests(unittest.TestCase):
         self.models = patch('app.analysis.load_models', return_value=(self.predictor, FakeEmbedder()))
         self.models.start()
         self.addCleanup(self.models.stop)
+        adapter = SimpleNamespace(generate=lambda payload: json.dumps(dict(
+            estado='sustentado',
+            evidence_ids=[item['id'] for item in payload['evidencias'][:1]],
+            justificativa='Dublê de teste para o fluxo contextual.',
+            limitacoes=[],
+            base='evidencia')))
+        self.context = patch.dict(os.environ, {
+            'CONTEXTUAL_EVALUATOR': 'experimental',
+            'CONTEXTUAL_MODEL_REVISION': 'test',
+        })
+        self.context.start()
+        self.addCleanup(self.context.stop)
+        self.context_model = patch('app.analysis.load_contextual_model', return_value=adapter)
+        self.context_model.start()
+        self.addCleanup(self.context_model.stop)
 
     def upload(self, name='jane.pdf', skill='Python'):
         return self.client.post('/vagas/1/adicionar-curriculos', data={

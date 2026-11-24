@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from '_requirement_condition.html' import condition_fields %}
 {% block title %}Nova Vaga · TalentMatch AI{% endblock %}
 
 {% block topbar %}
@@ -86,6 +87,7 @@
               <button type="button" class="req-remove" data-req-remove title="Remover requisito" aria-label="Remover requisito">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
+              {{ condition_fields(r) }}
             </div>
             {% endfor %}
           {% else %}
@@ -108,6 +110,7 @@
               <button type="button" class="req-remove" data-req-remove title="Remover requisito" aria-label="Remover requisito">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
+              {{ condition_fields() }}
             </div>
             {% endfor %}
           {% endif %}
@@ -131,6 +134,7 @@
             <button type="button" class="req-remove" data-req-remove title="Remover requisito" aria-label="Remover requisito">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
+            {{ condition_fields() }}
           </div>
         </template>
         <p class="field-hint edit-requirements-hint">
@@ -185,6 +189,7 @@
 .req-remove {
   width: 34px;
   height: 34px;
+ align-self: start;
   border-radius: 9px;
   border: 1px solid transparent;
   background: transparent;

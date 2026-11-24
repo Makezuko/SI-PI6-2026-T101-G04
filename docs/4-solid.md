@@ -1,6 +1,6 @@
 # 4. Aplicação e análise dos princípios SOLID
 
-Esta análise consolida as evidências práticas dos princípios **SOLID** no repositório do **TalentMatch AI**, somando a refatoração inicial de SRP (PR #23) às implementações de **OCP** e **LSP** sobre o cálculo atual de aderência documental (`src/matching/adherence.py` e `src/matching/aggregators.py`). Os princípios **ISP** e **DIP** seguem pendentes para a próxima contribuição da equipe.
+Esta análise consolida as evidências práticas dos princípios **SOLID** no repositório do **TalentMatch AI**, somando a refatoração inicial de SRP (PR #23), as implementações de **OCP** e **LSP** sobre o cálculo atual de aderência documental (`src/matching/adherence.py` e `src/matching/aggregators.py`) e a contribuição de **ISP** e **DIP** na atualização de perfil.
 
 ## 4.1 SRP — Princípio da Responsabilidade Única
 
@@ -63,13 +63,18 @@ for strategy in strategies:
 
 O ISP recomenda contratos pequenos e específicos, de forma que os consumidores dependam apenas das operações de que necessitam.
 
-As funções `compare()`, `evaluate_requirements()` e `calculate_adherence()` expõem operações separadas para recuperação, decisão documental e agregação. Contudo, nos repositórios, o parâmetro `client` oferece uma API ampla, e não há contratos explícitos separados para leitura e escrita. Portanto, a segregação de interfaces na persistência permanece pendente para a próxima contribuição da equipe.
+- **Problema antes:** `update_profile_account()` dependia de um cliente amplo do Supabase e chamava diretamente `update_profile()`, embora precisasse apenas de uma operação de autenticação e outra de persistência.
+- **Solução aplicada:** foram separados `ProfileAuthWriter.update_user()` em [app/routes.py](../app/routes.py) e `ProfilePersistence.update_profile()` em [app/repositories.py](../app/repositories.py). Cada contrato contém somente a operação necessária ao fluxo.
+- **Efeito no código:** a coordenação pode ser testada com objetos mínimos. O teste `test_profile_account_update_depends_on_small_contracts` usa um escritor de autenticação e um repositório de perfil independentes, sem o cliente completo do Supabase.
 
 ## 4.5 DIP — Princípio da Inversão de Dependência
 
 O DIP recomenda que regras de alto nível e detalhes de infraestrutura dependam de abstrações, e que essas abstrações expressem as necessidades das regras de negócio.
 
-Em [app/repositories.py](../app/repositories.py), funções como `list_jobs()`, `get_job()` e `create_job()` recebem `client` por parâmetro, permitindo fornecer dependências substitutas nos testes. Ainda assim, os repositórios e [app/analysis.py](../app/analysis.py) seguem acoplados à API concreta do Supabase (`table()`, `select()`, `eq()`, `execute()`). Portanto, a inversão arquitetural por contratos permanece pendente para a próxima contribuição da equipe.
+- **Problema antes:** `update_profile_account()` conhecia diretamente a API da rota, do repositório funcional e do Supabase.
+- **Solução aplicada:** a função recebe `ProfileAuthWriter` e `ProfilePersistence` por parâmetro. `SupabaseProfilePersistence` adapta o cliente concreto a `ProfilePersistence`, enquanto `g.supabase.auth` atende ao contrato mínimo de autenticação.
+- **Efeito no código:** a regra de coordenação da conta depende dos contratos de negócio, não da implementação completa do cliente. Isso permite substituir os serviços em testes e diminui o acoplamento da atualização de perfil.
+- **Limitação:** outros repositórios continuam usando `client.table()` diretamente. Este é um exemplo localizado de DIP, não uma reescritura completa de toda a persistência.
 
 ## 4.6 Resultados
 
@@ -77,6 +82,7 @@ Em [app/repositories.py](../app/repositories.py), funções como `list_jobs()`, 
 
 - **SRP (PR #23):** [app/repositories.py](../app/repositories.py) (`format_display_date()`) e [tests/test_format_display_date.py](../tests/test_format_display_date.py).
 - **OCP e LSP (PR #33):** [src/matching/aggregators.py](../src/matching/aggregators.py) (`AdherenceScoreStrategy`, `WeightedConfirmedAdherence`, `StrictMandatoryAdherence`, `ProvisionalWeightedAdherence`), [src/matching/adherence.py](../src/matching/adherence.py) (`calculate_adherence(..., strategy=None)`) e [tests/test_solid_matching.py](../tests/test_solid_matching.py).
+- **ISP e DIP:** [app/routes.py](../app/routes.py) (`ProfileAuthWriter`, `update_profile_account()`), [app/repositories.py](../app/repositories.py) (`ProfilePersistence`, `SupabaseProfilePersistence`) e [tests/test_web_filters.py](../tests/test_web_filters.py) (`test_profile_account_update_depends_on_small_contracts`). Esta contribuição está pronta localmente e aguarda PR e merge.
 - **Documentação:** atualização de [docs/4-solid.md](4-solid.md) com as evidências de OCP e LSP aplicadas à aderência documental atual.
 
 ### Validação executada
@@ -97,5 +103,5 @@ python -m unittest discover -s tests -p "test_contextual.py"
 - **[PR #23 — Refatoração SRP, testes automatizados e documentação SOLID](https://github.com/Makezuko/SI-PI6-2026-T101-G04/pull/23):** implementação da função `format_display_date()` e análise inicial.
 - **[PR #22 — Documentação arquitetural e ADR-0001](https://github.com/Makezuko/SI-PI6-2026-T101-G04/pull/22)** e **[PR #21 — Contexto do sistema e atributos de qualidade](https://github.com/Makezuko/SI-PI6-2026-T101-G04/pull/21)**.
 - **[PR #33 — Refatoração OCP e LSP na aderência documental (Kauê Farias Lourenço)](https://github.com/Makezuko/SI-PI6-2026-T101-G04/pull/33):** implementação de `AdherenceScoreStrategy` em `src/matching/aggregators.py`, extensão em `src/matching/adherence.py`, suíte `tests/test_solid_matching.py` e atualização de `docs/4-solid.md` *(substituir `<COMMIT_HASH>` nos links permanentes após o merge na `main`)*.
-- **PR de ISP e DIP (Julia Kimura):** *[inserir link após a entrega da contribuição correspondente]*.
+- **PR de ISP e DIP (Julia Kimura):** implementação pronta localmente em `app/routes.py`, `app/repositories.py` e `tests/test_web_filters.py`; *inserir link após abrir e mergear o PR*.
 

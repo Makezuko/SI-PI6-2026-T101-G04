@@ -31,9 +31,7 @@ def calculate_adherence(requirements, decisions, weights=None, strategy=None):
     score, maximum_score, contributions = active_strategy.compute(details, scale)
 ```
 
-> *Links permanentes (substituir `<COMMIT_HASH>` após o merge do PR #33 na `main`):*
-> - `https://github.com/Makezuko/SI-PI6-2026-T101-G04/blob/<COMMIT_HASH>/src/matching/adherence.py#L13-L64`
-> - `https://github.com/Makezuko/SI-PI6-2026-T101-G04/blob/<COMMIT_HASH>/src/matching/aggregators.py#L8-L35`
+> Evidências na versão incorporada à main: [cálculo de aderência](https://github.com/Makezuko/SI-PI6-2026-T101-G04/blob/a6222c86bf1f312378bd48bb783b506205c307c3/src/matching/adherence.py) e [estratégias de pontuação](https://github.com/Makezuko/SI-PI6-2026-T101-G04/blob/a6222c86bf1f312378bd48bb783b506205c307c3/src/matching/aggregators.py).
 
 ## 4.3 LSP — Princípio da Substituição de Liskov
 
@@ -56,8 +54,7 @@ for strategy in strategies:
     self.assertAlmostEqual(math.fsum(contributions), output["score"], places=6)
 ```
 
-> *Link permanente (substituir `<COMMIT_HASH>` após o merge do PR #33 na `main`):*
-> - `https://github.com/Makezuko/SI-PI6-2026-T101-G04/blob/<COMMIT_HASH>/tests/test_solid_matching.py#L108-L143`
+> Evidência na versão incorporada à main: [testes de contrato das estratégias](https://github.com/Makezuko/SI-PI6-2026-T101-G04/blob/a6222c86bf1f312378bd48bb783b506205c307c3/tests/test_solid_matching.py).
 
 ## 4.4 ISP — Princípio da Segregação de Interfaces
 
@@ -96,6 +93,6 @@ python -m unittest discover -s tests -p "test_contextual.py"
 
 - **[PR #23 — Refatoração SRP, testes automatizados e documentação SOLID](https://github.com/Makezuko/SI-PI6-2026-T101-G04/pull/23):** implementação da função `format_display_date()` e análise inicial.
 - **[PR #22 — Documentação arquitetural e ADR-0001](https://github.com/Makezuko/SI-PI6-2026-T101-G04/pull/22)** e **[PR #21 — Contexto do sistema e atributos de qualidade](https://github.com/Makezuko/SI-PI6-2026-T101-G04/pull/21)**.
-- **[PR #33 — Refatoração OCP e LSP na aderência documental (Kauê Farias Lourenço)](https://github.com/Makezuko/SI-PI6-2026-T101-G04/pull/33):** implementação de `AdherenceScoreStrategy` em `src/matching/aggregators.py`, extensão em `src/matching/adherence.py`, suíte `tests/test_solid_matching.py` e atualização de `docs/4-solid.md` *(substituir `<COMMIT_HASH>` nos links permanentes após o merge na `main`)*.
+- **[PR #33 — Refatoração OCP e LSP na aderência documental (Kauê Farias Lourenço)](https://github.com/Makezuko/SI-PI6-2026-T101-G04/pull/33):** implementação de `AdherenceScoreStrategy` em `src/matching/aggregators.py`, extensão em `src/matching/adherence.py`, suíte `tests/test_solid_matching.py` e atualização de `docs/4-solid.md`.
 - **PR de ISP e DIP (Julia Kimura):** *[inserir link após a entrega da contribuição correspondente]*.
 

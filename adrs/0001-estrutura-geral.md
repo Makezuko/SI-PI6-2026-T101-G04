@@ -1,8 +1,8 @@
 # ADR-0001 — Manutenção de uma aplicação web modular
 
-**Status:** Proposto
+**Status:** Aceito
 
-**Data:** A definir pelo grupo
+**Data de aceitação:** 23/11/2026 (merge do PR #22)
 
 ## Contexto
 
@@ -12,13 +12,13 @@ O projeto precisa evoluir para atender novos requisitos e demonstrar boas práti
 
 ## Decisão
 
-Propõe-se manter o TalentMatch AI como uma aplicação monolítica, com uma única unidade principal de execução, e evoluir gradualmente sua organização interna para uma arquitetura mais modular.
+Decide-se manter o TalentMatch AI como uma aplicação monolítica, com uma única unidade principal de execução, e evoluir gradualmente sua organização interna para uma arquitetura mais modular.
 
 A evolução deverá priorizar a separação das responsabilidades de gerenciamento de vagas, currículos e análise de compatibilidade, reduzindo o acoplamento entre rotas, regras de negócio e persistência.
 
 As fronteiras entre módulos deverão ser explicitadas e verificadas progressivamente por meio de testes e regras de dependência, sem exigir a adoção imediata de microsserviços ou a reescrita das funcionalidades existentes.
 
-Essa decisão representa uma evolução arquitetural proposta. A organização atual já apresenta separação inicial em módulos Python, mas ainda não possui todas as fronteiras exigidas por um monólito modular rigoroso.
+Essa decisão orienta uma evolução arquitetural gradual. A organização atual já apresenta separação inicial em módulos Python, mas ainda não possui todas as fronteiras exigidas por um monólito modular rigoroso.
 
 ## Alternativas consideradas
 
@@ -49,6 +49,7 @@ O processamento de currículos pode se tornar o principal limite de capacidade: 
 
 ## Evidências
 
+- [PR #22 — documentação arquitetural e ADR-0001](https://github.com/Makezuko/SI-PI6-2026-T101-G04/pull/22) e [commit de merge na main](https://github.com/Makezuko/SI-PI6-2026-T101-G04/commit/a6222c86bf1f312378bd48bb783b506205c307c3): registram a aprovação e a incorporação da decisão; sua evolução modular continua gradual.
 - [Configuração da aplicação Flask e registro das rotas](../app/__init__.py) e [instruções de execução local](../README.md#executar): mostram a aplicação web e como iniciá-la.
 - [Rota de upload de currículos](../app/routes.py): a função `adicionar_curriculos` percorre os arquivos, chama `parse_resume_pdf` e usa `create_resume` na mesma requisição.
 - [Repositórios](../app/repositories.py), [extração e limpeza de dados](../src/data/clean.py) e [comparação semântica](../src/matching/semantic.py): ilustram as responsabilidades já distribuídas em módulos Python e a integração externa com o Supabase.

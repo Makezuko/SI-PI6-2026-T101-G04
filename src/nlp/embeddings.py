@@ -1,4 +1,3 @@
-
 """
 Geração de embeddings de skills e contextos do currículo.
 
@@ -25,9 +24,7 @@ class ResumeEmbedder:
             raise ValueError("É necessário um tokenizer com offsets.")
 
         # Reserva espaço para os tokens especiais do modelo.
-        special_tokens = self.tokenizer.num_special_tokens_to_add(
-            pair=False
-        )
+        special_tokens = self.tokenizer.num_special_tokens_to_add(pair=False)
 
         self.window_size = min(
             256,
@@ -67,42 +64,69 @@ class ResumeEmbedder:
         chunks = []
         start = 0
         while start < len(text):
-            local = self.tokenizer(text[start:], add_special_tokens=False,
-                                   return_offsets_mapping=True, truncation=False, verbose=False)
-            spans = local['offset_mapping']
+            local = self.tokenizer(
+                text[start:],
+                add_special_tokens=False,
+                return_offsets_mapping=True,
+                truncation=False,
+                verbose=False,
+            )
+            spans = local["offset_mapping"]
             if not spans:
                 # Preserve trailing whitespace in the preceding evidence window.
                 if chunks:
-                    chunks[-1]['end_char'] = len(text)
-                    chunks[-1]['text'] = text[chunks[-1]['start_char']:]
+                    chunks[-1]["end_char"] = len(text)
+                    chunks[-1]["text"] = text[chunks[-1]["start_char"] :]
                 break
-            end = len(text) if len(spans) <= self.window_size else start + spans[self.window_size][0]
+            end = (
+                len(text) if len(spans) <= self.window_size else start + spans[self.window_size][0]
+            )
             # Prefer a complete word, but never exceed the real retokenized limit.
-            while end < len(text) and end > start and text[end - 1].isalnum() and text[end].isalnum():
+            while (
+                end < len(text) and end > start and text[end - 1].isalnum() and text[end].isalnum()
+            ):
                 end += 1
             while True:
                 chunk_text = text[start:end]
-                tokens = self.tokenizer(chunk_text, add_special_tokens=True,
-                                        truncation=False, verbose=False)['input_ids']
+                tokens = self.tokenizer(
+                    chunk_text, add_special_tokens=True, truncation=False, verbose=False
+                )["input_ids"]
                 if len(tokens) <= self.model.max_seq_length:
                     break
                 end -= max(1, (end - start) // 10)
                 boundary = end
-                while boundary > start and text[boundary - 1].isalnum() and text[boundary].isalnum():
+                while (
+                    boundary > start and text[boundary - 1].isalnum() and text[boundary].isalnum()
+                ):
                     boundary -= 1
                 if boundary > start:
                     end = boundary
                 if end <= start:
-                    raise ValueError('Nenhum trecho cabe no limite real do modelo.')
-            chunks.append(dict(text=chunk_text, start_char=start, end_char=end,
-                               token_count=len(tokens)))
+                    raise ValueError("Nenhum trecho cabe no limite real do modelo.")
+            chunks.append(
+                dict(text=chunk_text, start_char=start, end_char=end, token_count=len(tokens))
+            )
             if end == len(text):
                 break
-            accepted = self.tokenizer(chunk_text, add_special_tokens=False,
-                                      return_offsets_mapping=True, truncation=False, verbose=False)['offset_mapping']
-            next_start = start + accepted[-self.overlap][0] if self.overlap and len(accepted) > self.overlap else end
+            accepted = self.tokenizer(
+                chunk_text,
+                add_special_tokens=False,
+                return_offsets_mapping=True,
+                truncation=False,
+                verbose=False,
+            )["offset_mapping"]
+            next_start = (
+                start + accepted[-self.overlap][0]
+                if self.overlap and len(accepted) > self.overlap
+                else end
+            )
             boundary = next_start
-            while boundary > start and boundary < len(text) and text[boundary - 1].isalnum() and text[boundary].isalnum():
+            while (
+                boundary > start
+                and boundary < len(text)
+                and text[boundary - 1].isalnum()
+                and text[boundary].isalnum()
+            ):
                 boundary -= 1
             next_start = boundary if boundary > start else end
             start = next_start if start < next_start <= end else end
@@ -124,29 +148,23 @@ class ResumeEmbedder:
             text = item.get("text")
 
             if not isinstance(text, str):
-                raise ValueError(
-                    f"Entrada {input_index} sem texto válido."
-                )
+                raise ValueError(f"Entrada {input_index} sem texto válido.")
 
             chunks = self._split_text(text)
 
             for chunk_index, chunk in enumerate(chunks):
-                records.append({
-                    "input_index": input_index,
-                    "chunk_index": chunk_index,
-                    "source": item.get("source"),
-                    "metadata": {
-                        key: value
-                        for key, value in item.items()
-                        if key != "text"
-                    },
-                    **chunk,
-                })
+                records.append(
+                    {
+                        "input_index": input_index,
+                        "chunk_index": chunk_index,
+                        "source": item.get("source"),
+                        "metadata": {key: value for key, value in item.items() if key != "text"},
+                        **chunk,
+                    }
+                )
 
         if not records:
-            raise ValueError(
-                "Nenhum texto disponível para gerar embeddings."
-            )
+            raise ValueError("Nenhum texto disponível para gerar embeddings.")
 
         vectors = self.model.encode(
             [record["text"] for record in records],

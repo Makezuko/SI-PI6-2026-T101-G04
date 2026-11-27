@@ -1,4 +1,5 @@
 """Validação compartilhada de requisitos e resultados de recuperação."""
+
 import math
 from numbers import Real
 
@@ -71,5 +72,3 @@ def validate_ranking(result):
     elif top is not None:
         top = cosine(top, f"{identifier}: top_similarity")
     return top, ranking
-
-

@@ -76,29 +76,19 @@ def corrigir_offset(
 
     fim_busca = min(
         len(content),
-        start_aproximado
-        + janela
-        + len(texto_esperado_limpo),
+        start_aproximado + janela + len(texto_esperado_limpo),
     )
 
     trecho = content[inicio_busca:fim_busca]
 
-    posicao_relativa = trecho.find(
-        texto_esperado_limpo
-    )
+    posicao_relativa = trecho.find(texto_esperado_limpo)
 
     if posicao_relativa == -1:
         return None
 
-    novo_start = (
-        inicio_busca
-        + posicao_relativa
-    )
+    novo_start = inicio_busca + posicao_relativa
 
-    novo_end = (
-        novo_start
-        + len(texto_esperado_limpo)
-    )
+    novo_end = novo_start + len(texto_esperado_limpo)
 
     return novo_start, novo_end
 
@@ -117,10 +107,7 @@ def intervalos_sobrepostos(
     Portanto, os intervalos [0, 5) e [5, 10) são consecutivos, mas não
     estão sobrepostos.
     """
-    return (
-        entidade_a["start"] < entidade_b["end"]
-        and entidade_b["start"] < entidade_a["end"]
-    )
+    return entidade_a["start"] < entidade_b["end"] and entidade_b["start"] < entidade_a["end"]
 
 
 def remover_duplicidades(
@@ -200,10 +187,7 @@ def resolver_sobreposicoes(
     # é preservada, porque o sorted() do Python é estável.
     entidades_por_tamanho = sorted(
         entidades_unicas,
-        key=lambda entidade: -(
-            entidade["end"]
-            - entidade["start"]
-        ),
+        key=lambda entidade: -(entidade["end"] - entidade["start"]),
     )
 
     entidades_mantidas = []
@@ -274,59 +258,41 @@ def validar_entidades_finais(
 
     final_anterior = 0
 
-    for indice, entidade in enumerate(
-        entidades_ordenadas
-    ):
+    for indice, entidade in enumerate(entidades_ordenadas):
         start = entidade.get("start")
         end = entidade.get("end")
         label = entidade.get("label")
 
         if not isinstance(start, int):
-            erros.append(
-                f"Entidade {indice}: start não é inteiro."
-            )
+            erros.append(f"Entidade {indice}: start não é inteiro.")
             continue
 
         if not isinstance(end, int):
-            erros.append(
-                f"Entidade {indice}: end não é inteiro."
-            )
+            erros.append(f"Entidade {indice}: end não é inteiro.")
             continue
 
         if not isinstance(label, str) or not label.strip():
-            erros.append(
-                f"Entidade {indice}: label inválido."
-            )
+            erros.append(f"Entidade {indice}: label inválido.")
 
         if start < 0:
-            erros.append(
-                f"Entidade {indice}: start negativo."
-            )
+            erros.append(f"Entidade {indice}: start negativo.")
             continue
 
         if end <= start:
-            erros.append(
-                f"Entidade {indice}: end menor ou igual ao start."
-            )
+            erros.append(f"Entidade {indice}: end menor ou igual ao start.")
             continue
 
         if end > len(content):
-            erros.append(
-                f"Entidade {indice}: end ultrapassa o tamanho do texto."
-            )
+            erros.append(f"Entidade {indice}: end ultrapassa o tamanho do texto.")
             continue
 
         texto_entidade = content[start:end]
 
         if not texto_entidade.strip():
-            erros.append(
-                f"Entidade {indice}: texto vazio."
-            )
+            erros.append(f"Entidade {indice}: texto vazio.")
 
         if start < final_anterior:
-            erros.append(
-                f"Entidade {indice}: sobreposição ainda existente."
-            )
+            erros.append(f"Entidade {indice}: sobreposição ainda existente.")
 
         final_anterior = max(
             final_anterior,
@@ -404,17 +370,12 @@ def validar_offsets(
                     [],
                 )
 
-                label = (
-                    labels[0]
-                    if labels
-                    else "SEM_LABEL"
-                )
+                label = labels[0] if labels else "SEM_LABEL"
 
                 label_invalido = (
                     not isinstance(label, str)
                     or not label.strip()
-                    or label.strip().upper()
-                    in {"UNKNOWN", "SEM_LABEL"}
+                    or label.strip().upper() in {"UNKNOWN", "SEM_LABEL"}
                 )
 
                 pontos = anotacao.get(
@@ -446,10 +407,7 @@ def validar_offsets(
                     )
 
                     # Proteção contra anotações sem offsets.
-                    if (
-                        not isinstance(start, int)
-                        or not isinstance(end, int)
-                    ):
+                    if not isinstance(start, int) or not isinstance(end, int):
                         entidades_descartadas.append(
                             {
                                 "linha": numero_linha,
@@ -464,23 +422,16 @@ def validar_offsets(
                         continue
 
                     # No arquivo original do Dataturks, o end é inclusivo.
-                    texto_real = content[
-                        start:end + 1
-                    ]
+                    texto_real = content[start : end + 1]
 
-                    if (
-                        texto_real.strip()
-                        == texto_esperado.strip()
-                    ):
+                    if texto_real.strip() == texto_esperado.strip():
                         entidades_ok_original += 1
 
                         entidades_deste_curriculo.append(
                             {
                                 "start": start,
-
                                 # Conversão para fim exclusivo.
                                 "end": end + 1,
-
                                 "label": label,
                             }
                         )
@@ -511,10 +462,7 @@ def validar_offsets(
                         entidades_descartadas.append(
                             {
                                 "linha": numero_linha,
-                                "motivo": (
-                                    "texto não encontrado para "
-                                    "realinhamento"
-                                ),
+                                "motivo": ("texto não encontrado para realinhamento"),
                                 "label": label,
                                 "start": start,
                                 "end": end,
@@ -531,21 +479,13 @@ def validar_offsets(
                 entidades_sem_conflitos,
                 duplicadas,
                 conflitos,
-            ) = resolver_sobreposicoes(
-                entidades_deste_curriculo
-            )
+            ) = resolver_sobreposicoes(entidades_deste_curriculo)
 
-            total_duplicadas_removidas += len(
-                duplicadas
-            )
+            total_duplicadas_removidas += len(duplicadas)
 
-            total_sobrepostas_descartadas += len(
-                conflitos
-            )
+            total_sobrepostas_descartadas += len(conflitos)
 
-            total_entidades_finais += len(
-                entidades_sem_conflitos
-            )
+            total_entidades_finais += len(entidades_sem_conflitos)
 
             # Guarda poucos exemplos para documentação e inspeção.
             for duplicada in duplicadas[:3]:
@@ -553,38 +493,25 @@ def validar_offsets(
                     {
                         "linha": numero_linha,
                         "entidade": duplicada,
-                        "texto": content[
-                            duplicada["start"]:
-                            duplicada["end"]
-                        ][:80],
+                        "texto": content[duplicada["start"] : duplicada["end"]][:80],
                     }
                 )
 
             for conflito in conflitos[:3]:
-                descartada = conflito[
-                    "entidade_descartada"
-                ]
+                descartada = conflito["entidade_descartada"]
 
-                mantida = conflito[
-                    "entidade_mantida"
-                ]
+                mantida = conflito["entidade_mantida"]
 
                 exemplos_sobreposicoes.append(
                     {
                         "linha": numero_linha,
                         "descartada": {
                             **descartada,
-                            "texto": content[
-                                descartada["start"]:
-                                descartada["end"]
-                            ][:80],
+                            "texto": content[descartada["start"] : descartada["end"]][:80],
                         },
                         "mantida": {
                             **mantida,
-                            "texto": content[
-                                mantida["start"]:
-                                mantida["end"]
-                            ][:80],
+                            "texto": content[mantida["start"] : mantida["end"]][:80],
                         },
                     }
                 )
@@ -601,8 +528,7 @@ def validar_offsets(
             if erros_finais:
                 raise ValueError(
                     "Falha após a resolução das entidades "
-                    f"no currículo da linha {numero_linha}:\n"
-                    + "\n".join(erros_finais)
+                    f"no currículo da linha {numero_linha}:\n" + "\n".join(erros_finais)
                 )
 
             entidades_validadas.append(
@@ -614,80 +540,37 @@ def validar_offsets(
 
     # Entidades recuperadas ou originalmente corretas antes da resolução
     # das duplicidades e sobreposições.
-    total_offsets_recuperados = (
-        entidades_ok_original
-        + entidades_recuperadas
-    )
+    total_offsets_recuperados = entidades_ok_original + entidades_recuperadas
 
-    taxa_offsets_validos = (
-        total_offsets_recuperados
-        / total_entidades
-        if total_entidades
-        else 0
-    )
+    taxa_offsets_validos = total_offsets_recuperados / total_entidades if total_entidades else 0
 
-    taxa_final_aproveitamento = (
-        total_entidades_finais
-        / total_entidades
-        if total_entidades
-        else 0
-    )
+    taxa_final_aproveitamento = total_entidades_finais / total_entidades if total_entidades else 0
 
     print("\n===== RESULTADO DA LIMPEZA =====")
 
-    print(
-        f"Total de currículos: "
-        f"{total_curriculos}"
-    )
+    print(f"Total de currículos: {total_curriculos}")
+
+    print(f"Total de entidades originais: {total_entidades}")
+
+    print(f"Entidades válidas originalmente: {entidades_ok_original}")
+
+    print(f"Entidades recuperadas por realinhamento: {entidades_recuperadas}")
+
+    print(f"Entidades não recuperáveis por offset: {len(entidades_descartadas)}")
+
+    print(f"Taxa de offsets recuperados: {taxa_offsets_validos:.2%}")
+
+    print(f"Entidades duplicadas removidas: {total_duplicadas_removidas}")
+
+    print(f"Entidades sobrepostas descartadas: {total_sobrepostas_descartadas}")
+
+    print(f"Entidades finais prontas para o NER: {total_entidades_finais}")
 
     print(
-        f"Total de entidades originais: "
-        f"{total_entidades}"
+        f"Taxa final de aproveitamento após todos os tratamentos: {taxa_final_aproveitamento:.2%}"
     )
 
-    print(
-        f"Entidades válidas originalmente: "
-        f"{entidades_ok_original}"
-    )
-
-    print(
-        f"Entidades recuperadas por realinhamento: "
-        f"{entidades_recuperadas}"
-    )
-
-    print(
-        "Entidades não recuperáveis por offset: "
-        f"{len(entidades_descartadas)}"
-    )
-
-    print(
-        f"Taxa de offsets recuperados: "
-        f"{taxa_offsets_validos:.2%}"
-    )
-
-    print(
-        f"Entidades duplicadas removidas: "
-        f"{total_duplicadas_removidas}"
-    )
-
-    print(
-        f"Entidades sobrepostas descartadas: "
-        f"{total_sobrepostas_descartadas}"
-    )
-
-    print(
-        f"Entidades finais prontas para o NER: "
-        f"{total_entidades_finais}"
-    )
-
-    print(
-        f"Taxa final de aproveitamento após todos os tratamentos: "
-        f"{taxa_final_aproveitamento:.2%}"
-    )
-
-    print(
-        "\nExemplos de entidades duplicadas removidas:"
-    )
+    print("\nExemplos de entidades duplicadas removidas:")
 
     if exemplos_duplicidades:
         for exemplo in exemplos_duplicidades[:5]:
@@ -695,9 +578,7 @@ def validar_offsets(
     else:
         print("Nenhuma duplicidade exata encontrada.")
 
-    print(
-        "\nExemplos de sobreposições resolvidas:"
-    )
+    print("\nExemplos de sobreposições resolvidas:")
 
     if exemplos_sobreposicoes:
         for exemplo in exemplos_sobreposicoes[:5]:
@@ -721,9 +602,7 @@ def salvar_processado(
     O arquivo resultante utiliza offsets com fim exclusivo e está pronto
     para o split, data augmentation e conversão para o formato do modelo.
     """
-    pasta = os.path.dirname(
-        caminho_saida
-    )
+    pasta = os.path.dirname(caminho_saida)
 
     os.makedirs(
         pasta,
@@ -742,10 +621,7 @@ def salvar_processado(
             indent=2,
         )
 
-    print(
-        f"\nDados processados salvos em: "
-        f"{caminho_saida}"
-    )
+    print(f"\nDados processados salvos em: {caminho_saida}")
 
 
 if __name__ == "__main__":
@@ -761,21 +637,15 @@ if __name__ == "__main__":
     (
         entidades_validadas,
         entidades_descartadas,
-    ) = validar_offsets(
-        caminho_arquivo
-    )
+    ) = validar_offsets(caminho_arquivo)
 
-    print(
-        "\nExemplos de entidades não recuperáveis:"
-    )
+    print("\nExemplos de entidades não recuperáveis:")
 
     if entidades_descartadas:
         for erro in entidades_descartadas[:5]:
             print(erro)
     else:
-        print(
-            "Todas as entidades tiveram offsets recuperáveis."
-        )
+        print("Todas as entidades tiveram offsets recuperáveis.")
 
     caminho_saida = os.path.join(
         "data",

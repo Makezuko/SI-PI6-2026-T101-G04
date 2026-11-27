@@ -1,4 +1,5 @@
 """Fachada para o pipeline contextual completo de análise de currículos (GoF: Facade)."""
+
 from __future__ import annotations
 
 from threading import RLock
@@ -81,8 +82,7 @@ class TalentMatchPipelineFacade:
                     and valid_entity(raw, entity)
                     and not unsafe(
                         raw[
-                            raw.rfind("\n", 0, entity["start"])
-                            + 1 : raw.find("\n", entity["end"])
+                            raw.rfind("\n", 0, entity["start"]) + 1 : raw.find("\n", entity["end"])
                             if "\n" in raw[entity["end"] :]
                             else len(raw)
                         ]
@@ -94,8 +94,7 @@ class TalentMatchPipelineFacade:
                 ]
                 inputs = sanitize_semantic_inputs(inputs)
                 safe_requirements = [
-                    {k: v for k, v in item.items() if k != "condition"}
-                    for item in requirements
+                    {k: v for k, v in item.items() if k != "condition"} for item in requirements
                 ]
 
             with stage("requirement_embeddings"):

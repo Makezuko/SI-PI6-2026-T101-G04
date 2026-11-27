@@ -1,4 +1,5 @@
 """Consultas compatíveis com as tabelas informadas pela equipe."""
+
 from datetime import datetime
 from pathlib import Path
 import re
@@ -9,11 +10,11 @@ from app.requisitos import STATUS_VAGA, draft_from_description, parse_requiremen
 from src.data.clean import extract_contact_info, extract_education_blocks
 from src.nlp.skills_extractor import extract_skills
 
-PROFILE_FIELDS = 'id,email,auth_user_id,nome,empresa,criado_em'
-JOB_FIELDS = 'id,titulo,descricao,requisitos,criado_por,criado_em,status'
+PROFILE_FIELDS = "id,email,auth_user_id,nome,empresa,criado_em"
+JOB_FIELDS = "id,titulo,descricao,requisitos,criado_por,criado_em,status"
 logger = logging.getLogger(__name__)
 
-RESUME_FIELDS = 'id,vaga_id,nome_arquivo,texto_extraido,texto_anonimizado,status,enviado_em'
+RESUME_FIELDS = "id,vaga_id,nome_arquivo,texto_extraido,texto_anonimizado,status,enviado_em"
 
 
 class LegacyProfileError(Exception):
@@ -25,131 +26,178 @@ class AnalysisSchemaError(RuntimeError):
 
 
 def update_profile(client, profile_id, auth_user_id, values):
-    allowed_fields = {'email', 'nome', 'empresa'}
+    allowed_fields = {"email", "nome", "empresa"}
     if not values or not set(values).issubset(allowed_fields):
-        raise ValueError('Campos de perfil inválidos.')
+        raise ValueError("Campos de perfil inválidos.")
     response = (
-        client.table('usuarios')
+        client.table("usuarios")
         .update(values)
-        .eq('id', profile_id)
-        .eq('auth_user_id', str(auth_user_id))
+        .eq("id", profile_id)
+        .eq("auth_user_id", str(auth_user_id))
         .select(PROFILE_FIELDS)
         .execute()
     )
     if not response.data:
-        raise LookupError('Nenhum perfil foi atualizado. Confira a migração de edição de perfil.')
+        raise LookupError("Nenhum perfil foi atualizado. Confira a migração de edição de perfil.")
     return response.data[0]
 
 
 def ensure_profile(client, user):
     from app.auth_diagnostics import stage
-    stage('PROFILE_READ')
-    response = client.table('usuarios').select(PROFILE_FIELDS).eq('auth_user_id', str(user.id)).limit(1).execute()
+
+    stage("PROFILE_READ")
+    response = (
+        client.table("usuarios")
+        .select(PROFILE_FIELDS)
+        .eq("auth_user_id", str(user.id))
+        .limit(1)
+        .execute()
+    )
     if response.data:
         profile = response.data[0]
         email = user.email.lower()
-        if (profile.get('email') or '').lower() != email:
-            stage('PROFILE_UPDATE')
-            profile = update_profile(client, profile['id'], user.id, {'email': email})
+        if (profile.get("email") or "").lower() != email:
+            stage("PROFILE_UPDATE")
+            profile = update_profile(client, profile["id"], user.id, {"email": email})
         return profile
     metadata = user.user_metadata or {}
     try:
-        stage('PROFILE_CREATE')
-        response = client.table('usuarios').insert({
-            'auth_user_id': str(user.id),
-            'email': user.email.lower(),
-            'nome': str(metadata.get('name') or user.email.split('@')[0])[:120],
-            'empresa': str(metadata.get('company') or '')[:120],
-        }, returning='minimal').execute()
+        stage("PROFILE_CREATE")
+        response = (
+            client.table("usuarios")
+            .insert(
+                {
+                    "auth_user_id": str(user.id),
+                    "email": user.email.lower(),
+                    "nome": str(metadata.get("name") or user.email.split("@")[0])[:120],
+                    "empresa": str(metadata.get("company") or "")[:120],
+                },
+                returning="minimal",
+            )
+            .execute()
+        )
     except Exception as error:
-        if str(getattr(error, 'code', '')) == '23505':
-            stage('PROFILE_RETRY_READ')
-            retry = client.table('usuarios').select(PROFILE_FIELDS).eq('auth_user_id', str(user.id)).limit(1).execute()
+        if str(getattr(error, "code", "")) == "23505":
+            stage("PROFILE_RETRY_READ")
+            retry = (
+                client.table("usuarios")
+                .select(PROFILE_FIELDS)
+                .eq("auth_user_id", str(user.id))
+                .limit(1)
+                .execute()
+            )
             if retry.data:
                 return retry.data[0]
-            raise LegacyProfileError('E-mail de um perfil antigo precisa ser vinculado ao Auth pela equipe.') from error
+            raise LegacyProfileError(
+                "E-mail de um perfil antigo precisa ser vinculado ao Auth pela equipe."
+            ) from error
         raise
-    stage('PROFILE_READ_AFTER_CREATE')
-    response = client.table('usuarios').select(PROFILE_FIELDS).eq('auth_user_id', str(user.id)).limit(1).execute()
+    stage("PROFILE_READ_AFTER_CREATE")
+    response = (
+        client.table("usuarios")
+        .select(PROFILE_FIELDS)
+        .eq("auth_user_id", str(user.id))
+        .limit(1)
+        .execute()
+    )
     if not response.data:
-        raise RuntimeError('O perfil não foi retornado pelo banco. Confira a migração e o RLS.')
+        raise RuntimeError("O perfil não foi retornado pelo banco. Confira a migração e o RLS.")
     return response.data[0]
 
 
 def format_display_date(value):
     """Formata uma data ISO para DD/MM/AAAA."""
     if not value:
-        return '—'
+        return "—"
     try:
-        return datetime.fromisoformat(value.replace('Z', '+00:00')).strftime('%d/%m/%Y')
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).strftime("%d/%m/%Y")
     except (ValueError, AttributeError):
-        return '—'
+        return "—"
 
 
 def job_for_template(row):
-    display_date = format_display_date(row.get('criado_em'))
-    requirements = parse_requirements(row.get('requisitos'))
-    items = requirements['items']
+    display_date = format_display_date(row.get("criado_em"))
+    requirements = parse_requirements(row.get("requisitos"))
+    items = requirements["items"]
     return {
-        'id': str(row['id']), 'title': row['titulo'],
-        'description': row['descricao'], 'requirements': row['requisitos'],
-        'requirements_data': requirements,
-        'requirements_status': requirements['status'],
-        'technical': [item for item in items if item['tipo'] == 'tecnico'],
-        'behavioral': [item for item in items if item['tipo'] == 'comportamental'],
-        'unclassified': [item for item in items if item['tipo'] is None],
-        'created_at': display_date,
-        'candidate_count': 0,
-        'status': row.get('status') or 'Aberta',
+        "id": str(row["id"]),
+        "title": row["titulo"],
+        "description": row["descricao"],
+        "requirements": row["requisitos"],
+        "requirements_data": requirements,
+        "requirements_status": requirements["status"],
+        "technical": [item for item in items if item["tipo"] == "tecnico"],
+        "behavioral": [item for item in items if item["tipo"] == "comportamental"],
+        "unclassified": [item for item in items if item["tipo"] is None],
+        "created_at": display_date,
+        "candidate_count": 0,
+        "status": row.get("status") or "Aberta",
     }
 
 
 def resume_for_template(row):
     from src.data.privacy import anonymize_for_analysis, uploaded_name_entities
-    display_date = format_display_date(row.get('enviado_em'))
 
-    text = row.get('texto_extraido') or ''
-    filename = row.get('nome_arquivo') or 'curriculo.pdf'
-    clean_name = Path(filename).stem.replace('_', ' ').replace('-', ' ').title()
+    display_date = format_display_date(row.get("enviado_em"))
+
+    text = row.get("texto_extraido") or ""
+    filename = row.get("nome_arquivo") or "curriculo.pdf"
+    clean_name = Path(filename).stem.replace("_", " ").replace("-", " ").title()
 
     first_lines = [line.strip() for line in text.splitlines() if line.strip()][:5]
     name = clean_name
-    if first_lines and len(first_lines[0].split()) <= 4 and re.search(r'^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$', first_lines[0]):
+    if (
+        first_lines
+        and len(first_lines[0].split()) <= 4
+        and re.search(r"^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$", first_lines[0])
+    ):
         name = first_lines[0].title()
 
-    initials = ''.join(part[0] for part in name.split()[:2]).upper() or 'CV'
-    contact = extract_contact_info(text) if text else {'email': None, 'phone': None}
-    safe_text = anonymize_for_analysis(text, uploaded_name_entities(text, row.get('texto_anonimizado')))
+    initials = "".join(part[0] for part in name.split()[:2]).upper() or "CV"
+    contact = extract_contact_info(text) if text else {"email": None, "phone": None}
+    safe_text = anonymize_for_analysis(
+        text, uploaded_name_entities(text, row.get("texto_anonimizado"))
+    )
     education_blocks = extract_education_blocks(safe_text) if text else []
-    skills_data = extract_skills(text=safe_text) if text else {'skills': [], 'context_blocks': []}
+    skills_data = extract_skills(text=safe_text) if text else {"skills": [], "context_blocks": []}
 
-    skills = skills_data.get('skills', [])
-    education = education_blocks[0]['text'].splitlines()[0] if education_blocks else 'Não especificada'
-    last_role = 'Não identificado'
+    skills = skills_data.get("skills", [])
+    education = (
+        education_blocks[0]["text"].splitlines()[0] if education_blocks else "Não especificada"
+    )
+    last_role = "Não identificado"
 
-    status = row.get('status') or 'Analisado'
-    cand_id = str(row.get('id') or '')
-    is_approved = (status == 'Aprovado')
+    status = row.get("status") or "Analisado"
+    cand_id = str(row.get("id") or "")
+    is_approved = status == "Aprovado"
 
     return {
-        'id': cand_id,
-        'job_id': str(row.get('vaga_id', '')),
-        'name': name if is_approved else (f'Candidato #{cand_id}' if cand_id else 'Candidato Anônimo'),
-        'real_name': name,
-        'initials': initials if is_approved else (f'C{cand_id}' if cand_id else 'CV'),
-        'score': None,
-        'analysis': None,
-        'analysis_state': 'Pendente',
-        'filename': filename if is_approved else (f'curriculo_{cand_id}.pdf' if cand_id else 'curriculo.pdf'),
-        'submitted_at': display_date,
-        'status': status,
-        'email': (contact.get('email') or 'E-mail não informado') if is_approved else 'Oculto (disponível após aprovação)',
-        'phone': (contact.get('phone') or 'Telefone não informado') if is_approved else 'Oculto (disponível após aprovação)',
-        'education': education,
-        'last_role': last_role,
-        'skills': skills,
-        'raw_text': text,
-        'anonymized_text': row.get('texto_anonimizado') or '',
+        "id": cand_id,
+        "job_id": str(row.get("vaga_id", "")),
+        "name": name
+        if is_approved
+        else (f"Candidato #{cand_id}" if cand_id else "Candidato Anônimo"),
+        "real_name": name,
+        "initials": initials if is_approved else (f"C{cand_id}" if cand_id else "CV"),
+        "score": None,
+        "analysis": None,
+        "analysis_state": "Pendente",
+        "filename": filename
+        if is_approved
+        else (f"curriculo_{cand_id}.pdf" if cand_id else "curriculo.pdf"),
+        "submitted_at": display_date,
+        "status": status,
+        "email": (contact.get("email") or "E-mail não informado")
+        if is_approved
+        else "Oculto (disponível após aprovação)",
+        "phone": (contact.get("phone") or "Telefone não informado")
+        if is_approved
+        else "Oculto (disponível após aprovação)",
+        "education": education,
+        "last_role": last_role,
+        "skills": skills,
+        "raw_text": text,
+        "anonymized_text": row.get("texto_anonimizado") or "",
     }
 
 
@@ -157,7 +205,13 @@ def list_jobs(client):
     result = []
     offset, batch_size = 0, 500
     while True:
-        response = client.table('vagas').select(JOB_FIELDS).order('id', desc=True).range(offset, offset + batch_size - 1).execute()
+        response = (
+            client.table("vagas")
+            .select(JOB_FIELDS)
+            .order("id", desc=True)
+            .range(offset, offset + batch_size - 1)
+            .execute()
+        )
         rows = response.data or []
         result.extend(job_for_template(row) for row in rows)
         if len(rows) < batch_size:
@@ -168,144 +222,196 @@ def list_jobs(client):
         return result
 
     try:
-        resumes_resp = client.table('curriculos').select('vaga_id').execute()
+        resumes_resp = client.table("curriculos").select("vaga_id").execute()
         counts = {}
-        for r in (resumes_resp.data or []):
-            vid = str(r.get('vaga_id'))
+        for r in resumes_resp.data or []:
+            vid = str(r.get("vaga_id"))
             counts[vid] = counts.get(vid, 0) + 1
         for j in result:
-            j['candidate_count'] = counts.get(j['id'], 0)
+            j["candidate_count"] = counts.get(j["id"], 0)
     except Exception:
-        logger.error('Falha ao consultar contagem de currículos.')
-        raise RuntimeError('Não foi possível consultar a contagem de currículos.') from None
+        logger.error("Falha ao consultar contagem de currículos.")
+        raise RuntimeError("Não foi possível consultar a contagem de currículos.") from None
 
     return result
 
 
 def get_job(client, job_id):
-    response = client.table('vagas').select(JOB_FIELDS).eq('id', job_id).limit(1).execute()
+    response = client.table("vagas").select(JOB_FIELDS).eq("id", job_id).limit(1).execute()
     if not response.data:
         return None
     job = job_for_template(response.data[0])
     try:
-        resumes_resp = client.table('curriculos').select('id').eq('vaga_id', int(job_id)).execute()
-        job['candidate_count'] = len(resumes_resp.data or [])
+        resumes_resp = client.table("curriculos").select("id").eq("vaga_id", int(job_id)).execute()
+        job["candidate_count"] = len(resumes_resp.data or [])
     except Exception:
-        logger.error('Falha ao consultar contagem de currículos.')
-        raise RuntimeError('Não foi possível consultar a contagem de currículos.') from None
+        logger.error("Falha ao consultar contagem de currículos.")
+        raise RuntimeError("Não foi possível consultar a contagem de currículos.") from None
     return job
 
 
 def validate_job_text(title, description):
     title, description = title.strip(), description.strip()
     if not title or not description:
-        raise ValueError('Preencha o título e a descrição da vaga.')
+        raise ValueError("Preencha o título e a descrição da vaga.")
     if len(title) > 200 or len(description) > 30000:
-        raise ValueError('Use título de até 200 caracteres e descrição de até 30.000.')
+        raise ValueError("Use título de até 200 caracteres e descrição de até 30.000.")
     return title, description
 
 
 def create_job(client, profile_id, title, description, requirements=None):
     title, description = validate_job_text(title, description)
-    if not requirements or not requirements.get('items'):
+    if not requirements or not requirements.get("items"):
         requirements = draft_from_description(description)
-    response = client.table('vagas').insert({
-        'titulo': title, 'descricao': description,
-        'requisitos': serialize(requirements),
-        'criado_por': profile_id,
-    }).execute()
+    response = (
+        client.table("vagas")
+        .insert(
+            {
+                "titulo": title,
+                "descricao": description,
+                "requisitos": serialize(requirements),
+                "criado_por": profile_id,
+            }
+        )
+        .execute()
+    )
     if not response.data:
-        raise RuntimeError('Gravação sem retorno. Confira o banco antes de reenviar.')
+        raise RuntimeError("Gravação sem retorno. Confira o banco antes de reenviar.")
     return job_for_template(response.data[0])
 
 
-def update_job(client, job_id, title, description, status='Aberta', requirements=None):
+def update_job(client, job_id, title, description, status="Aberta", requirements=None):
     title, description = validate_job_text(title, description)
     if status not in STATUS_VAGA:
-        raise ValueError('Status inválido.')
-    values = {'titulo': title, 'descricao': description, 'status': status}
+        raise ValueError("Status inválido.")
+    values = {"titulo": title, "descricao": description, "status": status}
     if requirements is not None:
-        if not requirements.get('items'):
+        if not requirements.get("items"):
             requirements = draft_from_description(description)
-        values['requisitos'] = serialize(requirements)
-    response = client.table('vagas').update(values).eq('id', job_id).execute()
+        values["requisitos"] = serialize(requirements)
+    response = client.table("vagas").update(values).eq("id", job_id).execute()
     if not response.data:
-        raise LookupError('Nenhuma linha foi alterada. Confira a migração sql/002_editar_vagas.sql.')
+        raise LookupError(
+            "Nenhuma linha foi alterada. Confira a migração sql/002_editar_vagas.sql."
+        )
     return job_for_template(response.data[0])
 
 
 def delete_job(client, job_id):
-    return client.rpc('delete_job_with_candidates', {'p_job_id': int(job_id)}).execute()
+    return client.rpc("delete_job_with_candidates", {"p_job_id": int(job_id)}).execute()
 
 
 def delete_candidate(client, job_id, resume_id):
     return client.rpc(
-        'delete_candidate',
-        {'p_job_id': int(job_id), 'p_candidate_id': int(resume_id)},
+        "delete_candidate",
+        {"p_job_id": int(job_id), "p_candidate_id": int(resume_id)},
     ).execute()
 
 
 def list_resumes(client, job_id):
-    response = client.table('curriculos').select(RESUME_FIELDS).eq('vaga_id', int(job_id)).order('id', desc=True).execute()
+    response = (
+        client.table("curriculos")
+        .select(RESUME_FIELDS)
+        .eq("vaga_id", int(job_id))
+        .order("id", desc=True)
+        .execute()
+    )
     rows = response.data or []
     return [resume_for_template(row) for row in rows]
 
 
 def get_resume(client, job_id, resume_id):
-    response = client.table('curriculos').select(RESUME_FIELDS).eq('vaga_id', int(job_id)).eq('id', int(resume_id)).limit(1).execute()
+    response = (
+        client.table("curriculos")
+        .select(RESUME_FIELDS)
+        .eq("vaga_id", int(job_id))
+        .eq("id", int(resume_id))
+        .limit(1)
+        .execute()
+    )
     return resume_for_template(response.data[0]) if response.data else None
 
 
-def create_resume(client, job_id, filename, raw_text, anonymized_text, status='Pendente'):
+def create_resume(client, job_id, filename, raw_text, anonymized_text, status="Pendente"):
     from app.analysis import fingerprint
+
     digest = fingerprint(raw_text)
-    existing = client.table('curriculos').select(RESUME_FIELDS).eq('vaga_id', int(job_id)).eq('content_hash', digest).limit(1).execute()
+    existing = (
+        client.table("curriculos")
+        .select(RESUME_FIELDS)
+        .eq("vaga_id", int(job_id))
+        .eq("content_hash", digest)
+        .limit(1)
+        .execute()
+    )
     if existing.data:
         return resume_for_template(existing.data[0])
     # Também reconhece uploads antigos, anteriores à coluna content_hash.
     # Texto pessoal não deve ser enviado como filtro na URL da API.
     offset = 0
     while True:
-        legacy = client.table('curriculos').select(RESUME_FIELDS).eq('vaga_id', int(job_id)).order('id').range(offset, offset + 499).execute()
+        legacy = (
+            client.table("curriculos")
+            .select(RESUME_FIELDS)
+            .eq("vaga_id", int(job_id))
+            .order("id")
+            .range(offset, offset + 499)
+            .execute()
+        )
         rows = legacy.data or []
         for row in rows:
-            if row.get('texto_extraido') == raw_text:
+            if row.get("texto_extraido") == raw_text:
                 return resume_for_template(row)
         if len(rows) < 500:
             break
         offset += 500
     values = {
-        'vaga_id': int(job_id),
-        'nome_arquivo': filename,
-        'texto_extraido': raw_text,
-        'texto_anonimizado': anonymized_text,
-        'status': status,
-        'content_hash': digest,
+        "vaga_id": int(job_id),
+        "nome_arquivo": filename,
+        "texto_extraido": raw_text,
+        "texto_anonimizado": anonymized_text,
+        "status": status,
+        "content_hash": digest,
     }
     try:
-        response = client.table('curriculos').insert(values).execute()
+        response = client.table("curriculos").insert(values).execute()
     except Exception as error:
-        if str(getattr(error, 'code', '')) != '23505':
+        if str(getattr(error, "code", "")) != "23505":
             raise
-        retry = client.table('curriculos').select(RESUME_FIELDS).eq('vaga_id', int(job_id)).eq('content_hash', digest).limit(1).execute()
+        retry = (
+            client.table("curriculos")
+            .select(RESUME_FIELDS)
+            .eq("vaga_id", int(job_id))
+            .eq("content_hash", digest)
+            .limit(1)
+            .execute()
+        )
         if not retry.data:
             raise
         return resume_for_template(retry.data[0])
     if not response.data:
-        raise RuntimeError('Gravação do currículo sem retorno. Confira o banco.')
+        raise RuntimeError("Gravação do currículo sem retorno. Confira o banco.")
     return resume_for_template(response.data[0])
 
 
 def list_analyses(client, job_id):
     try:
-        return client.table('analises_aderencia').select(
-            'id,vaga_id,curriculo_id,requirements_hash,text_hash,config_hash,result,analisado_em'
-        ).eq('vaga_id', int(job_id)).order('analisado_em', desc=True).execute().data or []
+        return (
+            client.table("analises_aderencia")
+            .select(
+                "id,vaga_id,curriculo_id,requirements_hash,text_hash,config_hash,result,analisado_em"
+            )
+            .eq("vaga_id", int(job_id))
+            .order("analisado_em", desc=True)
+            .execute()
+            .data
+            or []
+        )
     except Exception as error:
-        if str(getattr(error, 'code', '')) in {'42703', '42P01', 'PGRST204', 'PGRST205'}:
+        if str(getattr(error, "code", "")) in {"42703", "42P01", "PGRST204", "PGRST205"}:
             raise AnalysisSchemaError(
-                'Esquema de análises incompatível. Confira o esquema legado e aplique '
-                'sql/004_integracao_aderencia.sql antes de usar a integração.'
+                "Esquema de análises incompatível. Confira o esquema legado e aplique "
+                "sql/004_integracao_aderencia.sql antes de usar a integração."
             ) from error
         raise
 
@@ -324,61 +430,88 @@ def _fetch_paginated(query_factory, batch_size=500):
 def list_resumes_for_dashboard(client):
     """Consulta enxuta para cálculo de média no painel sem rodar extração de texto/skills."""
     rows = _fetch_paginated(
-        lambda: client.table('curriculos').select('id,vaga_id,texto_extraido').order('id')
+        lambda: client.table("curriculos").select("id,vaga_id,texto_extraido").order("id")
     )
-    return [{'id': str(r.get('id') or ''), 'job_id': str(r.get('vaga_id') or ''), 'raw_text': r.get('texto_extraido') or ''}
-            for r in rows]
+    return [
+        {
+            "id": str(r.get("id") or ""),
+            "job_id": str(r.get("vaga_id") or ""),
+            "raw_text": r.get("texto_extraido") or "",
+        }
+        for r in rows
+    ]
 
 
 def list_analyses_for_dashboard(client):
     try:
         return _fetch_paginated(
-            lambda: client.table('analises_aderencia').select(
-                'id,vaga_id,curriculo_id,requirements_hash,text_hash,config_hash,result,analisado_em'
-            ).order('id')
+            lambda: (
+                client.table("analises_aderencia")
+                .select(
+                    "id,vaga_id,curriculo_id,requirements_hash,text_hash,config_hash,result,analisado_em"
+                )
+                .order("id")
+            )
         )
     except Exception as error:
-        if str(getattr(error, 'code', '')) in {'42703', '42P01', 'PGRST204', 'PGRST205'}:
+        if str(getattr(error, "code", "")) in {"42703", "42P01", "PGRST204", "PGRST205"}:
             raise AnalysisSchemaError(
-                'Esquema de análises incompatível. Confira o esquema legado e aplique '
-                'sql/004_integracao_aderencia.sql antes de usar a integração.'
+                "Esquema de análises incompatível. Confira o esquema legado e aplique "
+                "sql/004_integracao_aderencia.sql antes de usar a integração."
             ) from error
         raise
 
 
 def save_analysis(client, job_id, resume_id, payload):
     from datetime import timezone
-    result = payload.get('result')
-    if not isinstance(result, dict) or 'status' not in result or 'score' not in result:
-        raise ValueError('Resultado deve ser objeto com status e score explícitos.')
-    score = result['score']
-    if result['status'] == 'calculado':
-        if (isinstance(score, bool) or not isinstance(score, (int, float))
-                or not math.isfinite(score) or not 0 <= score <= 100):
-            raise ValueError('Análise calculada exige pontuação numérica finita entre 0 e 100.')
-    elif result['status'] == 'analise_incompleta':
+
+    result = payload.get("result")
+    if not isinstance(result, dict) or "status" not in result or "score" not in result:
+        raise ValueError("Resultado deve ser objeto com status e score explícitos.")
+    score = result["score"]
+    if result["status"] == "calculado":
+        if (
+            isinstance(score, bool)
+            or not isinstance(score, (int, float))
+            or not math.isfinite(score)
+            or not 0 <= score <= 100
+        ):
+            raise ValueError("Análise calculada exige pontuação numérica finita entre 0 e 100.")
+    elif result["status"] == "analise_incompleta":
         if score is not None:
-            raise ValueError('Análise incompleta exige score null, sem pontuação.')
+            raise ValueError("Análise incompleta exige score null, sem pontuação.")
     else:
-        raise ValueError('Status de análise inválido.')
-    values = dict(payload, vaga_id=int(job_id), curriculo_id=int(resume_id),
-                  pontuacao_aderencia=score,
-                  # ISO UTC explícito: timestamptz conserva o instante;
-                  # timestamp conserva os campos UTC, sem guardar o offset.
-                  # Não reinterpretar datas legadas sem fuso na leitura.
-                  analisado_em=datetime.now(timezone.utc).isoformat())
-    response = client.table('analises_aderencia').upsert(
-        values, on_conflict='vaga_id,curriculo_id,requirements_hash,text_hash,config_hash'
-    ).execute()
+        raise ValueError("Status de análise inválido.")
+    values = dict(
+        payload,
+        vaga_id=int(job_id),
+        curriculo_id=int(resume_id),
+        pontuacao_aderencia=score,
+        # ISO UTC explícito: timestamptz conserva o instante;
+        # timestamp conserva os campos UTC, sem guardar o offset.
+        # Não reinterpretar datas legadas sem fuso na leitura.
+        analisado_em=datetime.now(timezone.utc).isoformat(),
+    )
+    response = (
+        client.table("analises_aderencia")
+        .upsert(values, on_conflict="vaga_id,curriculo_id,requirements_hash,text_hash,config_hash")
+        .execute()
+    )
     if not response.data:
-        raise RuntimeError('Não foi possível confirmar a persistência da análise.')
+        raise RuntimeError("Não foi possível confirmar a persistência da análise.")
     return response.data[0]
 
 
 def update_resume_status(client, job_id, resume_id, status):
-    if status not in ('Aprovado', 'Descartado', 'Analisado', 'Pendente'):
-        raise ValueError('Status de currículo inválido.')
-    response = client.table('curriculos').update({'status': status}).eq('vaga_id', int(job_id)).eq('id', int(resume_id)).execute()
+    if status not in ("Aprovado", "Descartado", "Analisado", "Pendente"):
+        raise ValueError("Status de currículo inválido.")
+    response = (
+        client.table("curriculos")
+        .update({"status": status})
+        .eq("vaga_id", int(job_id))
+        .eq("id", int(resume_id))
+        .execute()
+    )
     if not response.data:
-        raise LookupError('Nenhum currículo alterado. Confira o RLS.')
+        raise LookupError("Nenhum currículo alterado. Confira o RLS.")
     return resume_for_template(response.data[0])

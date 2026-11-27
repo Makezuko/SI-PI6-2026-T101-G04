@@ -1,4 +1,5 @@
 """Estratégias de pontuação para aderência documental (OCP/LSP)."""
+
 from __future__ import annotations
 
 import math
@@ -27,9 +28,7 @@ class AdherenceScoreStrategy(Protocol):
         """Identificador da versão da fórmula de aderência."""
         ...
 
-    def compute(
-        self, details: list[dict], scale: float
-    ) -> tuple[float, float, list[float]]:
+    def compute(self, details: list[dict], scale: float) -> tuple[float, float, list[float]]:
         """Calcula ``(score, maximum_score, contributions)`` para os requisitos avaliados."""
         ...
 
@@ -39,9 +38,7 @@ def _base_totals(details: list[dict], scale: float) -> tuple[float, float, float
     pending = math.fsum(
         item["peso"] / scale for item in details if item["estado"] == "revisao_necessaria"
     )
-    confirmed = math.fsum(
-        item["peso"] / scale for item in details if item["estado"] == "atendido"
-    )
+    confirmed = math.fsum(item["peso"] / scale for item in details if item["estado"] == "atendido")
     return total, pending, confirmed
 
 
@@ -52,9 +49,7 @@ class WeightedConfirmedAdherence:
     def version(self) -> str:
         return "3.1-experimental"
 
-    def compute(
-        self, details: list[dict], scale: float
-    ) -> tuple[float, float, list[float]]:
+    def compute(self, details: list[dict], scale: float) -> tuple[float, float, list[float]]:
         total, pending, confirmed = _base_totals(details, scale)
         contributions = [
             float(item["max_points"]) if item["compatible"] else 0.0 for item in details
@@ -76,9 +71,7 @@ class StrictMandatoryAdherence:
     def version(self) -> str:
         return "3.1-strict-mandatory"
 
-    def compute(
-        self, details: list[dict], scale: float
-    ) -> tuple[float, float, list[float]]:
+    def compute(self, details: list[dict], scale: float) -> tuple[float, float, list[float]]:
         total, pending, confirmed = _base_totals(details, scale)
         contributions = [
             float(item["max_points"]) if item["compatible"] else 0.0 for item in details
@@ -113,9 +106,7 @@ class ProvisionalWeightedAdherence:
     def version(self) -> str:
         return "3.1-provisional-weighted"
 
-    def compute(
-        self, details: list[dict], scale: float
-    ) -> tuple[float, float, list[float]]:
+    def compute(self, details: list[dict], scale: float) -> tuple[float, float, list[float]]:
         total, pending, confirmed = _base_totals(details, scale)
         contributions = []
         for item in details:

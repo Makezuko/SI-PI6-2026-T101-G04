@@ -1,4 +1,3 @@
-
 """
 Extrator híbrido de competências de currículos.
 
@@ -29,11 +28,20 @@ from typing import Any
 # ============================================================
 
 SKILL_SECTION_HEADINGS = {
-    "competências técnicas & ferramentas", "competências técnicas e ferramentas",
-    "habilidades & ferramentas", "habilidades e ferramentas",
-    "competências técnicas & tecnologias", "stack técnica", "stack tecnológico",
-    "habilidades técnicas", "habilidades tecnicas", "habilidades", "competências técnicas",
-    "competencias tecnicas", "competências", "conhecimentos técnicos",
+    "competências técnicas & ferramentas",
+    "competências técnicas e ferramentas",
+    "habilidades & ferramentas",
+    "habilidades e ferramentas",
+    "competências técnicas & tecnologias",
+    "stack técnica",
+    "stack tecnológico",
+    "habilidades técnicas",
+    "habilidades tecnicas",
+    "habilidades",
+    "competências técnicas",
+    "competencias tecnicas",
+    "competências",
+    "conhecimentos técnicos",
     "skills",
     "technical skills",
     "technical skill",
@@ -235,38 +243,92 @@ KNOWN_FRAGMENT_COMBINATIONS = {
 # Essa classificação é independente da categoria encontrada no currículo.
 TECHNICAL_CATEGORY_RULES = {
     "Programming Languages": {
-        "python", "java", "javascript", "typescript",
-        "kotlin", "swift", "go", "golang", "c",
-        "c++", "c#", "f#", "php", "ruby", "scala",
-        "r", "perl", "rust", "objective-c",
-        "pl/sql", "sql",
+        "python",
+        "java",
+        "javascript",
+        "typescript",
+        "kotlin",
+        "swift",
+        "go",
+        "golang",
+        "c",
+        "c++",
+        "c#",
+        "f#",
+        "php",
+        "ruby",
+        "scala",
+        "r",
+        "perl",
+        "rust",
+        "objective-c",
+        "pl/sql",
+        "sql",
     },
     "Web Technologies": {
-        "html", "css", "xml",
+        "html",
+        "css",
+        "xml",
     },
     "Frameworks and Libraries": {
-        "django", "flask", "fastapi", "spring",
-        "spring mvc", "react", "angular", "angular js",
-        "vue", "jquery", "bootstrap", "tensorflow",
-        "pytorch", "scikit-learn", "keras",
-        "opencv", "pandas", "numpy",
+        "django",
+        "flask",
+        "fastapi",
+        "spring",
+        "spring mvc",
+        "react",
+        "angular",
+        "angular js",
+        "vue",
+        "jquery",
+        "bootstrap",
+        "tensorflow",
+        "pytorch",
+        "scikit-learn",
+        "keras",
+        "opencv",
+        "pandas",
+        "numpy",
     },
     "Databases": {
-        "mysql", "my sql", "postgresql", "postgres",
-        "sqlite", "mongodb", "redis", "oracle",
-        "sql server", "microsoft access",
-        "elasticsearch", "elastic search",
+        "mysql",
+        "my sql",
+        "postgresql",
+        "postgres",
+        "sqlite",
+        "mongodb",
+        "redis",
+        "oracle",
+        "sql server",
+        "microsoft access",
+        "elasticsearch",
+        "elastic search",
     },
     "Cloud and DevOps": {
-        "aws", "azure", "gcp", "google cloud",
-        "docker", "kubernetes", "jenkins",
-        "terraform", "ansible", "chef",
-        "git", "github", "gitlab", "svn",
-        "maven", "ant", "nexus",
+        "aws",
+        "azure",
+        "gcp",
+        "google cloud",
+        "docker",
+        "kubernetes",
+        "jenkins",
+        "terraform",
+        "ansible",
+        "chef",
+        "git",
+        "github",
+        "gitlab",
+        "svn",
+        "maven",
+        "ant",
+        "nexus",
     },
     "Operating Systems": {
-        "linux", "unix", "windows",
-        "windows server", "macos",
+        "linux",
+        "unix",
+        "windows",
+        "windows server",
+        "macos",
     },
     "Data Science and AI": {
         "artificial intelligence",
@@ -282,11 +344,17 @@ TECHNICAL_CATEGORY_RULES = {
         "pytorch",
     },
     "Development Tools": {
-        "eclipse", "netbeans", "pycharm",
-        "jupyter", "jupyter notebook",
-        "visual studio", "visual studio code",
-        "intellij idea", "notepad++",
-        "putty", "winscp",
+        "eclipse",
+        "netbeans",
+        "pycharm",
+        "jupyter",
+        "jupyter notebook",
+        "visual studio",
+        "visual studio code",
+        "intellij idea",
+        "notepad++",
+        "putty",
+        "winscp",
     },
 }
 
@@ -294,6 +362,7 @@ TECHNICAL_CATEGORY_RULES = {
 # ============================================================
 # 2. NORMALIZAÇÃO E FILTROS
 # ============================================================
+
 
 def repair_common_encoding(text: str) -> str:
     """Corrige marcadores frequentemente corrompidos no dataset."""
@@ -531,10 +600,7 @@ def infer_technical_category(skill: str) -> str | None:
     normalized = normalize_skill_key(skill)
 
     for category, terms in TECHNICAL_CATEGORY_RULES.items():
-        normalized_terms = {
-            normalize_skill_key(term)
-            for term in terms
-        }
+        normalized_terms = {normalize_skill_key(term) for term in terms}
 
         if normalized in normalized_terms:
             return category
@@ -561,6 +627,7 @@ def split_heading_and_content(
 # 3. IDENTIFICAÇÃO DE SEÇÕES
 # ============================================================
 
+
 def find_skill_sections(
     text: str,
 ) -> list[dict[str, Any]]:
@@ -586,12 +653,14 @@ def find_skill_sections(
             block = "\n".join(current_lines).strip()
 
             if block:
-                sections.append({
-                    "heading": current_heading,
-                    "text": block,
-                    "start_line": section_start_line,
-                    "end_line": end_line,
-                })
+                sections.append(
+                    {
+                        "heading": current_heading,
+                        "text": block,
+                        "start_line": section_start_line,
+                        "end_line": end_line,
+                    }
+                )
 
         collecting = False
         current_heading = None
@@ -606,17 +675,11 @@ def find_skill_sections(
                 current_lines.append("")
             continue
 
-        heading_part, inline_content = split_heading_and_content(
-            stripped_line
-        )
+        heading_part, inline_content = split_heading_and_content(stripped_line)
 
         normalized_heading = normalize_heading(heading_part)
 
-        if (
-            collecting
-            and inline_content
-            and normalized_heading in CATEGORY_PREFIXES
-        ):
+        if collecting and inline_content and normalized_heading in CATEGORY_PREFIXES:
             current_lines.append(stripped_line)
             continue
 
@@ -633,10 +696,7 @@ def find_skill_sections(
 
             continue
 
-        if (
-            collecting
-            and normalized_heading in STOP_SECTION_HEADINGS
-        ):
+        if collecting and normalized_heading in STOP_SECTION_HEADINGS:
             close_section(line_index - 1)
             continue
 
@@ -651,6 +711,7 @@ def find_skill_sections(
 # ============================================================
 # 4. LIMPEZA E SEGMENTAÇÃO DE COMPETÊNCIAS
 # ============================================================
+
 
 def remove_category_prefix(candidate: str) -> str:
     """Remove prefixos de categoria, quando reconhecidos."""
@@ -744,15 +805,12 @@ def merge_known_fragments(
 
         # Tenta combinar até quatro fragmentos consecutivos.
         for size in range(4, 1, -1):
-            group = candidates[index:index + size]
+            group = candidates[index : index + size]
 
             if len(group) != size:
                 continue
 
-            combined = " ".join(
-                part.strip()
-                for part in group
-            )
+            combined = " ".join(part.strip() for part in group)
 
             key = normalize_skill_key(combined)
 
@@ -783,11 +841,7 @@ def split_skill_block_details(
 
     details: list[dict[str, str | None]] = []
 
-    raw_lines = [
-        line.strip()
-        for line in repaired_block.splitlines()
-        if line.strip()
-    ]
+    raw_lines = [line.strip() for line in repaired_block.splitlines() if line.strip()]
 
     category_prefixes = sorted(
         CATEGORY_PREFIXES,
@@ -796,18 +850,13 @@ def split_skill_block_details(
     )
 
     for original_line in raw_lines:
-        heading, inline_content = split_heading_and_content(
-            original_line
-        )
+        heading, inline_content = split_heading_and_content(original_line)
 
         normalized_heading = normalize_heading(heading)
 
         source_category: str | None = None
 
-        if (
-            inline_content
-            and normalized_heading in CATEGORY_PREFIXES
-        ):
+        if inline_content and normalized_heading in CATEGORY_PREFIXES:
             source_category = heading.strip()
             content = inline_content
 
@@ -845,15 +894,9 @@ def split_skill_block_details(
         )
 
         # Remove fragmentos vazios antes de tentar reconstruir.
-        raw_candidates = [
-            item.strip()
-            for item in raw_candidates
-            if item.strip()
-        ]
+        raw_candidates = [item.strip() for item in raw_candidates if item.strip()]
 
-        reconstructed_candidates = merge_known_fragments(
-            raw_candidates
-        )
+        reconstructed_candidates = merge_known_fragments(raw_candidates)
 
         for raw_candidate in reconstructed_candidates:
             cleaned = clean_skill_candidate(raw_candidate)
@@ -863,20 +906,18 @@ def split_skill_block_details(
 
             technical_category = infer_technical_category(cleaned)
 
-            details.append({
-                "skill": cleaned,
-
-                # Campo antigo mantido para compatibilidade.
-                "category": source_category,
-
-                # Categoria encontrada no currículo.
-                "source_category": source_category,
-
-                # Categoria inferida a partir da tecnologia.
-                "technical_category": technical_category,
-
-                "evidence_text": original_line,
-            })
+            details.append(
+                {
+                    "skill": cleaned,
+                    # Campo antigo mantido para compatibilidade.
+                    "category": source_category,
+                    # Categoria encontrada no currículo.
+                    "source_category": source_category,
+                    # Categoria inferida a partir da tecnologia.
+                    "technical_category": technical_category,
+                    "evidence_text": original_line,
+                }
+            )
 
     return details
 
@@ -884,16 +925,13 @@ def split_skill_block_details(
 def split_skill_block(block: str) -> list[str]:
     """Mantém compatibilidade com a API anterior."""
 
-    return [
-        item["skill"]
-        for item in split_skill_block_details(block)
-        if item["skill"] is not None
-    ]
+    return [item["skill"] for item in split_skill_block_details(block) if item["skill"] is not None]
 
 
 # ============================================================
 # 5. EXTRAÇÃO DE ENTIDADES DO NER
 # ============================================================
+
 
 def extract_ner_skill_blocks(
     ner_entities: list[dict[str, Any]] | None,
@@ -916,12 +954,14 @@ def extract_ner_skill_blocks(
         if not entity_text.strip():
             continue
 
-        blocks.append({
-            "text": entity_text,
-            "confidence": float(entity.get("confidence", 0.0)),
-            "start": entity.get("start"),
-            "end": entity.get("end"),
-        })
+        blocks.append(
+            {
+                "text": entity_text,
+                "confidence": float(entity.get("confidence", 0.0)),
+                "start": entity.get("start"),
+                "end": entity.get("end"),
+            }
+        )
 
     return blocks
 
@@ -932,21 +972,32 @@ def extract_ner_skill_blocks(
 
 CONTEXT_SECTION_HEADINGS = {
     "experiência profissional & projetos": "experience",
-    "experiência prática": "experience", "experiência e projetos": "experience",
-    "formação & certificações": "education", "formação e certificações": "education",
-    "educação": "education", "formacao": "education",
+    "experiência prática": "experience",
+    "experiência e projetos": "experience",
+    "formação & certificações": "education",
+    "formação e certificações": "education",
+    "educação": "education",
+    "formacao": "education",
     "projetos aplicados em dados & ia": "project",
-    "projetos relevantes": "project", "relevant projects": "project",
+    "projetos relevantes": "project",
+    "relevant projects": "project",
     "applied data & ai projects": "project",
-    "resumo profissional": "summary", "resumo": "summary",
-    "professional summary": "summary", "summary": "summary", "profile": "summary",
+    "resumo profissional": "summary",
+    "resumo": "summary",
+    "professional summary": "summary",
+    "summary": "summary",
+    "profile": "summary",
     "formação acadêmica & certificações": "education",
     "formação acadêmica e certificações": "education",
-    "formação acadêmica": "education", "formacao academica": "education",
-    "formação": "education", "education": "education",
-    "academic background": "education", "academic qualifications": "education",
+    "formação acadêmica": "education",
+    "formacao academica": "education",
+    "formação": "education",
+    "education": "education",
+    "academic background": "education",
+    "academic qualifications": "education",
     "education & certifications": "education",
-    "idiomas": "language", "languages": "language",
+    "idiomas": "language",
+    "languages": "language",
     "experience": "experience",
     "professional experience": "experience",
     "work experience": "experience",
@@ -1008,9 +1059,7 @@ def segment_experience_block(
     pending_blank_after_bullet = False
     collecting_next_header = False
 
-    bullet_pattern = re.compile(
-        r"^\s*(?:[•●▪◦]|\*|-)\s+(.+?)\s*$"
-    )
+    bullet_pattern = re.compile(r"^\s*(?:[•●▪◦]|\*|-)\s+(.+?)\s*$")
 
     boundary_headings = {
         "role",
@@ -1028,24 +1077,22 @@ def segment_experience_block(
     def save_current(end_line: int) -> None:
         nonlocal current_lines, current_start
 
-        evidence_text = " ".join(
-            line.strip()
-            for line in current_lines
-            if line.strip()
-        ).strip()
+        evidence_text = " ".join(line.strip() for line in current_lines if line.strip()).strip()
 
         if evidence_text:
-            evidence_blocks.append({
-                "text": evidence_text,
-                "source": block.get("source", "experience"),
-                "heading": block.get("heading"),
-                "evidence_type": "responsibility",
-                "context_header": "\n".join(header_lines).strip(),
-                "start_line": current_start,
-                "end_line": end_line,
-                "parent_start_line": block.get("start_line"),
-                "parent_end_line": block.get("end_line"),
-            })
+            evidence_blocks.append(
+                {
+                    "text": evidence_text,
+                    "source": block.get("source", "experience"),
+                    "heading": block.get("heading"),
+                    "evidence_type": "responsibility",
+                    "context_header": "\n".join(header_lines).strip(),
+                    "start_line": current_start,
+                    "end_line": end_line,
+                    "parent_start_line": block.get("start_line"),
+                    "parent_end_line": block.get("end_line"),
+                }
+            )
 
         current_lines = []
         current_start = None
@@ -1069,8 +1116,7 @@ def segment_experience_block(
         normalized_heading = normalize_heading(heading)
 
         if first_bullet_found and (
-            normalized_heading in CONTEXT_STOP_HEADINGS
-            or normalized_heading in boundary_headings
+            normalized_heading in CONTEXT_STOP_HEADINGS or normalized_heading in boundary_headings
         ):
             if current_lines:
                 save_current(line_number - 1)
@@ -1103,21 +1149,19 @@ def segment_experience_block(
 
         elif current_lines:
             # Uma nova entrada datada não deve virar continuação da atividade.
-            if re.search(r'\b(?:19|20)\d{2}\b', line) and re.search(r'\s[|–—]\s', line):
+            if re.search(r"\b(?:19|20)\d{2}\b", line) and re.search(r"\s[|–—]\s", line):
                 save_current(line_number - 1)
                 header_lines = [line]
                 collecting_next_header = True
             else:
                 # Hifenização de quebra de linha de PDF.
-                if current_lines[-1].endswith('-') and line[:1].islower():
+                if current_lines[-1].endswith("-") and line[:1].islower():
                     current_lines[-1] = current_lines[-1][:-1] + line
                 else:
                     current_lines.append(line)
 
     if current_lines:
-        save_current(
-            block.get("end_line") or base_line + len(lines)
-        )
+        save_current(block.get("end_line") or base_line + len(lines))
 
     if not evidence_blocks:
         fragments = []
@@ -1126,15 +1170,26 @@ def segment_experience_block(
             if not value:
                 continue
             # Continuação conservadora: não unir títulos ou entradas datadas.
-            if (fragments and value[:1].islower()
-                    and not re.search(r'\b(?:19|20)\d{2}\b', value)
-                    and not fragments[-1]['text'].endswith(('.', ';', ':'))):
-                previous = fragments[-1]['text']
-                fragments[-1]['text'] = previous[:-1] + value if previous.endswith('-') else previous + ' ' + value
-                fragments[-1]['end_line'] = base_line + index + 1
+            if (
+                fragments
+                and value[:1].islower()
+                and not re.search(r"\b(?:19|20)\d{2}\b", value)
+                and not fragments[-1]["text"].endswith((".", ";", ":"))
+            ):
+                previous = fragments[-1]["text"]
+                fragments[-1]["text"] = (
+                    previous[:-1] + value if previous.endswith("-") else previous + " " + value
+                )
+                fragments[-1]["end_line"] = base_line + index + 1
             else:
-                fragments.append({**block, 'text': value, 'start_line': base_line + index + 1,
-                                  'end_line': base_line + index + 1})
+                fragments.append(
+                    {
+                        **block,
+                        "text": value,
+                        "start_line": base_line + index + 1,
+                        "end_line": base_line + index + 1,
+                    }
+                )
         return fragments
 
     return evidence_blocks
@@ -1175,11 +1230,14 @@ def extract_context_blocks(
                 # Parágrafos completos preservam frases quebradas por layout PDF.
                 paragraph = []
                 paragraph_start = None
+
                 def save_paragraph(end):
                     if paragraph:
-                        value = re.sub(r'(\w)-\s+(?=[a-zà-ú])', r'\1', ' '.join(paragraph))
-                        blocks.append({**block, 'text': value,
-                                       'start_line': paragraph_start, 'end_line': end})
+                        value = re.sub(r"(\w)-\s+(?=[a-zà-ú])", r"\1", " ".join(paragraph))
+                        blocks.append(
+                            {**block, "text": value, "start_line": paragraph_start, "end_line": end}
+                        )
+
                 for offset, line in enumerate(current_lines):
                     value = line.strip()
                     if not value:
@@ -1195,11 +1253,16 @@ def extract_context_blocks(
                 # Uma linha/atividade por evidência; não unir projetos, diplomas
                 # e níveis de idioma em um único trecho artificial.
                 for offset, line in enumerate(current_lines):
-                    value = re.sub(r'^\s*[-•●▪◦*]\s+', '', line).strip()
+                    value = re.sub(r"^\s*[-•●▪◦*]\s+", "", line).strip()
                     if value:
-                        blocks.append({**block, 'text': value,
-                                       'start_line': (start_line or 0) + offset + 1,
-                                       'end_line': (start_line or 0) + offset + 1})
+                        blocks.append(
+                            {
+                                **block,
+                                "text": value,
+                                "start_line": (start_line or 0) + offset + 1,
+                                "end_line": (start_line or 0) + offset + 1,
+                            }
+                        )
 
         current_source = None
         current_heading = None
@@ -1224,7 +1287,7 @@ def extract_context_blocks(
 
         elif normalized in SKILL_SECTION_HEADINGS:
             close_block(line_number - 1)
-            current_source = 'skill_context'
+            current_source = "skill_context"
             current_heading = heading.strip()
             start_line = line_number
             if inline_content:
@@ -1244,6 +1307,7 @@ def extract_context_blocks(
 # 7. PREPARAÇÃO DOS INPUTS SEMÂNTICOS
 # ============================================================
 
+
 def prepare_semantic_inputs(
     skill_details: list[dict[str, Any]],
     context_blocks: list[dict[str, Any]],
@@ -1253,15 +1317,17 @@ def prepare_semantic_inputs(
     inputs = []
 
     for item in skill_details:
-        inputs.append({
-            "text": item["skill"],
-            "source": "skill",
-            "extraction_sources": item["sources"],
-            "evidence": item["evidence"],
-            "categories": item.get("categories", []),
-            "source_categories": item.get("source_categories", []),
-            "technical_category": item.get("technical_category"),
-        })
+        inputs.append(
+            {
+                "text": item["skill"],
+                "source": "skill",
+                "extraction_sources": item["sources"],
+                "evidence": item["evidence"],
+                "categories": item.get("categories", []),
+                "source_categories": item.get("source_categories", []),
+                "technical_category": item.get("technical_category"),
+            }
+        )
 
     for block in context_blocks:
         inputs.append(dict(block))
@@ -1272,6 +1338,7 @@ def prepare_semantic_inputs(
 # ============================================================
 # 8. EXTRAÇÃO HÍBRIDA
 # ============================================================
+
 
 def extract_skills(
     text: str,
@@ -1315,19 +1382,14 @@ def extract_skills(
                 "normalized": key,
                 "sources": [],
                 "evidence": [],
-
                 # Campo antigo mantido para compatibilidade.
                 "categories": [],
-
                 # Categorias de origem do currículo.
                 "source_categories": [],
-
                 # Categoria técnica inferida.
                 "technical_category": (
-                    technical_category
-                    or infer_technical_category(cleaned_skill)
+                    technical_category or infer_technical_category(cleaned_skill)
                 ),
-
                 "ner_confidence": None,
             }
 
@@ -1348,19 +1410,13 @@ def extract_skills(
             if category not in record["source_categories"]:
                 record["source_categories"].append(category)
 
-        if (
-            technical_category
-            and record["technical_category"] is None
-        ):
+        if technical_category and record["technical_category"] is None:
             record["technical_category"] = technical_category
 
         if confidence is not None:
             previous_confidence = record["ner_confidence"]
 
-            if (
-                previous_confidence is None
-                or confidence > previous_confidence
-            ):
+            if previous_confidence is None or confidence > previous_confidence:
                 record["ner_confidence"] = confidence
 
     # Primeiro: competências encontradas em seções explícitas.
@@ -1401,10 +1457,7 @@ def extract_skills(
     )
 
     return {
-        "skills": [
-            item["skill"]
-            for item in skill_details
-        ],
+        "skills": [item["skill"] for item in skill_details],
         "skill_details": skill_details,
         "sections_found": sections,
         "ner_skill_blocks": ner_blocks,
@@ -1414,20 +1467,10 @@ def extract_skills(
             "sections_found": len(sections),
             "ner_blocks_found": len(ner_blocks),
             "unique_skills": len(skill_details),
-            "skills_from_section": sum(
-                1
-                for item in skill_details
-                if "section" in item["sources"]
-            ),
-            "skills_from_ner": sum(
-                1
-                for item in skill_details
-                if "ner" in item["sources"]
-            ),
+            "skills_from_section": sum(1 for item in skill_details if "section" in item["sources"]),
+            "skills_from_ner": sum(1 for item in skill_details if "ner" in item["sources"]),
             "skills_confirmed_by_both": sum(
-                1
-                for item in skill_details
-                if {"section", "ner"}.issubset(item["sources"])
+                1 for item in skill_details if {"section", "ner"}.issubset(item["sources"])
             ),
         },
     }
@@ -1437,12 +1480,11 @@ def extract_skills(
 # 9. EXECUÇÃO PELO TERMINAL
 # ============================================================
 
+
 def parse_args() -> argparse.Namespace:
     """Argumentos da linha de comando."""
 
-    parser = argparse.ArgumentParser(
-        description=__doc__
-    )
+    parser = argparse.ArgumentParser(description=__doc__)
 
     parser.add_argument(
         "--input",
@@ -1478,9 +1520,7 @@ def main() -> None:
     args = parse_args()
 
     if not args.input.exists():
-        raise FileNotFoundError(
-            f"Currículo não encontrado: {args.input}"
-        )
+        raise FileNotFoundError(f"Currículo não encontrado: {args.input}")
 
     text = args.input.read_text(encoding="utf-8")
 
@@ -1488,9 +1528,7 @@ def main() -> None:
     # de segmentação são utilizadas nos testes.
     from src.nlp.inference import ResumeNERPredictor
 
-    predictor = ResumeNERPredictor(
-        model_directory=args.model_dir
-    )
+    predictor = ResumeNERPredictor(model_directory=args.model_dir)
 
     ner_result = predictor.predict(
         text=text,
@@ -1523,9 +1561,7 @@ def main() -> None:
         encoding="utf-8",
     )
 
-    print(
-        f"Skills encontradas: {len(hybrid_result['skills'])}"
-    )
+    print(f"Skills encontradas: {len(hybrid_result['skills'])}")
 
     for skill in hybrid_result["skills"]:
         print(f"- {skill}")

@@ -65,9 +65,7 @@ def load_json(path: Path) -> list[dict[str, Any]]:
     Carrega um arquivo JSON com currículos e entidades.
     """
     if not path.exists():
-        raise FileNotFoundError(
-            f"Arquivo não encontrado: {path}"
-        )
+        raise FileNotFoundError(f"Arquivo não encontrado: {path}")
 
     with path.open(
         "r",
@@ -76,9 +74,7 @@ def load_json(path: Path) -> list[dict[str, Any]]:
         data = json.load(file)
 
     if not isinstance(data, list):
-        raise ValueError(
-            f"O arquivo {path} deve conter uma lista JSON."
-        )
+        raise ValueError(f"O arquivo {path} deve conter uma lista JSON.")
 
     return data
 
@@ -127,19 +123,13 @@ def validate_document(
     content = document.get("content")
     entities = document.get("entidades")
 
-    document_reference = (
-        f"{split_name}[{document_index}]"
-    )
+    document_reference = f"{split_name}[{document_index}]"
 
     if not isinstance(content, str):
-        raise ValueError(
-            f"{document_reference}: content inválido."
-        )
+        raise ValueError(f"{document_reference}: content inválido.")
 
     if not isinstance(entities, list):
-        raise ValueError(
-            f"{document_reference}: entidades deve ser uma lista."
-        )
+        raise ValueError(f"{document_reference}: entidades deve ser uma lista.")
 
     sorted_entities = sorted(
         entities,
@@ -151,55 +141,33 @@ def validate_document(
 
     previous_end = 0
 
-    for entity_index, entity in enumerate(
-        sorted_entities
-    ):
+    for entity_index, entity in enumerate(sorted_entities):
         start = entity.get("start")
         end = entity.get("end")
         label = entity.get("label")
 
-        entity_reference = (
-            f"{document_reference}.entidades"
-            f"[{entity_index}]"
-        )
+        entity_reference = f"{document_reference}.entidades[{entity_index}]"
 
         if not isinstance(start, int):
-            raise ValueError(
-                f"{entity_reference}: start inválido."
-            )
+            raise ValueError(f"{entity_reference}: start inválido.")
 
         if not isinstance(end, int):
-            raise ValueError(
-                f"{entity_reference}: end inválido."
-            )
+            raise ValueError(f"{entity_reference}: end inválido.")
 
         if start < 0 or end <= start:
-            raise ValueError(
-                f"{entity_reference}: intervalo inválido "
-                f"[{start}, {end})."
-            )
+            raise ValueError(f"{entity_reference}: intervalo inválido [{start}, {end}).")
 
         if end > len(content):
-            raise ValueError(
-                f"{entity_reference}: end ultrapassa "
-                "o tamanho do texto."
-            )
+            raise ValueError(f"{entity_reference}: end ultrapassa o tamanho do texto.")
 
         if label not in ENTITY_LABELS:
-            raise ValueError(
-                f"{entity_reference}: rótulo desconhecido "
-                f"'{label}'."
-            )
+            raise ValueError(f"{entity_reference}: rótulo desconhecido '{label}'.")
 
         if start < previous_end:
-            raise ValueError(
-                f"{entity_reference}: sobreposição detectada."
-            )
+            raise ValueError(f"{entity_reference}: sobreposição detectada.")
 
         if not content[start:end].strip():
-            raise ValueError(
-                f"{entity_reference}: entidade vazia."
-            )
+            raise ValueError(f"{entity_reference}: entidade vazia.")
 
         previous_end = end
 
@@ -215,10 +183,7 @@ def token_overlaps_entity(
 
     Tanto os offsets dos tokens quanto os das entidades usam fim exclusivo.
     """
-    return (
-        token_start < entity_end
-        and token_end > entity_start
-    )
+    return token_start < entity_end and token_end > entity_start
 
 
 def align_tokens_with_entities(
@@ -285,9 +250,7 @@ def align_tokens_with_entities(
 
         # Como as entidades já estão ordenadas e não se sobrepõem,
         # no máximo uma entidade pode corresponder ao token.
-        for entity_index, entity in enumerate(
-            sorted_entities
-        ):
+        for entity_index, entity in enumerate(sorted_entities):
             if token_overlaps_entity(
                 token_start=token_start,
                 token_end=token_end,
@@ -304,47 +267,28 @@ def align_tokens_with_entities(
 
         # Token fora de qualquer entidade.
         if current_entity_index is None:
-            token_labels.append(
-                LABEL2ID["O"]
-            )
+            token_labels.append(LABEL2ID["O"])
 
             previous_entity_index = None
             continue
 
-        entity = sorted_entities[
-            current_entity_index
-        ]
+        entity = sorted_entities[current_entity_index]
 
-        normalized_label = normalize_entity_label(
-            entity["label"]
-        )
+        normalized_label = normalize_entity_label(entity["label"])
 
         # Se essa entidade é diferente da entidade do token anterior,
         # este é o começo da entidade dentro da janela.
-        if (
-            current_entity_index
-            != previous_entity_index
-        ):
-            bio_label = (
-                f"B-{normalized_label}"
-            )
+        if current_entity_index != previous_entity_index:
+            bio_label = f"B-{normalized_label}"
 
         else:
-            bio_label = (
-                f"I-{normalized_label}"
-            )
+            bio_label = f"I-{normalized_label}"
 
-        token_labels.append(
-            LABEL2ID[bio_label]
-        )
+        token_labels.append(LABEL2ID[bio_label])
 
-        found_entity_indices.add(
-            current_entity_index
-        )
+        found_entity_indices.add(current_entity_index)
 
-        previous_entity_index = (
-            current_entity_index
-        )
+        previous_entity_index = current_entity_index
 
     return token_labels, found_entity_indices
 
@@ -407,10 +351,7 @@ def prepare_document_chunks(
         )
 
     if not all_input_ids:
-        raise ValueError(
-            f"{split_name}[{document_index}]: "
-            "o tokenizer não produziu nenhum token."
-        )
+        raise ValueError(f"{split_name}[{document_index}]: o tokenizer não produziu nenhum token.")
 
     # O DistilBERT adiciona dois tokens especiais:
     #
@@ -419,22 +360,14 @@ def prepare_document_chunks(
     #
     # Essa quantidade é obtida do próprio tokenizer para que a função
     # continue funcionando caso o modelo seja trocado.
-    number_of_special_tokens = (
-        tokenizer.num_special_tokens_to_add(
-            pair=False
-        )
-    )
+    number_of_special_tokens = tokenizer.num_special_tokens_to_add(pair=False)
 
     # Quantidade de tokens reais do currículo que cabem em cada janela.
-    content_window_size = (
-        max_length
-        - number_of_special_tokens
-    )
+    content_window_size = max_length - number_of_special_tokens
 
     if content_window_size <= 0:
         raise ValueError(
-            "max_length é menor do que a quantidade "
-            "de tokens especiais exigida pelo tokenizer."
+            "max_length é menor do que a quantidade de tokens especiais exigida pelo tokenizer."
         )
 
     if stride >= content_window_size:
@@ -450,10 +383,7 @@ def prepare_document_chunks(
     #
     # A primeira janela usa os tokens 0 até 509.
     # A segunda começa em 382, repetindo 128 tokens.
-    window_step = (
-        content_window_size
-        - stride
-    )
+    window_step = content_window_size - stride
 
     document_chunks = []
 
@@ -468,15 +398,11 @@ def prepare_document_chunks(
             len(all_input_ids),
         )
 
-        window_input_ids = all_input_ids[
-            window_start:window_end
-        ]
+        window_input_ids = all_input_ids[window_start:window_end]
 
-        window_offsets_without_special = all_offsets[
-            window_start:window_end
-        ]
+        window_offsets_without_special = all_offsets[window_start:window_end]
 
-                # -----------------------------------------------------------
+        # -----------------------------------------------------------
         # ADIÇÃO MANUAL DOS TOKENS ESPECIAIS
         # -----------------------------------------------------------
         #
@@ -492,14 +418,10 @@ def prepare_document_chunks(
         sep_token_id = tokenizer.sep_token_id
 
         if cls_token_id is None:
-            raise ValueError(
-                "O tokenizer não possui cls_token_id."
-            )
+            raise ValueError("O tokenizer não possui cls_token_id.")
 
         if sep_token_id is None:
-            raise ValueError(
-                "O tokenizer não possui sep_token_id."
-            )
+            raise ValueError("O tokenizer não possui sep_token_id.")
 
         prepared_input_ids = [
             cls_token_id,
@@ -507,10 +429,7 @@ def prepare_document_chunks(
             sep_token_id,
         ]
 
-        prepared_attention_mask = [
-            1
-            for _ in prepared_input_ids
-        ]
+        prepared_attention_mask = [1 for _ in prepared_input_ids]
 
         # Tokens especiais não correspondem a caracteres do currículo.
         # Por isso recebem o offset (0, 0).
@@ -525,10 +444,7 @@ def prepare_document_chunks(
             "attention_mask": prepared_attention_mask,
         }
 
-        if (
-            len(prepared_input_ids)
-            != len(window_offsets_with_special)
-        ):
+        if len(prepared_input_ids) != len(window_offsets_with_special):
             raise ValueError(
                 f"{split_name}[{document_index}], "
                 f"janela {chunk_index}: quantidade de tokens "
@@ -539,14 +455,12 @@ def prepare_document_chunks(
         # ALINHAMENTO BIO
         # -----------------------------------------------------------
 
-        labels, found_entity_indices = (
-            align_tokens_with_entities(
-                offsets=window_offsets_with_special,
-                entities=entities,
-            )
+        labels, found_entity_indices = align_tokens_with_entities(
+            offsets=window_offsets_with_special,
+            entities=entities,
         )
 
-                # As janelas posteriores repetem os últimos tokens da janela
+        # As janelas posteriores repetem os últimos tokens da janela
         # anterior. Esses tokens são úteis como contexto, mas não devem
         # participar novamente da perda ou das métricas.
         #
@@ -564,14 +478,9 @@ def prepare_document_chunks(
             ):
                 labels[label_index] = -100
 
-        entities_found_in_document.update(
-            found_entity_indices
-        )
+        entities_found_in_document.update(found_entity_indices)
 
-        if (
-            len(labels)
-            != len(prepared_window["input_ids"])
-        ):
+        if len(labels) != len(prepared_window["input_ids"]):
             raise ValueError(
                 f"{split_name}[{document_index}], "
                 f"janela {chunk_index}: quantidade de labels "
@@ -579,21 +488,11 @@ def prepare_document_chunks(
             )
 
         chunk = {
-            "input_ids": prepared_window[
-                "input_ids"
-            ],
-            "attention_mask": prepared_window[
-                "attention_mask"
-            ],
+            "input_ids": prepared_window["input_ids"],
+            "attention_mask": prepared_window["attention_mask"],
             "labels": labels,
-            "offset_mapping": [
-                [start, end]
-                for start, end
-                in window_offsets_with_special
-            ],
-            "source_document_id": (
-                f"{split_name}-{document_index}"
-            ),
+            "offset_mapping": [[start, end] for start, end in window_offsets_with_special],
+            "source_document_id": (f"{split_name}-{document_index}"),
             "chunk_id": chunk_index,
             "is_augmented": bool(
                 document.get(
@@ -621,29 +520,20 @@ def prepare_document_chunks(
     number_of_chunks = len(document_chunks)
 
     for chunk in document_chunks:
-        chunk["number_of_chunks"] = (
-            number_of_chunks
-        )
+        chunk["number_of_chunks"] = number_of_chunks
 
     # ---------------------------------------------------------------
     # VERIFICAÇÃO DE COBERTURA DAS ENTIDADES
     # ---------------------------------------------------------------
 
-    expected_entity_indices = set(
-        range(len(entities))
-    )
+    expected_entity_indices = set(range(len(entities)))
 
-    missing_entities = (
-        expected_entity_indices
-        - entities_found_in_document
-    )
+    missing_entities = expected_entity_indices - entities_found_in_document
 
     if missing_entities:
         missing_details = []
 
-        for entity_index in sorted(
-            missing_entities
-        ):
+        for entity_index in sorted(missing_entities):
             entity = entities[entity_index]
 
             missing_details.append(
@@ -652,10 +542,7 @@ def prepare_document_chunks(
                     "label": entity["label"],
                     "start": entity["start"],
                     "end": entity["end"],
-                    "text": content[
-                        entity["start"]:
-                        entity["end"]
-                    ][:100],
+                    "text": content[entity["start"] : entity["end"]][:100],
                 }
             )
 
@@ -689,9 +576,7 @@ def prepare_split(
     augmented_documents = 0
     documents_with_multiple_chunks = 0
 
-    for document_index, document in enumerate(
-        documents
-    ):
+    for document_index, document in enumerate(documents):
         validate_document(
             document=document,
             document_index=document_index,
@@ -699,9 +584,7 @@ def prepare_split(
         )
 
         for entity in document["entidades"]:
-            entity_distribution.update(
-                [entity["label"]]
-            )
+            entity_distribution.update([entity["label"]])
 
         if document.get(
             "metadata",
@@ -727,26 +610,15 @@ def prepare_split(
         all_chunks.extend(chunks)
 
         # Mostra o andamento sem imprimir uma linha para cada currículo.
-        if (
-            (document_index + 1) % 50 == 0
-            or document_index + 1 == len(documents)
-        ):
-            print(
-                f"{split_name}: "
-                f"{document_index + 1}/"
-                f"{len(documents)} currículos preparados"
-            )
+        if (document_index + 1) % 50 == 0 or document_index + 1 == len(documents):
+            print(f"{split_name}: {document_index + 1}/{len(documents)} currículos preparados")
 
     statistics = {
         "documents": len(documents),
         "augmented_documents": augmented_documents,
         "chunks": len(all_chunks),
-        "documents_with_multiple_chunks": (
-            documents_with_multiple_chunks
-        ),
-        "entity_distribution": dict(
-            sorted(entity_distribution.items())
-        ),
+        "documents_with_multiple_chunks": (documents_with_multiple_chunks),
+        "entity_distribution": dict(sorted(entity_distribution.items())),
     }
 
     return all_chunks, statistics
@@ -760,15 +632,11 @@ def validate_tokenized_chunks(
     """
     Verifica se todas as janelas tokenizadas possuem estrutura consistente.
     """
-    valid_label_ids = set(
-        ID2LABEL.keys()
-    )
+    valid_label_ids = set(ID2LABEL.keys())
 
     valid_label_ids.add(-100)
 
-    for chunk_index, chunk in enumerate(
-        chunks
-    ):
+    for chunk_index, chunk in enumerate(chunks):
         input_ids = chunk["input_ids"]
         attention_mask = chunk["attention_mask"]
         labels = chunk["labels"]
@@ -790,19 +658,14 @@ def validate_tokenized_chunks(
 
         if len(input_ids) > max_length:
             raise ValueError(
-                f"{split_name}, chunk {chunk_index}: "
-                f"janela maior que {max_length} tokens."
+                f"{split_name}, chunk {chunk_index}: janela maior que {max_length} tokens."
             )
 
-        invalid_ids = (
-            set(labels)
-            - valid_label_ids
-        )
+        invalid_ids = set(labels) - valid_label_ids
 
         if invalid_ids:
             raise ValueError(
-                f"{split_name}, chunk {chunk_index}: "
-                f"IDs de rótulo inválidos: {invalid_ids}"
+                f"{split_name}, chunk {chunk_index}: IDs de rótulo inválidos: {invalid_ids}"
             )
 
 
@@ -810,32 +673,20 @@ def parse_args() -> argparse.Namespace:
     """
     Define os argumentos de linha de comando.
     """
-    parser = argparse.ArgumentParser(
-        description=__doc__
-    )
+    parser = argparse.ArgumentParser(description=__doc__)
 
     parser.add_argument(
         "--input-dir",
         type=Path,
-        default=Path(
-            "data/processed/splits"
-        ),
-        help=(
-            "Pasta que contém train.json, "
-            "validation.json e test.json."
-        ),
+        default=Path("data/processed/splits"),
+        help=("Pasta que contém train.json, validation.json e test.json."),
     )
 
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path(
-            "data/processed/huggingface_ner"
-        ),
-        help=(
-            "Pasta que receberá o DatasetDict "
-            "no formato Hugging Face."
-        ),
+        default=Path("data/processed/huggingface_ner"),
+        help=("Pasta que receberá o DatasetDict no formato Hugging Face."),
     )
 
     parser.add_argument(
@@ -869,23 +720,15 @@ def run_pipeline(
     Executa toda a preparação do dataset.
     """
     if args.max_length <= 2:
-        raise ValueError(
-            "max_length precisa ser maior que 2."
-        )
+        raise ValueError("max_length precisa ser maior que 2.")
 
     if args.stride < 0:
-        raise ValueError(
-            "stride não pode ser negativo."
-        )
+        raise ValueError("stride não pode ser negativo.")
 
     if args.stride >= args.max_length:
-        raise ValueError(
-            "stride deve ser menor que max_length."
-        )
+        raise ValueError("stride deve ser menor que max_length.")
 
-    print(
-        f"Carregando tokenizer: {args.model_name}"
-    )
+    print(f"Carregando tokenizer: {args.model_name}")
 
     tokenizer = AutoTokenizer.from_pretrained(
         args.model_name,
@@ -897,15 +740,12 @@ def run_pipeline(
     # Somente tokenizers rápidos oferecem offset_mapping.
     if not tokenizer.is_fast:
         raise ValueError(
-            "O tokenizer escolhido não é um Fast Tokenizer "
-            "e não fornece offset_mapping."
+            "O tokenizer escolhido não é um Fast Tokenizer e não fornece offset_mapping."
         )
 
     input_files = {
         "train": args.input_dir / "train.json",
-        "validation": (
-            args.input_dir / "validation.json"
-        ),
+        "validation": (args.input_dir / "validation.json"),
         "test": args.input_dir / "test.json",
     }
 
@@ -913,13 +753,9 @@ def run_pipeline(
     all_statistics = {}
 
     for split_name, input_path in input_files.items():
-        print(
-            f"\nPreparando split: {split_name}"
-        )
+        print(f"\nPreparando split: {split_name}")
 
-        documents = load_json(
-            input_path
-        )
+        documents = load_json(input_path)
 
         chunks, statistics = prepare_split(
             documents=documents,
@@ -935,17 +771,11 @@ def run_pipeline(
             max_length=args.max_length,
         )
 
-        prepared_splits[split_name] = (
-            Dataset.from_list(chunks)
-        )
+        prepared_splits[split_name] = Dataset.from_list(chunks)
 
-        all_statistics[split_name] = (
-            statistics
-        )
+        all_statistics[split_name] = statistics
 
-    dataset = DatasetDict(
-        prepared_splits
-    )
+    dataset = DatasetDict(prepared_splits)
 
     args.output_dir.mkdir(
         parents=True,
@@ -953,9 +783,7 @@ def run_pipeline(
     )
 
     # Salva o DatasetDict no formato nativo da Hugging Face.
-    dataset.save_to_disk(
-        str(args.output_dir)
-    )
+    dataset.save_to_disk(str(args.output_dir))
 
     metadata = {
         "model_name": args.model_name,
@@ -964,15 +792,9 @@ def run_pipeline(
         "entity_labels": ENTITY_LABELS,
         "bio_labels": BIO_LABELS,
         "label2id": LABEL2ID,
-
         # Chaves JSON precisam ser texto.
-        "id2label": {
-            str(index): label
-            for index, label in ID2LABEL.items()
-        },
-
+        "id2label": {str(index): label for index, label in ID2LABEL.items()},
         "statistics": all_statistics,
-
         "validation": {
             "all_entities_found": True,
             "all_chunk_lengths_valid": True,
@@ -982,21 +804,14 @@ def run_pipeline(
 
     save_json(
         metadata,
-        args.output_dir
-        / "preparation_metadata.json",
+        args.output_dir / "preparation_metadata.json",
     )
 
-    print(
-        "\nPreparação concluída com sucesso!"
-    )
+    print("\nPreparação concluída com sucesso!")
 
-    print(
-        f"Dataset salvo em: {args.output_dir}"
-    )
+    print(f"Dataset salvo em: {args.output_dir}")
 
-    print(
-        "\nEstatísticas:"
-    )
+    print("\nEstatísticas:")
 
     print(
         json.dumps(
@@ -1010,6 +825,4 @@ def run_pipeline(
 
 
 if __name__ == "__main__":
-    run_pipeline(
-        parse_args()
-    )
+    run_pipeline(parse_args())

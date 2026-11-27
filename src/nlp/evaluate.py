@@ -89,22 +89,13 @@ def convert_numpy_types(
         return value.tolist()
 
     if isinstance(value, dict):
-        return {
-            key: convert_numpy_types(item)
-            for key, item in value.items()
-        }
+        return {key: convert_numpy_types(item) for key, item in value.items()}
 
     if isinstance(value, list):
-        return [
-            convert_numpy_types(item)
-            for item in value
-        ]
+        return [convert_numpy_types(item) for item in value]
 
     if isinstance(value, tuple):
-        return [
-            convert_numpy_types(item)
-            for item in value
-        ]
+        return [convert_numpy_types(item) for item in value]
 
     return value
 
@@ -121,9 +112,7 @@ def save_json(
         exist_ok=True,
     )
 
-    safe_data = convert_numpy_types(
-        data
-    )
+    safe_data = convert_numpy_types(data)
 
     with path.open(
         "w",
@@ -146,16 +135,10 @@ def remove_auxiliary_columns(
     O dataset original não é alterado. Ele continuará disponível para
     a consolidação por documento.
     """
-    columns_to_remove = [
-        column
-        for column in dataset.column_names
-        if column not in MODEL_COLUMNS
-    ]
+    columns_to_remove = [column for column in dataset.column_names if column not in MODEL_COLUMNS]
 
     if columns_to_remove:
-        dataset = dataset.remove_columns(
-            columns_to_remove
-        )
+        dataset = dataset.remove_columns(columns_to_remove)
 
     return dataset
 
@@ -175,10 +158,7 @@ def validate_required_columns(
         "chunk_id",
     }
 
-    missing_columns = (
-        required_columns
-        - set(dataset.column_names)
-    )
+    missing_columns = required_columns - set(dataset.column_names)
 
     if missing_columns:
         raise ValueError(
@@ -233,36 +213,20 @@ def consolidate_predictions_by_document(
     ignored_special_tokens = 0
     conflicting_gold_labels = 0
 
-    for example_index in range(
-        len(original_dataset)
-    ):
-        example = original_dataset[
-            example_index
-        ]
+    for example_index in range(len(original_dataset)):
+        example = original_dataset[example_index]
 
-        document_id = str(
-            example["source_document_id"]
-        )
+        document_id = str(example["source_document_id"])
 
-        chunk_id = int(
-            example["chunk_id"]
-        )
+        chunk_id = int(example["chunk_id"])
 
-        input_ids = example[
-            "input_ids"
-        ]
+        input_ids = example["input_ids"]
 
-        offsets = example[
-            "offset_mapping"
-        ]
+        offsets = example["offset_mapping"]
 
-        current_labels = label_ids[
-            example_index
-        ]
+        current_labels = label_ids[example_index]
 
-        current_logits = raw_predictions[
-            example_index
-        ]
+        current_logits = raw_predictions[example_index]
 
         # Trainer pode completar os arrays com padding. Usamos apenas
         # a quantidade real de tokens presente no exemplo original.
@@ -273,16 +237,10 @@ def consolidate_predictions_by_document(
             len(current_logits),
         )
 
-        for token_index in range(
-            sequence_length
-        ):
-            start = int(
-                offsets[token_index][0]
-            )
+        for token_index in range(sequence_length):
+            start = int(offsets[token_index][0])
 
-            end = int(
-                offsets[token_index][1]
-            )
+            end = int(offsets[token_index][1])
 
             # [CLS], [SEP] e outros tokens especiais.
             if start == end:
@@ -294,22 +252,16 @@ def consolidate_predictions_by_document(
                 end,
             )
 
-            token_id = int(
-                input_ids[token_index]
-            )
+            token_id = int(input_ids[token_index])
 
-            gold_label_id = int(
-                current_labels[token_index]
-            )
+            gold_label_id = int(current_labels[token_index])
 
             token_logits = np.asarray(
                 current_logits[token_index],
                 dtype=np.float64,
             )
 
-            document_tokens = documents[
-                document_id
-            ]
+            document_tokens = documents[document_id]
 
             if token_key not in document_tokens:
                 document_tokens[token_key] = {
@@ -328,35 +280,21 @@ def consolidate_predictions_by_document(
             else:
                 duplicate_token_occurrences += 1
 
-            token_record = document_tokens[
-                token_key
-            ]
+            token_record = document_tokens[token_key]
 
-            token_record["logits_sum"] += (
-                token_logits
-            )
+            token_record["logits_sum"] += token_logits
 
-            token_record[
-                "logits_count"
-            ] += 1
+            token_record["logits_count"] += 1
 
-            token_record[
-                "chunk_ids"
-            ].append(
-                chunk_id
-            )
+            token_record["chunk_ids"].append(chunk_id)
 
             # -100 significa que o token não deve participar da perda
             # ou da avaliação nessa ocorrência.
             if gold_label_id != -100:
-                existing_gold = token_record[
-                    "gold_label_id"
-                ]
+                existing_gold = token_record["gold_label_id"]
 
                 if existing_gold is None:
-                    token_record[
-                        "gold_label_id"
-                    ] = gold_label_id
+                    token_record["gold_label_id"] = gold_label_id
 
                 elif existing_gold != gold_label_id:
                     conflicting_gold_labels += 1
@@ -367,17 +305,11 @@ def consolidate_predictions_by_document(
                         f"{existing_gold} e {gold_label_id}."
                     )
 
-    prediction_sequences: list[
-        list[str]
-    ] = []
+    prediction_sequences: list[list[str]] = []
 
-    label_sequences: list[
-        list[str]
-    ] = []
+    label_sequences: list[list[str]] = []
 
-    document_details: list[
-        dict[str, Any]
-    ] = []
+    document_details: list[dict[str, Any]] = []
 
     missing_gold_tokens = 0
     evaluated_tokens = 0
@@ -386,9 +318,7 @@ def consolidate_predictions_by_document(
     def document_sort_key(
         document_id: str,
     ) -> tuple[str, int]:
-        prefix, separator, suffix = (
-            document_id.rpartition("-")
-        )
+        prefix, separator, suffix = document_id.rpartition("-")
 
         if separator and suffix.isdigit():
             return prefix, int(suffix)
@@ -399,9 +329,7 @@ def consolidate_predictions_by_document(
         documents,
         key=document_sort_key,
     ):
-        document_tokens = documents[
-            document_id
-        ]
+        document_tokens = documents[document_id]
 
         sorted_token_records = sorted(
             document_tokens.values(),
@@ -416,9 +344,7 @@ def consolidate_predictions_by_document(
         token_details = []
 
         for token_record in sorted_token_records:
-            gold_label_id = token_record[
-                "gold_label_id"
-            ]
+            gold_label_id = token_record["gold_label_id"]
 
             # Em condições normais, todo token aparecerá sem máscara em
             # pelo menos uma janela. Caso contrário, não há rótulo seguro
@@ -427,110 +353,54 @@ def consolidate_predictions_by_document(
                 missing_gold_tokens += 1
                 continue
 
-            mean_logits = (
-                token_record["logits_sum"]
-                / token_record["logits_count"]
-            )
+            mean_logits = token_record["logits_sum"] / token_record["logits_count"]
 
-            predicted_label_id = int(
-                np.argmax(mean_logits)
-            )
+            predicted_label_id = int(np.argmax(mean_logits))
 
-            predicted_label = ID2LABEL[
-                predicted_label_id
-            ]
+            predicted_label = ID2LABEL[predicted_label_id]
 
-            expected_label = ID2LABEL[
-                int(gold_label_id)
-            ]
+            expected_label = ID2LABEL[int(gold_label_id)]
 
-            token_text = (
-                tokenizer.convert_ids_to_tokens(
-                    [
-                        token_record[
-                            "token_id"
-                        ]
-                    ]
-                )[0]
-            )
+            token_text = tokenizer.convert_ids_to_tokens([token_record["token_id"]])[0]
 
-            document_predictions.append(
-                predicted_label
-            )
+            document_predictions.append(predicted_label)
 
-            document_labels.append(
-                expected_label
-            )
+            document_labels.append(expected_label)
 
             token_details.append(
                 {
                     "token": token_text,
-                    "start": token_record[
-                        "start"
-                    ],
-                    "end": token_record[
-                        "end"
-                    ],
+                    "start": token_record["start"],
+                    "end": token_record["end"],
                     "expected": expected_label,
                     "predicted": predicted_label,
-                    "correct": (
-                        predicted_label
-                        == expected_label
-                    ),
-                    "occurrences": token_record[
-                        "logits_count"
-                    ],
-                    "chunk_ids": sorted(
-                        set(
-                            token_record[
-                                "chunk_ids"
-                            ]
-                        )
-                    ),
+                    "correct": (predicted_label == expected_label),
+                    "occurrences": token_record["logits_count"],
+                    "chunk_ids": sorted(set(token_record["chunk_ids"])),
                 }
             )
 
             evaluated_tokens += 1
 
-        prediction_sequences.append(
-            document_predictions
-        )
+        prediction_sequences.append(document_predictions)
 
-        label_sequences.append(
-            document_labels
-        )
+        label_sequences.append(document_labels)
 
         document_details.append(
             {
-                "source_document_id": (
-                    document_id
-                ),
+                "source_document_id": (document_id),
                 "tokens": token_details,
             }
         )
 
     consolidation_statistics = {
-        "windows": len(
-            original_dataset
-        ),
-        "documents": len(
-            documents
-        ),
-        "evaluated_tokens": (
-            evaluated_tokens
-        ),
-        "duplicate_token_occurrences_removed": (
-            duplicate_token_occurrences
-        ),
-        "ignored_special_tokens": (
-            ignored_special_tokens
-        ),
-        "tokens_without_gold_label": (
-            missing_gold_tokens
-        ),
-        "conflicting_gold_labels": (
-            conflicting_gold_labels
-        ),
+        "windows": len(original_dataset),
+        "documents": len(documents),
+        "evaluated_tokens": (evaluated_tokens),
+        "duplicate_token_occurrences_removed": (duplicate_token_occurrences),
+        "ignored_special_tokens": (ignored_special_tokens),
+        "tokens_without_gold_label": (missing_gold_tokens),
+        "conflicting_gold_labels": (conflicting_gold_labels),
     }
 
     return (
@@ -542,9 +412,7 @@ def consolidate_predictions_by_document(
 
 
 def collect_document_error_examples(
-    document_details: list[
-        dict[str, Any]
-    ],
+    document_details: list[dict[str, Any]],
     maximum_examples: int,
     maximum_errors_per_document: int,
 ) -> list[dict[str, Any]]:
@@ -558,31 +426,15 @@ def collect_document_error_examples(
     for document in document_details:
         token_errors = [
             {
-                "token": token[
-                    "token"
-                ],
-                "start": token[
-                    "start"
-                ],
-                "end": token[
-                    "end"
-                ],
-                "expected": token[
-                    "expected"
-                ],
-                "predicted": token[
-                    "predicted"
-                ],
-                "occurrences": token[
-                    "occurrences"
-                ],
-                "chunk_ids": token[
-                    "chunk_ids"
-                ],
+                "token": token["token"],
+                "start": token["start"],
+                "end": token["end"],
+                "expected": token["expected"],
+                "predicted": token["predicted"],
+                "occurrences": token["occurrences"],
+                "chunk_ids": token["chunk_ids"],
             }
-            for token in document[
-                "tokens"
-            ]
+            for token in document["tokens"]
             if not token["correct"]
         ]
 
@@ -591,24 +443,13 @@ def collect_document_error_examples(
 
         error_examples.append(
             {
-                "source_document_id": (
-                    document[
-                        "source_document_id"
-                    ]
-                ),
-                "number_of_errors": len(
-                    token_errors
-                ),
-                "errors": token_errors[
-                    :maximum_errors_per_document
-                ],
+                "source_document_id": (document["source_document_id"]),
+                "number_of_errors": len(token_errors),
+                "errors": token_errors[:maximum_errors_per_document],
             }
         )
 
-        if (
-            len(error_examples)
-            >= maximum_examples
-        ):
+        if len(error_examples) >= maximum_examples:
             break
 
     return error_examples
@@ -653,7 +494,9 @@ def select_evaluation_split(dataset, split, train_subset):
     """Seleciona janelas originais sem remover metadados."""
     if split == "train" and train_subset == "original":
         if "is_augmented" not in dataset.column_names:
-            raise ValueError("train original exige a coluna is_augmented; nao e seguro inferir sinteticos.")
+            raise ValueError(
+                "train original exige a coluna is_augmented; nao e seguro inferir sinteticos."
+            )
         return dataset.filter(lambda row: row["is_augmented"] is False)
     return dataset
 
@@ -670,15 +513,23 @@ def build_confusion_matrix(label_sequences, prediction_sequences):
         for expected, actual in zip(gold, predicted):
             matrix[indices[expected], indices[actual]] += 1
     support = matrix.sum(axis=1, keepdims=True)
-    normalized = np.divide(matrix, support, out=np.zeros_like(matrix, dtype=float), where=support != 0)
+    normalized = np.divide(
+        matrix, support, out=np.zeros_like(matrix, dtype=float), where=support != 0
+    )
     return matrix, normalized
 
 
 def entity_table(report):
-    return [{"entity": normalize_entity_label(entity), **report.get(
-        normalize_entity_label(entity),
-        {"precision": 0.0, "recall": 0.0, "f1-score": 0.0, "support": 0})}
-        for entity in ENTITY_LABELS]
+    return [
+        {
+            "entity": normalize_entity_label(entity),
+            **report.get(
+                normalize_entity_label(entity),
+                {"precision": 0.0, "recall": 0.0, "f1-score": 0.0, "support": 0},
+            ),
+        }
+        for entity in ENTITY_LABELS
+    ]
 
 
 def save_evaluation_tables(directory, labels, predictions, report):
@@ -686,19 +537,30 @@ def save_evaluation_tables(directory, labels, predictions, report):
     rows = entity_table(report)
     save_json(rows, directory / "entity_metrics.json")
     with (directory / "entity_metrics.csv").open("w", encoding="utf-8", newline="") as file:
-        writer = csv.DictWriter(file, fieldnames=["entity", "precision", "recall", "f1-score", "support"])
+        writer = csv.DictWriter(
+            file, fieldnames=["entity", "precision", "recall", "f1-score", "support"]
+        )
         writer.writeheader()
         writer.writerows(rows)
     matrix, normalized = build_confusion_matrix(labels, predictions)
     for name, values in [("confusion_matrix", matrix), ("confusion_matrix_normalized", normalized)]:
-        save_json({"labels": BIO_LABELS, "rows": "true", "columns": "predicted",
-                   "evaluation_unit": "consolidated_token", "matrix": values}, directory / f"{name}.json")
+        save_json(
+            {
+                "labels": BIO_LABELS,
+                "rows": "true",
+                "columns": "predicted",
+                "evaluation_unit": "consolidated_token",
+                "matrix": values,
+            },
+            directory / f"{name}.json",
+        )
         with (directory / f"{name}.csv").open("w", encoding="utf-8", newline="") as file:
             writer = csv.writer(file)
             writer.writerow(["true/predicted", *BIO_LABELS])
             writer.writerows([tag, *row] for tag, row in zip(BIO_LABELS, values.tolist()))
     try:
         import matplotlib
+
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
     except ImportError:
@@ -720,7 +582,15 @@ def save_evaluation_tables(directory, labels, predictions, report):
 
 def library_versions():
     versions = {"python": platform.python_version()}
-    for package in ["numpy", "datasets", "transformers", "torch", "accelerate", "seqeval", "matplotlib"]:
+    for package in [
+        "numpy",
+        "datasets",
+        "transformers",
+        "torch",
+        "accelerate",
+        "seqeval",
+        "matplotlib",
+    ]:
         try:
             versions[package] = version(package)
         except PackageNotFoundError:
@@ -732,9 +602,7 @@ def parse_args() -> argparse.Namespace:
     """
     Define os argumentos da avaliação.
     """
-    parser = argparse.ArgumentParser(
-        description=__doc__
-    )
+    parser = argparse.ArgumentParser(description=__doc__)
 
     parser.add_argument(
         "--model-dir",
@@ -745,9 +613,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--dataset-dir",
         type=Path,
-        default=Path(
-            "data/processed/huggingface_ner"
-        ),
+        default=Path("data/processed/huggingface_ner"),
     )
 
     parser.add_argument(
@@ -763,9 +629,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path(
-            "reports/ner"
-        ),
+        default=Path("reports/ner"),
     )
 
     parser.add_argument(
@@ -787,7 +651,9 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument("--train-subset", choices=["original", "all"], default="original")
-    parser.add_argument("--overwrite", action="store_true", help="Sobrescrever relatorios existentes com aviso.")
+    parser.add_argument(
+        "--overwrite", action="store_true", help="Sobrescrever relatorios existentes com aviso."
+    )
     return parser.parse_args()
 
 
@@ -798,26 +664,15 @@ def main() -> None:
     args = parse_args()
 
     if not args.model_dir.exists():
-        raise FileNotFoundError(
-            f"Modelo não encontrado: "
-            f"{args.model_dir}"
-        )
+        raise FileNotFoundError(f"Modelo não encontrado: {args.model_dir}")
 
     if not args.dataset_dir.exists():
-        raise FileNotFoundError(
-            f"Dataset não encontrado: "
-            f"{args.dataset_dir}"
-        )
+        raise FileNotFoundError(f"Dataset não encontrado: {args.dataset_dir}")
 
-    dataset = load_from_disk(
-        str(args.dataset_dir)
-    )
+    dataset = load_from_disk(str(args.dataset_dir))
 
     if args.split not in dataset:
-        raise ValueError(
-            f"Split não encontrado: "
-            f"{args.split}"
-        )
+        raise ValueError(f"Split não encontrado: {args.split}")
 
     original_split = select_evaluation_split(dataset[args.split], args.split, args.train_subset)
     if not len(original_split):
@@ -827,51 +682,35 @@ def main() -> None:
     result_directory = args.output_dir / args.model_dir.parent.name / folder
     if result_directory.exists() and any(result_directory.iterdir()):
         if not args.overwrite:
-            raise FileExistsError(f"Relatorios existentes em {result_directory}. Use outro --output-dir ou --overwrite.")
+            raise FileExistsError(
+                f"Relatorios existentes em {result_directory}. Use outro --output-dir ou --overwrite."
+            )
         warnings.warn(f"Sobrescrevendo relatorios em {result_directory}.")
 
-    validate_required_columns(
-        original_split
-    )
+    validate_required_columns(original_split)
 
     # Cópia sem os metadados, utilizada apenas na inferência.
-    model_split = remove_auxiliary_columns(
-        original_split
-    )
+    model_split = remove_auxiliary_columns(original_split)
 
     tokenizer = AutoTokenizer.from_pretrained(
         str(args.model_dir),
         use_fast=True,
     )
 
-    model = (
-        AutoModelForTokenClassification
-        .from_pretrained(
-            str(args.model_dir)
-        )
+    model = AutoModelForTokenClassification.from_pretrained(str(args.model_dir))
+
+    data_collator = DataCollatorForTokenClassification(
+        tokenizer=tokenizer,
+        padding=True,
+        label_pad_token_id=-100,
+        return_tensors="pt",
     )
 
-    data_collator = (
-        DataCollatorForTokenClassification(
-            tokenizer=tokenizer,
-            padding=True,
-            label_pad_token_id=-100,
-            return_tensors="pt",
-        )
-    )
-
-    temporary_output = (
-        args.output_dir
-        / "temporary_trainer"
-    )
+    temporary_output = args.output_dir / "temporary_trainer"
 
     training_arguments = TrainingArguments(
-        output_dir=str(
-            temporary_output
-        ),
-        per_device_eval_batch_size=(
-            args.eval_batch_size
-        ),
+        output_dir=str(temporary_output),
+        per_device_eval_batch_size=(args.eval_batch_size),
         report_to="none",
         dataloader_num_workers=0,
         dataloader_pin_memory=False,
@@ -887,21 +726,15 @@ def main() -> None:
 
     # A inferência ainda ocorre por janela porque o modelo aceita no
     # máximo 512 tokens.
-    prediction_output = trainer.predict(
-        model_split
-    )
+    prediction_output = trainer.predict(model_split)
 
-    raw_predictions = (
-        prediction_output.predictions
-    )
+    raw_predictions = prediction_output.predictions
 
     if isinstance(
         raw_predictions,
         tuple,
     ):
-        raw_predictions = (
-            raw_predictions[0]
-        )
+        raw_predictions = raw_predictions[0]
 
     (
         prediction_sequences,
@@ -911,9 +744,7 @@ def main() -> None:
     ) = consolidate_predictions_by_document(
         original_dataset=original_split,
         raw_predictions=raw_predictions,
-        label_ids=(
-            prediction_output.label_ids
-        ),
+        label_ids=(prediction_output.label_ids),
         tokenizer=tokenizer,
     )
 
@@ -925,7 +756,9 @@ def main() -> None:
     )
 
     for row in entity_table(detailed_report):
-        detailed_report[row["entity"]] = {key: value for key, value in row.items() if key != "entity"}
+        detailed_report[row["entity"]] = {
+            key: value for key, value in row.items() if key != "entity"
+        }
     window_loss = prediction_output.metrics.get("test_loss")
     if window_loss is None or not np.isfinite(window_loss):
         window_loss = None
@@ -933,28 +766,14 @@ def main() -> None:
     else:
         window_loss = float(window_loss)
 
-    entity_support = count_entity_support(
-        detailed_report
-    )
+    entity_support = count_entity_support(detailed_report)
 
     summary_metrics = {
-        "model": str(
-            args.model_dir
-        ),
+        "model": str(args.model_dir),
         "split": args.split,
-        "evaluation_scope": (
-            "document_consolidated"
-        ),
-        "documents": (
-            consolidation_statistics[
-                "documents"
-            ]
-        ),
-        "windows": (
-            consolidation_statistics[
-                "windows"
-            ]
-        ),
+        "evaluation_scope": ("document_consolidated"),
+        "documents": (consolidation_statistics["documents"]),
+        "windows": (consolidation_statistics["windows"]),
         "precision": precision_score(
             label_sequences,
             prediction_sequences,
@@ -974,7 +793,6 @@ def main() -> None:
             label_sequences,
             prediction_sequences,
         ),
-
         # A loss continua sendo calculada por janela pelo Trainer.
         "window_loss": window_loss,
         "window_test_loss": window_loss,
@@ -990,74 +808,49 @@ def main() -> None:
         "training_performed": False,
         "macro_avg": detailed_report["macro avg"],
         "weighted_avg": detailed_report["weighted avg"],
-
-        "entity_support": (
-            entity_support
-        ),
-
-        "consolidation": (
-            consolidation_statistics
-        ),
+        "entity_support": (entity_support),
+        "consolidation": (consolidation_statistics),
     }
 
-    error_examples = (
-        collect_document_error_examples(
-            document_details=(
-                document_details
-            ),
-            maximum_examples=(
-                args.maximum_error_examples
-            ),
-            maximum_errors_per_document=(
-                args.maximum_errors_per_document
-            ),
-        )
+    error_examples = collect_document_error_examples(
+        document_details=(document_details),
+        maximum_examples=(args.maximum_error_examples),
+        maximum_errors_per_document=(args.maximum_errors_per_document),
     )
 
     save_evaluation_tables(result_directory, label_sequences, prediction_sequences, detailed_report)
 
     save_json(
         summary_metrics,
-        result_directory
-        / "metrics.json",
+        result_directory / "metrics.json",
     )
 
     save_json(
         detailed_report,
-        result_directory
-        / "classification_report.json",
+        result_directory / "classification_report.json",
     )
 
     save_json(
         error_examples,
-        result_directory
-        / "error_examples.json",
+        result_directory / "error_examples.json",
     )
 
     save_json(
         consolidation_statistics,
-        result_directory
-        / "consolidation_statistics.json",
+        result_directory / "consolidation_statistics.json",
     )
 
-    print(
-        "\nAvaliação consolidada concluída!"
-    )
+    print("\nAvaliação consolidada concluída!")
 
     print(
         json.dumps(
-            convert_numpy_types(
-                summary_metrics
-            ),
+            convert_numpy_types(summary_metrics),
             ensure_ascii=False,
             indent=2,
         )
     )
 
-    print(
-        f"\nRelatórios salvos em: "
-        f"{result_directory}"
-    )
+    print(f"\nRelatórios salvos em: {result_directory}")
 
 
 if __name__ == "__main__":

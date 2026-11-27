@@ -178,9 +178,7 @@ def load_dataset(path: Path) -> list[dict[str, Any]]:
         dataset = json.load(file)
 
     if not isinstance(dataset, list):
-        raise ValueError(
-            "O arquivo de entrada deve conter uma lista JSON de currículos."
-        )
+        raise ValueError("O arquivo de entrada deve conter uma lista JSON de currículos.")
 
     return dataset
 
@@ -244,35 +242,24 @@ def validate_resume(resume: dict[str, Any]) -> list[str]:
         label = entity.get("label")
 
         if not isinstance(start, int) or not isinstance(end, int):
-            errors.append(
-                f"entidade {entity_index}: offsets não inteiros"
-            )
+            errors.append(f"entidade {entity_index}: offsets não inteiros")
             continue
 
         if not isinstance(label, str) or not label.strip():
-            errors.append(
-                f"entidade {entity_index}: label ausente ou inválido"
-            )
+            errors.append(f"entidade {entity_index}: label ausente ou inválido")
 
         if start < 0 or end <= start or end > len(content):
-            errors.append(
-                f"entidade {entity_index}: intervalo inválido "
-                f"[{start}, {end})"
-            )
+            errors.append(f"entidade {entity_index}: intervalo inválido [{start}, {end})")
             continue
 
         if start < previous_end:
-            errors.append(
-                f"entidade {entity_index}: sobreposição detectada"
-            )
+            errors.append(f"entidade {entity_index}: sobreposição detectada")
 
         # O texto apontado pelo offset não pode ser vazio.
         entity_text = content[start:end]
 
         if not entity_text.strip():
-            errors.append(
-                f"entidade {entity_index}: trecho anotado vazio"
-            )
+            errors.append(f"entidade {entity_index}: trecho anotado vazio")
 
         previous_end = max(previous_end, end)
 
@@ -295,18 +282,14 @@ def validate_dataset(
         resume_errors = validate_resume(resume)
 
         for error in resume_errors:
-            all_errors.append(
-                f"{dataset_name}[{resume_index}]: {error}"
-            )
+            all_errors.append(f"{dataset_name}[{resume_index}]: {error}")
 
     if all_errors:
         # Exibe no máximo os primeiros 20 erros para não poluir o terminal.
         error_preview = "\n".join(all_errors[:20])
 
         raise ValueError(
-            f"Falha na validação de {dataset_name}: "
-            f"{len(all_errors)} erro(s).\n"
-            f"{error_preview}"
+            f"Falha na validação de {dataset_name}: {len(all_errors)} erro(s).\n{error_preview}"
         )
 
 
@@ -319,9 +302,7 @@ def content_hash(content: str) -> str:
     """
     normalized_content = " ".join(content.lower().split())
 
-    return hashlib.sha256(
-        normalized_content.encode("utf-8")
-    ).hexdigest()
+    return hashlib.sha256(normalized_content.encode("utf-8")).hexdigest()
 
 
 def split_originals(
@@ -351,14 +332,10 @@ def split_originals(
         raise ValueError("A proporção de treino deve ser maior que zero.")
 
     if validation_ratio < 0:
-        raise ValueError(
-            "A proporção de validação não pode ser negativa."
-        )
+        raise ValueError("A proporção de validação não pode ser negativa.")
 
     if train_ratio + validation_ratio >= 1:
-        raise ValueError(
-            "Treino + validação deve ser menor que 1 para sobrar teste."
-        )
+        raise ValueError("Treino + validação deve ser menor que 1 para sobrar teste.")
 
     indices = list(range(len(dataset)))
 
@@ -367,24 +344,13 @@ def split_originals(
 
     train_end = int(len(indices) * train_ratio)
 
-    validation_end = train_end + int(
-        len(indices) * validation_ratio
-    )
+    validation_end = train_end + int(len(indices) * validation_ratio)
 
-    train = [
-        dataset[index]
-        for index in indices[:train_end]
-    ]
+    train = [dataset[index] for index in indices[:train_end]]
 
-    validation = [
-        dataset[index]
-        for index in indices[train_end:validation_end]
-    ]
+    validation = [dataset[index] for index in indices[train_end:validation_end]]
 
-    test = [
-        dataset[index]
-        for index in indices[validation_end:]
-    ]
+    test = [dataset[index] for index in indices[validation_end:]]
 
     return train, validation, test
 
@@ -404,8 +370,7 @@ def build_value_bank(
     complementam os valores sintéticos definidos no início do arquivo.
     """
     value_bank: dict[str, set[str]] = {
-        label: set(values)
-        for label, values in SYNTHETIC_VALUES.items()
+        label: set(values) for label, values in SYNTHETIC_VALUES.items()
     }
 
     privacy_labels = {
@@ -427,9 +392,7 @@ def build_value_bank(
             if normalized_label in privacy_labels:
                 continue
 
-            entity_value = content[
-                entity["start"]:entity["end"]
-            ].strip()
+            entity_value = content[entity["start"] : entity["end"]].strip()
 
             if entity_value:
                 value_bank.setdefault(
@@ -439,10 +402,7 @@ def build_value_bank(
 
     # Converte os conjuntos para listas ordenadas.
     # A ordenação ajuda na reprodução do experimento.
-    return {
-        label: sorted(values)
-        for label, values in value_bank.items()
-    }
+    return {label: sorted(values) for label, values in value_bank.items()}
 
 
 def choose_replacement(
@@ -456,9 +416,7 @@ def choose_replacement(
     Se o banco não tiver nenhuma alternativa, retorna None.
     """
     alternatives = [
-        candidate
-        for candidate in candidates
-        if candidate.casefold() != original_value.casefold()
+        candidate for candidate in candidates if candidate.casefold() != original_value.casefold()
     ]
 
     if not alternatives:
@@ -511,14 +469,12 @@ def augment_resume(
 
     for entity in entities:
         # Copia o texto não anotado que aparece antes da entidade.
-        prefix = content[cursor:entity["start"]]
+        prefix = content[cursor : entity["start"]]
 
         text_pieces.append(prefix)
         output_length += len(prefix)
 
-        original_value = content[
-            entity["start"]:entity["end"]
-        ]
+        original_value = content[entity["start"] : entity["end"]]
 
         new_value = original_value
 
@@ -539,19 +495,14 @@ def augment_resume(
 
             if replacement is not None:
                 # Preserva espaços que estejam dentro das bordas anotadas.
-                left_space_length = (
-                    len(original_value)
-                    - len(original_value.lstrip())
-                )
+                left_space_length = len(original_value) - len(original_value.lstrip())
 
                 left_space = original_value[:left_space_length]
 
                 right_space_start = len(original_value.rstrip())
                 right_space = original_value[right_space_start:]
 
-                new_value = (
-                    f"{left_space}{replacement}{right_space}"
-                )
+                new_value = f"{left_space}{replacement}{right_space}"
 
                 replacements += 1
 
@@ -602,9 +553,7 @@ def augment_training_set(
     - as versões aumentadas que receberam pelo menos uma alteração.
     """
     if copies_per_resume < 0:
-        raise ValueError(
-            "copies_per_resume não pode ser negativo."
-        )
+        raise ValueError("copies_per_resume não pode ser negativo.")
 
     rng = random.Random(seed)
 
@@ -626,13 +575,8 @@ def augment_training_set(
             )
 
             # Uma cópia sem alterações não acrescenta informação.
-            if (
-                replacements == 0
-                or synthetic_resume["content"] == resume["content"]
-            ):
-                statistics[
-                    "copies_skipped_without_change"
-                ] += 1
+            if replacements == 0 or synthetic_resume["content"] == resume["content"]:
+                statistics["copies_skipped_without_change"] += 1
 
                 continue
 
@@ -663,20 +607,11 @@ def assert_no_split_leakage(
     """
     Verifica se um mesmo currículo original aparece em mais de um split.
     """
-    train_hashes = {
-        content_hash(resume["content"])
-        for resume in train_original
-    }
+    train_hashes = {content_hash(resume["content"]) for resume in train_original}
 
-    validation_hashes = {
-        content_hash(resume["content"])
-        for resume in validation
-    }
+    validation_hashes = {content_hash(resume["content"]) for resume in validation}
 
-    test_hashes = {
-        content_hash(resume["content"])
-        for resume in test
-    }
+    test_hashes = {content_hash(resume["content"]) for resume in test}
 
     collisions = (
         (train_hashes & validation_hashes)
@@ -686,8 +621,7 @@ def assert_no_split_leakage(
 
     if collisions:
         raise ValueError(
-            f"Vazamento detectado: {len(collisions)} currículo(s) "
-            "duplicado(s) entre os splits."
+            f"Vazamento detectado: {len(collisions)} currículo(s) duplicado(s) entre os splits."
         )
 
 
@@ -700,10 +634,7 @@ def label_distribution(
     counts: Counter = Counter()
 
     for resume in dataset:
-        counts.update(
-            entity["label"]
-            for entity in resume["entidades"]
-        )
+        counts.update(entity["label"] for entity in resume["entidades"])
 
     return dict(sorted(counts.items()))
 
@@ -741,14 +672,12 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
         test=test,
     )
 
-    train_augmented, augmentation_statistics = (
-        augment_training_set(
-            train_dataset=train_original,
-            copies_per_resume=args.copies_per_resume,
-            seed=args.seed,
-            replacement_probability=args.replacement_probability,
-            max_replacements=args.max_replacements,
-        )
+    train_augmented, augmentation_statistics = augment_training_set(
+        train_dataset=train_original,
+        copies_per_resume=args.copies_per_resume,
+        seed=args.seed,
+        replacement_probability=args.replacement_probability,
+        max_replacements=args.max_replacements,
     )
 
     # Validação final de todos os conjuntos.
@@ -798,15 +727,11 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
             "train_ratio": args.train_ratio,
             "validation_ratio": args.validation_ratio,
             "test_ratio": round(
-                1
-                - args.train_ratio
-                - args.validation_ratio,
+                1 - args.train_ratio - args.validation_ratio,
                 2,
             ),
             "copies_per_resume": args.copies_per_resume,
-            "replacement_probability": (
-                args.replacement_probability
-            ),
+            "replacement_probability": (args.replacement_probability),
             "max_replacements": args.max_replacements,
         },
         "augmentation": dict(augmentation_statistics),
@@ -834,25 +759,19 @@ def parse_args() -> argparse.Namespace:
     """
     Configura os argumentos aceitos pelo script.
     """
-    parser = argparse.ArgumentParser(
-        description=__doc__
-    )
+    parser = argparse.ArgumentParser(description=__doc__)
 
     parser.add_argument(
         "--input",
         type=Path,
-        default=Path(
-            "data/processed/dataturks_limpo.json"
-        ),
+        default=Path("data/processed/dataturks_limpo.json"),
         help="Arquivo JSON criado por src.data.validate.",
     )
 
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path(
-            "data/processed/splits"
-        ),
+        default=Path("data/processed/splits"),
         help="Pasta que receberá os arquivos finais.",
     )
 

@@ -1,5 +1,6 @@
 import re
 from functools import wraps
+from typing import Protocol
 
 from flask import abort, flash, g, redirect, render_template, request, session, url_for, jsonify
 from postgrest.exceptions import APIError
@@ -10,6 +11,8 @@ from app import app
 from app.repositories import (
     AnalysisSchemaError,
     LegacyProfileError,
+    ProfilePersistence,
+    SupabaseProfilePersistence,
     create_job,
     create_resume,
     delete_candidate,
@@ -20,7 +23,6 @@ from app.repositories import (
     list_jobs,
     list_resumes,
     update_job,
-    update_profile,
     update_resume_status,
 )
 from app.requisitos import NIVEIS, STATUS_VAGA, TIPOS, build_requirements, rows_from_form
@@ -358,74 +360,135 @@ def configuracoes():
     return redirect(url_for('editar_perfil'))
 
 
+def profile_form(profile, submitted=None):
+    form = {
+        'name': profile.get('nome') or '',
+        'email': profile.get('email') or '',
+        'company': profile.get('empresa') or '',
+    }
+    if submitted is not None:
+        form.update({
+            'name': submitted.get('name', '').strip(),
+            'email': submitted.get('email', '').strip().lower(),
+            'company': submitted.get('company', '').strip(),
+        })
+    return form
+
+
+def validate_profile_form(form, password, password_confirm):
+    if not all(form.values()):
+        return 'Preencha nome, e-mail e empresa.'
+    if len(form['name']) > 120 or len(form['company']) > 120:
+        return 'Nome e empresa devem ter no máximo 120 caracteres.'
+    if len(form['email']) > 254 or not re.fullmatch(r'[^@\s]+@[^@\s]+\.[^@\s]+', form['email']):
+        return 'Informe um endereço de e-mail válido.'
+    if password and password != password_confirm:
+        return 'As senhas não coincidem.'
+    if password and (len(password) < 8 or len(password) > 128):
+        return 'A nova senha deve ter entre 8 e 128 caracteres.'
+    return None
+
+
+def profile_changes(profile, form):
+    changes = {}
+    if form['name'] != (profile.get('nome') or ''):
+        changes['nome'] = form['name']
+    if form['company'] != (profile.get('empresa') or ''):
+        changes['empresa'] = form['company']
+    if form['email'] != (profile.get('email') or '').lower():
+        changes['email'] = form['email']
+    return changes
+
+
+def auth_profile_attributes(changes, form, password):
+    attributes = {}
+    if 'nome' in changes or 'empresa' in changes:
+        attributes['data'] = {'name': form['name'], 'company': form['company']}
+    if 'email' in changes:
+        attributes['email'] = form['email']
+    if password:
+        attributes['password'] = password
+    return attributes
+
+
+class ProfileAuthWriter(Protocol):
+    """Operação mínima exigida do serviço de autenticação."""
+
+    def update_user(self, attributes):
+        ...
+
+
+def update_profile_account(
+    auth_writer: ProfileAuthWriter,
+    profile_store: ProfilePersistence,
+    profile,
+    auth_user_id,
+    form,
+    password,
+):
+    changes = profile_changes(profile, form)
+    attributes = auth_profile_attributes(changes, form, password)
+
+    if attributes:
+        response = auth_writer.update_user(attributes)
+        if not response.user:
+            raise RuntimeError('Supabase não retornou o usuário atualizado.')
+        if 'email' in changes:
+            changes['email'] = (response.user.email or profile['email']).lower()
+
+    updated_profile = profile
+    if changes:
+        updated_profile = profile_store.update_profile(
+            profile['id'], auth_user_id, changes,
+        )
+    return updated_profile
+
+
+def sync_profile_session(updated_profile, submitted_email):
+    g.profile = updated_profile
+    session['user_profile'] = updated_profile
+    session['user_name'] = updated_profile['nome']
+    session['user_email'] = updated_profile['email']
+    session['user_initials'] = ''.join(
+        part[0] for part in updated_profile['nome'].split()[:2]
+    ).upper()
+    if updated_profile['email'] != submitted_email:
+        return 'Perfil atualizado. Confirme o link enviado ao novo e-mail para concluir a alteração.'
+    return 'Perfil atualizado com sucesso.'
+
+
 @app.route('/perfil', methods=['GET', 'POST'])
 @login_required
 def editar_perfil():
-    form = {
-        'name': g.profile.get('nome') or '',
-        'email': g.profile.get('email') or '',
-        'company': g.profile.get('empresa') or '',
-    }
+    form = profile_form(g.profile)
     if request.method == 'POST':
-        form.update({
-            'name': request.form.get('name', '').strip(),
-            'email': request.form.get('email', '').strip().lower(),
-            'company': request.form.get('company', '').strip(),
-        })
+        form = profile_form(g.profile, request.form)
         password = request.form.get('password', '')
         password_confirm = request.form.get('password_confirm', '')
-        error = None
-
-        if not all(form.values()):
-            error = 'Preencha nome, e-mail e empresa.'
-        elif len(form['name']) > 120 or len(form['company']) > 120:
-            error = 'Nome e empresa devem ter no máximo 120 caracteres.'
-        elif len(form['email']) > 254 or not re.fullmatch(r'[^@\s]+@[^@\s]+\.[^@\s]+', form['email']):
-            error = 'Informe um endereço de e-mail válido.'
-        elif password and password != password_confirm:
-            error = 'As senhas não coincidem.'
-        elif password and (len(password) < 8 or len(password) > 128):
-            error = 'A nova senha deve ter entre 8 e 128 caracteres.'
+        error = validate_profile_form(form, password, password_confirm)
 
         if error:
             return render_template('editar_perfil.html', active_page='configuracoes',
                                    form=form, error=error), 400
 
-        profile_changes = {}
-        if form['name'] != (g.profile.get('nome') or ''):
-            profile_changes['nome'] = form['name']
-        if form['company'] != (g.profile.get('empresa') or ''):
-            profile_changes['empresa'] = form['company']
-        if form['email'] != (g.profile.get('email') or '').lower():
-            profile_changes['email'] = form['email']
-
-        attributes = {}
-        if 'nome' in profile_changes or 'empresa' in profile_changes:
-            attributes['data'] = {'name': form['name'], 'company': form['company']}
-        if 'email' in profile_changes:
-            attributes['email'] = form['email']
-        if password:
-            attributes['password'] = password
-
         try:
-            if attributes:
-                response = g.supabase.auth.update_user(attributes)
-                if not response.user:
-                    raise RuntimeError('Supabase não retornou o usuário atualizado.')
-                if 'email' in profile_changes:
-                    effective_email = (response.user.email or g.profile['email']).lower()
-                    profile_changes['email'] = effective_email
-            updated_profile = g.profile
-            if profile_changes:
-                updated_profile = update_profile(
-                    g.supabase, g.profile['id'], session['auth_user_id'], profile_changes,
-                )
+            updated_profile = update_profile_account(
+                g.supabase.auth,
+                SupabaseProfilePersistence(g.supabase),
+                g.profile,
+                session['auth_user_id'],
+                form,
+                password,
+            )
         except AuthApiError:
             return render_template(
                 'editar_perfil.html', active_page='configuracoes', form=form,
                 error='Não foi possível atualizar o perfil. Confira o e-mail e os requisitos da nova senha.',
             ), 400
-        except Exception as error:
+        except LookupError as error:
+            app.logger.warning('Perfil não foi atualizado: %s', str(error))
+            abort(503, description='Não foi possível confirmar a atualização do perfil. Confira a migração de edição de perfil.')
+        except (APIError, RuntimeError) as error:
             app.logger.warning(
                 'Falha ao atualizar perfil (%s, código=%s): %s',
                 type(error).__name__,
@@ -434,15 +497,8 @@ def editar_perfil():
             )
             abort(503, description='Não foi possível confirmar a atualização do perfil. Reabra a tela antes de tentar novamente.')
 
-        g.profile = updated_profile
-        session['user_profile'] = updated_profile
-        session['user_name'] = updated_profile['nome']
-        session['user_email'] = updated_profile['email']
-        session['user_initials'] = ''.join(part[0] for part in updated_profile['nome'].split()[:2]).upper()
-        if updated_profile['email'] != form['email']:
-            flash('Perfil atualizado. Confirme o link enviado ao novo e-mail para concluir a alteração.', 'success')
-        else:
-            flash('Perfil atualizado com sucesso.', 'success')
+        message = sync_profile_session(updated_profile, form['email'])
+        flash(message, 'success')
         return redirect(url_for('editar_perfil'))
 
     return render_template('editar_perfil.html', active_page='configuracoes', form=form, error=None)

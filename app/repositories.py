@@ -4,6 +4,7 @@ from pathlib import Path
 import re
 import math
 import logging
+from typing import Protocol
 
 from app.requisitos import STATUS_VAGA, draft_from_description, parse_requirements, serialize
 from src.data.clean import extract_contact_info, extract_education_blocks
@@ -22,6 +23,38 @@ class LegacyProfileError(Exception):
 
 class AnalysisSchemaError(RuntimeError):
     pass
+
+
+class ProfilePersistence(Protocol):
+    """Contrato mínimo usado pela atualização de perfil."""
+
+    def update_profile(
+        self,
+        profile_id,
+        auth_user_id,
+        values,
+    ):
+        ...
+
+
+class SupabaseProfilePersistence:
+    """Adaptador da persistência de perfil para o Supabase."""
+
+    def __init__(self, client):
+        self.client = client
+
+    def update_profile(
+        self,
+        profile_id,
+        auth_user_id,
+        values,
+    ):
+        return update_profile(
+            self.client,
+            profile_id,
+            auth_user_id,
+            values,
+        )
 
 
 def update_profile(client, profile_id, auth_user_id, values):

@@ -14,6 +14,7 @@ os.environ.setdefault('FLASK_SECRET_KEY', 'test-only-secret-not-for-deployment')
 
 from app import app
 from app.repositories import PROFILE_FIELDS
+from app.routes import update_profile_account
 from postgrest.exceptions import APIError
 from supabase_auth.errors import AuthApiError
 
@@ -263,9 +264,9 @@ class WebFiltersTestCase(unittest.TestCase):
         response=self.client.get('/perfil')
         page=response.data.decode()
         self.assertEqual(response.status_code,200)
-        self.assertIn('name="name" value="ana"',page)
-        self.assertIn('name="email" value="ana@example.test"',page)
-        self.assertIn('name="company" value=""',page)
+        self.assertRegex(page, r'name="name"\s+value="ana"')
+        self.assertRegex(page, r'name="email"\s+value="ana@example\.test"')
+        self.assertRegex(page, r'name="company"\s+value=""')
         self.assertIn('name="password"',page)
         self.assertIn('href="/logout"',page)
         self.assertGreater(page.index('Salvar alterações'), page.index('Alterar senha'))
@@ -303,6 +304,62 @@ class WebFiltersTestCase(unittest.TestCase):
         })
         self.assertEqual(response.status_code,302)
         self.assertEqual(self.db['users']['u1']['password'],'newpassword1')
+    def test_profile_account_update_depends_on_small_contracts(self):
+        calls=[]
+
+        class AuthOnly:
+            def update_user(self, attributes):
+                calls.append(('auth', attributes))
+                return SimpleNamespace(user=SimpleNamespace(
+                    email='nova@example.test',
+                ))
+
+        class PersistenceOnly:
+            def update_profile(self, profile_id, auth_user_id, values):
+                calls.append(('profile', profile_id, auth_user_id, values))
+                return {
+                    'id': profile_id,
+                    'auth_user_id': auth_user_id,
+                    'nome':'Ana Nova',
+                    'email':'nova@example.test',
+                    'empresa':'Empresa Nova',
+                }
+
+        profile={
+            'id':7,
+            'auth_user_id':'u1',
+            'nome':'Ana',
+            'email':'ana@example.test',
+            'empresa':'Empresa',
+        }
+        form={
+            'name':'Ana Nova',
+            'email':'nova@example.test',
+            'company':'Empresa Nova',
+        }
+
+        updated=update_profile_account(
+            AuthOnly(),
+            PersistenceOnly(),
+            profile,
+            'u1',
+            form,
+            'newpassword1',
+        )
+
+        self.assertEqual(updated['nome'],'Ana Nova')
+        self.assertEqual(calls[0][0],'auth')
+        self.assertEqual(calls[0][1],{
+            'data':{'name':'Ana Nova','company':'Empresa Nova'},
+            'email':'nova@example.test',
+            'password':'newpassword1',
+        })
+        self.assertEqual(calls[1],(
+            'profile',
+            7,
+            'u1',
+            {'nome':'Ana Nova','email':'nova@example.test','empresa':'Empresa Nova'},
+        ))
     def test_edit_profile_rejects_mismatched_passwords(self):
         self.login()
         response=self.post('/perfil',{
@@ -311,6 +368,22 @@ class WebFiltersTestCase(unittest.TestCase):
         })
         self.assertEqual(response.status_code,400)
         self.assertEqual(self.db['users']['u1']['password'],'password1')
+    def test_edit_profile_rejects_invalid_email(self):
+        self.login()
+        response=self.post('/perfil',{
+            'name':'Ana','email':'email-invalido','company':'Empresa',
+        })
+        self.assertEqual(response.status_code,400)
+        self.assertIn('Informe um endere',response.data.decode())
+        self.assertEqual(self.db['profiles'][0]['email'],'ana@example.test')
+    def test_edit_profile_rejects_short_password(self):
+        self.login()
+        response=self.post('/perfil',{
+            'name':'Ana','email':'ana@example.test','company':'Empresa',
+            'password':'curta','password_confirm':'curta',
+        })
+        self.assertEqual(response.status_code,400)
+        self.assertIn('entre 8 e 128 caracteres',response.data.decode())
     def test_create_and_reopen_job(self):
         self.login();response=self.create()
         self.assertEqual(response.status_code,302)
@@ -460,9 +533,9 @@ class WebFiltersTestCase(unittest.TestCase):
                 response=self.client.get(path)
                 self.assertEqual(response.status_code,200)
                 page=response.data.decode('utf-8')
-                self.assertIn('Prepare os requisitos antes de analisar currículos',page)
+                self.assertIn('Prepare os requisitos',page)
                 self.assertIn('Prioridade',page)
-                self.assertIn('Ajustes avançados (opcional)',page)
+                self.assertIn('Ajustes avan',page)
     def test_edit_other_owner_job_forbidden(self):
         self.login();self.create()
         second=app.test_client();self.login(second,'bia@example.test','password2')

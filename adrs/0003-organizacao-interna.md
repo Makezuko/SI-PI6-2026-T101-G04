@@ -15,4 +15,4 @@
 - Positivas: separação clara entre borda web, persistência e núcleo de IA; redução do acoplamento direto de `app/analysis.py` para uma interface única; testes unitários rápidos dos estágios sem subir servidor ou modelos reais; documentação fiel em `docs/3-arquitetura.md` e `diagrams/`.
 - Negativas: aumento do número de arquivos e níveis de indireção em `src/matching/`; ausência atual de função de aptidão automática (como `import-linter`) no pipeline, deixando a vigilância das fronteiras entre `app/` e `src/` dependente da revisão dos Pull Requests.
 
-**Implementação e referência:** Documentação arquitetural e diagramas estruturais em [docs/3-arquitetura.md](../docs/3-arquitetura.md) e pasta `diagrams/` *(inserir link do PR após abertura na main)*.
+**Implementação e referência:** Documentação arquitetural e diagramas estruturais em [docs/3-arquitetura.md](../docs/3-arquitetura.md) e pasta `diagrams/` — [PR #41](https://github.com/Makezuko/SI-PI6-2026-T101-G04/pull/41).

@@ -36,9 +36,7 @@ from transformers import (
 )
 
 
-DEFAULT_MODEL_DIRECTORY = Path(
-    "models/ner/augmented/best_model"
-)
+DEFAULT_MODEL_DIRECTORY = Path("models/ner/augmented/best_model")
 
 DEFAULT_MAX_LENGTH = 512
 DEFAULT_STRIDE = 128
@@ -56,59 +54,35 @@ class ResumeNERPredictor:
         stride: int = DEFAULT_STRIDE,
         device: str | None = None,
     ) -> None:
-        self.model_directory = Path(
-            model_directory
-        )
+        self.model_directory = Path(model_directory)
 
         if not self.model_directory.exists():
-            raise FileNotFoundError(
-                f"Modelo não encontrado: "
-                f"{self.model_directory}"
-            )
+            raise FileNotFoundError(f"Modelo não encontrado: {self.model_directory}")
 
         self.max_length = max_length
         self.stride = stride
 
         if device is None:
-            device = (
-                "cuda"
-                if torch.cuda.is_available()
-                else "cpu"
-            )
+            device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        self.device = torch.device(
-            device
-        )
+        self.device = torch.device(device)
 
-        self.tokenizer = (
-            AutoTokenizer.from_pretrained(
-                str(self.model_directory),
-                use_fast=True,
-            )
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            str(self.model_directory),
+            use_fast=True,
         )
 
         # O texto será dividido manualmente em janelas.
-        self.tokenizer.model_max_length = (
-            1_000_000
-        )
+        self.tokenizer.model_max_length = 1_000_000
 
-        self.model = (
-            AutoModelForTokenClassification
-            .from_pretrained(
-                str(self.model_directory)
-            )
-        )
+        self.model = AutoModelForTokenClassification.from_pretrained(str(self.model_directory))
 
-        self.model.to(
-            self.device
-        )
+        self.model.to(self.device)
 
         self.model.eval()
 
         self.id2label = {
-            int(label_id): label
-            for label_id, label
-            in self.model.config.id2label.items()
+            int(label_id): label for label_id, label in self.model.config.id2label.items()
         }
 
     def _create_windows(
@@ -126,73 +100,45 @@ class ResumeNERPredictor:
             padding=False,
         )
 
-        all_input_ids = encoding[
-            "input_ids"
-        ]
+        all_input_ids = encoding["input_ids"]
 
-        all_offsets = encoding[
-            "offset_mapping"
-        ]
+        all_offsets = encoding["offset_mapping"]
 
         if not all_input_ids:
             return []
 
-        cls_token_id = (
-            self.tokenizer.cls_token_id
-        )
+        cls_token_id = self.tokenizer.cls_token_id
 
-        sep_token_id = (
-            self.tokenizer.sep_token_id
-        )
+        sep_token_id = self.tokenizer.sep_token_id
 
         if cls_token_id is None:
-            raise ValueError(
-                "Tokenizer sem token [CLS]."
-            )
+            raise ValueError("Tokenizer sem token [CLS].")
 
         if sep_token_id is None:
-            raise ValueError(
-                "Tokenizer sem token [SEP]."
-            )
+            raise ValueError("Tokenizer sem token [SEP].")
 
         special_tokens = 2
 
-        content_window_size = (
-            self.max_length
-            - special_tokens
-        )
+        content_window_size = self.max_length - special_tokens
 
         if self.stride >= content_window_size:
-            raise ValueError(
-                "stride deve ser menor que o tamanho "
-                "da janela de conteúdo."
-            )
+            raise ValueError("stride deve ser menor que o tamanho da janela de conteúdo.")
 
-        window_step = (
-            content_window_size
-            - self.stride
-        )
+        window_step = content_window_size - self.stride
 
         windows = []
         window_start = 0
         chunk_id = 0
 
-        while window_start < len(
-            all_input_ids
-        ):
+        while window_start < len(all_input_ids):
             window_end = min(
-                window_start
-                + content_window_size,
+                window_start + content_window_size,
                 len(all_input_ids),
             )
 
-            content_ids = all_input_ids[
-                window_start:window_end
-            ]
+            content_ids = all_input_ids[window_start:window_end]
 
-            content_offsets = all_offsets[
-                window_start:window_end
-            ]
+            content_offsets = all_offsets[window_start:window_end]
 
             input_ids = [
                 cls_token_id,
@@ -206,27 +152,20 @@ class ResumeNERPredictor:
                 (0, 0),
             ]
 
-            attention_mask = [
-                1
-                for _ in input_ids
-            ]
+            attention_mask = [1 for _ in input_ids]
 
             windows.append(
                 {
                     "chunk_id": chunk_id,
                     "input_ids": input_ids,
-                    "attention_mask": (
-                        attention_mask
-                    ),
+                    "attention_mask": (attention_mask),
                     "offset_mapping": offsets,
                 }
             )
 
             chunk_id += 1
 
-            if window_end == len(
-                all_input_ids
-            ):
+            if window_end == len(all_input_ids):
                 break
 
             window_start += window_step
@@ -240,9 +179,7 @@ class ResumeNERPredictor:
         """
         Executa o modelo e consolida tokens repetidos entre janelas.
         """
-        windows = self._create_windows(
-            text
-        )
+        windows = self._create_windows(text)
 
         if not windows:
             return []
@@ -256,42 +193,28 @@ class ResumeNERPredictor:
         with torch.no_grad():
             for window in windows:
                 input_ids = torch.tensor(
-                    [
-                        window["input_ids"]
-                    ],
+                    [window["input_ids"]],
                     dtype=torch.long,
                     device=self.device,
                 )
 
                 attention_mask = torch.tensor(
-                    [
-                        window[
-                            "attention_mask"
-                        ]
-                    ],
+                    [window["attention_mask"]],
                     dtype=torch.long,
                     device=self.device,
                 )
 
                 output = self.model(
                     input_ids=input_ids,
-                    attention_mask=(
-                        attention_mask
-                    ),
+                    attention_mask=(attention_mask),
                 )
 
-                logits = (
-                    output.logits[0]
-                    .detach()
-                    .cpu()
-                )
+                logits = output.logits[0].detach().cpu()
 
                 for token_index, (
                     start,
                     end,
-                ) in enumerate(
-                    window["offset_mapping"]
-                ):
+                ) in enumerate(window["offset_mapping"]):
                     start = int(start)
                     end = int(end)
 
@@ -304,46 +227,25 @@ class ResumeNERPredictor:
                         end,
                     )
 
-                    token_logits = logits[
-                        token_index
-                    ]
+                    token_logits = logits[token_index]
 
-                    if (
-                        token_key
-                        not in consolidated_tokens
-                    ):
-                        consolidated_tokens[
-                            token_key
-                        ] = {
+                    if token_key not in consolidated_tokens:
+                        consolidated_tokens[token_key] = {
                             "start": start,
                             "end": end,
-                            "token_id": window[
-                                "input_ids"
-                            ][token_index],
-                            "logits_sum": (
-                                torch.zeros_like(
-                                    token_logits
-                                )
-                            ),
+                            "token_id": window["input_ids"][token_index],
+                            "logits_sum": (torch.zeros_like(token_logits)),
                             "count": 0,
                             "chunk_ids": [],
                         }
 
-                    record = consolidated_tokens[
-                        token_key
-                    ]
+                    record = consolidated_tokens[token_key]
 
-                    record["logits_sum"] += (
-                        token_logits
-                    )
+                    record["logits_sum"] += token_logits
 
                     record["count"] += 1
 
-                    record[
-                        "chunk_ids"
-                    ].append(
-                        window["chunk_id"]
-                    )
+                    record["chunk_ids"].append(window["chunk_id"])
 
         token_predictions = []
 
@@ -354,55 +256,29 @@ class ResumeNERPredictor:
                 item["end"],
             ),
         ):
-            mean_logits = (
-                record["logits_sum"]
-                / record["count"]
-            )
+            mean_logits = record["logits_sum"] / record["count"]
 
             probabilities = torch.softmax(
                 mean_logits,
                 dim=-1,
             )
 
-            predicted_id = int(
-                torch.argmax(
-                    probabilities
-                ).item()
-            )
+            predicted_id = int(torch.argmax(probabilities).item())
 
-            confidence = float(
-                probabilities[
-                    predicted_id
-                ].item()
-            )
+            confidence = float(probabilities[predicted_id].item())
 
-            label = self.id2label[
-                predicted_id
-            ]
+            label = self.id2label[predicted_id]
 
-            token = (
-                self.tokenizer
-                .convert_ids_to_tokens(
-                    [
-                        record["token_id"]
-                    ]
-                )[0]
-            )
+            token = self.tokenizer.convert_ids_to_tokens([record["token_id"]])[0]
 
             token_predictions.append(
                 {
                     "token": token,
-                    "start": record[
-                        "start"
-                    ],
-                    "end": record[
-                        "end"
-                    ],
+                    "start": record["start"],
+                    "end": record["end"],
                     "label": label,
                     "confidence": confidence,
-                    "occurrences": record[
-                        "count"
-                    ],
+                    "occurrences": record["count"],
                 }
             )
 
@@ -421,11 +297,9 @@ class ResumeNERPredictor:
         if "-" not in label:
             return "O", None
 
-        prefix, entity_type = (
-            label.split(
-                "-",
-                maxsplit=1,
-            )
+        prefix, entity_type = label.split(
+            "-",
+            maxsplit=1,
         )
 
         if prefix not in {
@@ -439,9 +313,7 @@ class ResumeNERPredictor:
     def _tokens_to_entities(
         self,
         text: str,
-        token_predictions: list[
-            dict[str, Any]
-        ],
+        token_predictions: list[dict[str, Any]],
         minimum_confidence: float,
     ) -> list[dict[str, Any]]:
         """
@@ -456,74 +328,34 @@ class ResumeNERPredictor:
             if current_entity is None:
                 return
 
-            average_confidence = (
-                sum(
-                    current_entity[
-                        "token_confidences"
-                    ]
-                )
-                / len(
-                    current_entity[
-                        "token_confidences"
-                    ]
-                )
+            average_confidence = sum(current_entity["token_confidences"]) / len(
+                current_entity["token_confidences"]
             )
 
-            entity_text = text[
-                current_entity["start"]:
-                current_entity["end"]
-            ]
+            entity_text = text[current_entity["start"] : current_entity["end"]]
 
-            if (
-                average_confidence
-                >= minimum_confidence
-                and entity_text.strip()
-            ):
+            if average_confidence >= minimum_confidence and entity_text.strip():
                 entities.append(
                     {
-                        "label": (
-                            current_entity[
-                                "label"
-                            ]
-                        ),
-                        "text": (
-                            entity_text.strip()
-                        ),
-                        "start": (
-                            current_entity[
-                                "start"
-                            ]
-                        ),
-                        "end": (
-                            current_entity[
-                                "end"
-                            ]
-                        ),
-                        "confidence": (
-                            average_confidence
-                        ),
+                        "label": (current_entity["label"]),
+                        "text": (entity_text.strip()),
+                        "start": (current_entity["start"]),
+                        "end": (current_entity["end"]),
+                        "confidence": (average_confidence),
                     }
                 )
 
             current_entity = None
 
         for token in token_predictions:
-            prefix, entity_type = (
-                self._split_bio_label(
-                    token["label"]
-                )
-            )
+            prefix, entity_type = self._split_bio_label(token["label"])
 
             if prefix == "O":
                 close_current_entity()
                 continue
 
             starts_new_entity = (
-                prefix == "B"
-                or current_entity is None
-                or current_entity[
-                    "label"
-                ] != entity_type
+                prefix == "B" or current_entity is None or current_entity["label"] != entity_type
             )
 
             if starts_new_entity:
@@ -533,21 +365,13 @@ class ResumeNERPredictor:
                     "label": entity_type,
                     "start": token["start"],
                     "end": token["end"],
-                    "token_confidences": [
-                        token["confidence"]
-                    ],
+                    "token_confidences": [token["confidence"]],
                 }
 
             else:
-                current_entity["end"] = (
-                    token["end"]
-                )
+                current_entity["end"] = token["end"]
 
-                current_entity[
-                    "token_confidences"
-                ].append(
-                    token["confidence"]
-                )
+                current_entity["token_confidences"].append(token["confidence"])
 
         close_current_entity()
 
@@ -562,40 +386,24 @@ class ResumeNERPredictor:
         """
         Extrai entidades de um currículo.
         """
-        token_predictions = (
-            self._predict_tokens(
-                text
-            )
-        )
+        token_predictions = self._predict_tokens(text)
 
         entities = self._tokens_to_entities(
             text=text,
-            token_predictions=(
-                token_predictions
-            ),
-            minimum_confidence=(
-                minimum_confidence
-            ),
+            token_predictions=(token_predictions),
+            minimum_confidence=(minimum_confidence),
         )
 
         result = {
-            "model": str(
-                self.model_directory
-            ),
-            "device": str(
-                self.device
-            ),
+            "model": str(self.model_directory),
+            "device": str(self.device),
             "text_length": len(text),
-            "entity_count": len(
-                entities
-            ),
+            "entity_count": len(entities),
             "entities": entities,
         }
 
         if include_tokens:
-            result[
-                "token_predictions"
-            ] = token_predictions
+            result["token_predictions"] = token_predictions
 
         return result
 
@@ -604,33 +412,25 @@ def parse_args() -> argparse.Namespace:
     """
     Argumentos da linha de comando.
     """
-    parser = argparse.ArgumentParser(
-        description=__doc__
-    )
+    parser = argparse.ArgumentParser(description=__doc__)
 
     parser.add_argument(
         "--model-dir",
         type=Path,
-        default=(
-            DEFAULT_MODEL_DIRECTORY
-        ),
+        default=(DEFAULT_MODEL_DIRECTORY),
     )
 
     parser.add_argument(
         "--input",
         type=Path,
         required=True,
-        help=(
-            "Arquivo TXT contendo o currículo."
-        ),
+        help=("Arquivo TXT contendo o currículo."),
     )
 
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path(
-            "reports/inference.json"
-        ),
+        default=Path("reports/inference.json"),
     )
 
     parser.add_argument(
@@ -654,27 +454,16 @@ def main() -> None:
     args = parse_args()
 
     if not args.input.exists():
-        raise FileNotFoundError(
-            f"Currículo não encontrado: "
-            f"{args.input}"
-        )
+        raise FileNotFoundError(f"Currículo não encontrado: {args.input}")
 
-    text = args.input.read_text(
-        encoding="utf-8"
-    )
+    text = args.input.read_text(encoding="utf-8")
 
-    predictor = ResumeNERPredictor(
-        model_directory=args.model_dir
-    )
+    predictor = ResumeNERPredictor(model_directory=args.model_dir)
 
     result = predictor.predict(
         text=text,
-        minimum_confidence=(
-            args.minimum_confidence
-        ),
-        include_tokens=(
-            args.include_tokens
-        ),
+        minimum_confidence=(args.minimum_confidence),
+        include_tokens=(args.include_tokens),
     )
 
     args.output.parent.mkdir(
@@ -691,15 +480,9 @@ def main() -> None:
         encoding="utf-8",
     )
 
-    print(
-        f"Entidades encontradas: "
-        f"{result['entity_count']}"
-    )
+    print(f"Entidades encontradas: {result['entity_count']}")
 
-    print(
-        f"Resultado salvo em: "
-        f"{args.output}"
-    )
+    print(f"Resultado salvo em: {args.output}")
 
 
 if __name__ == "__main__":

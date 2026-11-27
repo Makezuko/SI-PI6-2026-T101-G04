@@ -1,0 +1,29 @@
+name: Ruff
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+
+jobs:
+  lint-and-format:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install development dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Check lint
+        run: ruff check app src
+
+      - name: Check formatting
+        run: ruff format --check app src

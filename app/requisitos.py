@@ -10,22 +10,23 @@ sem alterar o esquema do banco:
 O ``id`` (R1, R2, ...) é estável: não muda ao editar nem ao reordenar e nunca é
 reaproveitado, para que comparações futuras com currículos possam referenciá-lo.
 """
+
 import json
 import re
 
-TIPOS = {'tecnico': 'Técnico', 'comportamental': 'Comportamental'}
-NIVEIS = {'obrigatorio': 'Obrigatório', 'desejavel': 'Desejável'}
-STATUS_VAGA = ('Aberta', 'Encerrada')
+TIPOS = {"tecnico": "Técnico", "comportamental": "Comportamental"}
+NIVEIS = {"obrigatorio": "Obrigatório", "desejavel": "Desejável"}
+STATUS_VAGA = ("Aberta", "Encerrada")
 
 SCHEMA_VERSION = 2
 MAX_ITEMS = 50
 MAX_TEXT = 300  # Requisitos devem ser curtos e atômicos.
 
-_ID_PATTERN = re.compile(r'^R(\d+)$')
+_ID_PATTERN = re.compile(r"^R(\d+)$")
 
 
 def clean_text(value):
-    return ' '.join(str(value or '').split())
+    return " ".join(str(value or "").split())
 
 
 def _id_number(identifier):
@@ -38,43 +39,54 @@ def _assign_ids(items, known_ids=(), next_id=None):
     used = {n for n in map(_id_number, known_ids) if n is not None}
     kept = set()
     for item in items:
-        number = _id_number(item.get('id'))
+        number = _id_number(item.get("id"))
         if number is not None and number not in kept:
             kept.add(number)
             used.add(number)
         else:
-            item['id'] = None
+            item["id"] = None
     # ``next_id`` e o contador persistido da vaga: nunca diminui, mesmo se o ultimo
     # requisito foi removido, entao um id removido nao e reaproveitado.
     next_number = max(max(used, default=0) + 1, next_id if isinstance(next_id, int) else 1)
     for item in items:
-        if item['id'] is None:
-            item['id'] = f'R{next_number}'
+        if item["id"] is None:
+            item["id"] = f"R{next_number}"
             next_number += 1
     return items
 
 
 def _next_id_counter(items, next_id=None):
     """Contador a gravar: acima de todo id em uso e do contador anterior."""
-    numbers = [n for n in (_id_number(item['id']) for item in items) if n is not None]
+    numbers = [n for n in (_id_number(item["id"]) for item in items) if n is not None]
     previous = next_id if isinstance(next_id, int) and not isinstance(next_id, bool) else 1
     return max(max(numbers, default=0) + 1, previous)
 
 
 def requirements_status(items):
     """'revisado' só quando há requisitos e todos estão classificados."""
-    if items and all(item.get('tipo') in TIPOS for item in items):
-        return 'revisado'
-    return 'pendente_revisao'
+    if items and all(item.get("tipo") in TIPOS for item in items):
+        return "revisado"
+    return "pendente_revisao"
 
 
 def draft_from_description(description):
     """Rascunho mecânico (uma linha = um item, sem tipo). Não é extração por IA."""
     lines = (clean_text(line) for line in description.splitlines())
-    items = [{'id': f'R{i}', 'text': text, 'tipo': None, 'nivel': 'obrigatorio'}
-             for i, text in enumerate((l for l in lines if l), 1)]
-    return {'versao': SCHEMA_VERSION, 'status': 'pendente_revisao',
-            'proximo_id': len(items) + 1, 'items': items}
+    items = [
+        {
+            "id": f"R{i}",
+            "text": text,
+            "tipo": None,
+            "nivel": "obrigatorio",
+        }
+        for i, text in enumerate((line for line in lines if line), 1)
+    ]
+    return {
+        "versao": SCHEMA_VERSION,
+        "status": "pendente_revisao",
+        "proximo_id": len(items) + 1,
+        "items": items,
+    }
 
 
 def parse_requirements(raw):
@@ -82,42 +94,47 @@ def parse_requirements(raw):
     data = raw
     if isinstance(raw, str):
         if not raw.strip():
-            return {'versao': SCHEMA_VERSION, 'status': 'pendente_revisao', 'items': []}
+            return {"versao": SCHEMA_VERSION, "status": "pendente_revisao", "items": []}
         try:
             data = json.loads(raw)
         except ValueError:
             return draft_from_description(raw)
-    if not isinstance(data, dict) or not isinstance(data.get('items'), list):
-        return {'versao': SCHEMA_VERSION, 'status': 'pendente_revisao', 'items': []}
+    if not isinstance(data, dict) or not isinstance(data.get("items"), list):
+        return {"versao": SCHEMA_VERSION, "status": "pendente_revisao", "items": []}
     items = []
-    for entry in data['items']:
+    for entry in data["items"]:
         if isinstance(entry, str):
-            entry = {'text': entry}
+            entry = {"text": entry}
         if not isinstance(entry, dict):
             continue
-        text = clean_text(entry.get('text'))
+        text = clean_text(entry.get("text"))
         if not text:
             continue
         item = {
-            'id': entry.get('id'), 'text': text,
-            'tipo': entry.get('tipo') if entry.get('tipo') in TIPOS else None,
-            'nivel': entry.get('nivel') if entry.get('nivel') in NIVEIS else 'obrigatorio',
+            "id": entry.get("id"),
+            "text": text,
+            "tipo": entry.get("tipo") if entry.get("tipo") in TIPOS else None,
+            "nivel": entry.get("nivel") if entry.get("nivel") in NIVEIS else "obrigatorio",
         }
         items.append(item)
-    stored_next = data.get('proximo_id')
+    stored_next = data.get("proximo_id")
     _assign_ids(items, next_id=stored_next)
-    return {'versao': SCHEMA_VERSION, 'status': requirements_status(items),
-            'proximo_id': _next_id_counter(items, stored_next), 'items': items}
+    return {
+        "versao": SCHEMA_VERSION,
+        "status": requirements_status(items),
+        "proximo_id": _next_id_counter(items, stored_next),
+        "items": items,
+    }
 
 
 def rows_from_form(form):
     """Lê as linhas do formulário (campos repetidos e alinhados por posição)."""
-    columns = [form.getlist(name) for name in ('req_id', 'req_text', 'req_tipo', 'req_nivel')]
+    columns = [form.getlist(name) for name in ("req_id", "req_text", "req_tipo", "req_nivel")]
     if len({len(column) for column in columns}) != 1:
-        raise ValueError('Formulário de requisitos inválido. Recarregue a página e tente de novo.')
+        raise ValueError("Formulário de requisitos inválido. Recarregue a página e tente de novo.")
     rows = []
     for index, (identifier, text, tipo, nivel) in enumerate(zip(*columns)):
-        row = {'id': identifier.strip(), 'text': text, 'tipo': tipo, 'nivel': nivel}
+        row = {"id": identifier.strip(), "text": text, "tipo": tipo, "nivel": nivel}
         rows.append(row)
     return rows
 
@@ -130,28 +147,34 @@ def build_requirements(rows, known_ids=(), next_id=None):
     """
     items, seen = [], set()
     for row in rows:
-        text = clean_text(row.get('text'))
+        text = clean_text(row.get("text"))
         if not text:
             continue
         if len(text) > MAX_TEXT:
             raise ValueError(f'Cada requisito deve ter até {MAX_TEXT} caracteres: "{text[:40]}…"')
-        tipo = row.get('tipo')
+        tipo = row.get("tipo")
         if tipo not in TIPOS:
-            raise ValueError(f'Classifique como técnico ou comportamental o requisito: "{text[:60]}"')
-        nivel = row.get('nivel') or 'obrigatorio'
+            raise ValueError(
+                f'Classifique como técnico ou comportamental o requisito: "{text[:60]}"'
+            )
+        nivel = row.get("nivel") or "obrigatorio"
         if nivel not in NIVEIS:
-            raise ValueError('Nível de requisito inválido.')
+            raise ValueError("Nível de requisito inválido.")
         key = (text.casefold(), tipo)
         if key in seen:
             continue
         seen.add(key)
-        item = {'id': row.get('id'), 'text': text, 'tipo': tipo, 'nivel': nivel}
+        item = {"id": row.get("id"), "text": text, "tipo": tipo, "nivel": nivel}
         items.append(item)
     if len(items) > MAX_ITEMS:
-        raise ValueError(f'Use no máximo {MAX_ITEMS} requisitos por vaga.')
+        raise ValueError(f"Use no máximo {MAX_ITEMS} requisitos por vaga.")
     _assign_ids(items, known_ids, next_id)
-    return {'versao': SCHEMA_VERSION, 'status': requirements_status(items),
-            'proximo_id': _next_id_counter(items, next_id), 'items': items}
+    return {
+        "versao": SCHEMA_VERSION,
+        "status": requirements_status(items),
+        "proximo_id": _next_id_counter(items, next_id),
+        "items": items,
+    }
 
 
 def serialize(requirements):
@@ -161,13 +184,19 @@ def serialize(requirements):
 def requirement_warnings(description, requirements):
     """Aponta divergências para revisão explícita, sem modificar o JSON salvo."""
     from src.matching.documental_rules import fold
-    items = requirements.get('items', [])
+
+    items = requirements.get("items", [])
     warnings = []
-    education = r'\b(?:formacao|graduacao|bacharelado|superior|bachelor|degree|education)\b'
-    if re.search(education, fold(description or '')) and not any(
-            re.search(education, fold(item['text'])) for item in items):
-        warnings.append('A descrição menciona formação, mas os requisitos confirmados não a incluem. Revise a vaga para incluir ou dispensar explicitamente esse requisito.')
+    education = r"\b(?:formacao|graduacao|bacharelado|superior|bachelor|degree|education)\b"
+    if re.search(education, fold(description or "")) and not any(
+        re.search(education, fold(item["text"])) for item in items
+    ):
+        warnings.append(
+            "A descrição menciona formação, mas os requisitos confirmados não a incluem. Revise a vaga para incluir ou dispensar explicitamente esse requisito."
+        )
     for item in items:
-        if re.match(r'^xperi[eê]ncia\b', item['text'], re.I):
-            warnings.append(f"{item['id']}: texto salvo começa com ‘xperiência’. Corrija explicitamente na edição; o processamento não altera o texto.")
+        if re.match(r"^xperi[eê]ncia\b", item["text"], re.I):
+            warnings.append(
+                f"{item['id']}: texto salvo começa com ‘xperiência’. Corrija explicitamente na edição; o processamento não altera o texto."
+            )
     return warnings

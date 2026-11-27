@@ -1,4 +1,5 @@
 """Fábricas para criação de adaptadores do avaliador contextual (GoF: Factory Method)."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

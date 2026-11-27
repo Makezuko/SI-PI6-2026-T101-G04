@@ -1,6 +1,12 @@
 """Fórmula legada de similaridade, preservada para reprodução histórica."""
+
 import math
-from src.matching.validation import (NUMERIC_TOLERANCE, by_id, number, nonempty_text, validate_ranking)
+from src.matching.validation import (
+    by_id,
+    number,
+    nonempty_text,
+    validate_ranking,
+)
 
 
 FORMULA_VERSION = "2.1"
@@ -43,8 +49,9 @@ def calculate_similarity_index(requirements, results, weights=None):
         top, ranking = validate_ranking(results_by_id[identifier])
         evidence = None
         if ranking:
-            evidence = {key: ranking[0][key]
-                        for key in ("text", "source", "input_index", "chunk_index")}
+            evidence = {
+                key: ranking[0][key] for key in ("text", "source", "input_index", "chunk_index")
+            }
             normalized = min(1.0, max(-1.0, top))
             if normalized != top:
                 warnings.append(f"{identifier}: pequeno excesso numérico do cosseno normalizado.")
@@ -54,14 +61,23 @@ def calculate_similarity_index(requirements, results, weights=None):
             incomplete.append(identifier)
             compatible = None
             aggregation_value = None
-        details.append({"id": identifier, "text": text, "tipo": kind, "nivel": level,
-                        "compatible": compatible, "max_points": None, "original_cosine": top,
-                        "aggregation_value": aggregation_value,
-                        "contribution_points": None, "best_evidence": evidence})
+        details.append(
+            {
+                "id": identifier,
+                "text": text,
+                "tipo": kind,
+                "nivel": level,
+                "compatible": compatible,
+                "max_points": None,
+                "original_cosine": top,
+                "aggregation_value": aggregation_value,
+                "contribution_points": None,
+                "best_evidence": evidence,
+            }
+        )
 
     groups = {
-        level: [item for item in details if item["nivel"] == level]
-        for level in DEFAULT_WEIGHTS
+        level: [item for item in details if item["nivel"] == level] for level in DEFAULT_WEIGHTS
     }
     active_levels = [level for level, items in groups.items() if items]
     if len(active_levels) == 1:
@@ -71,8 +87,7 @@ def calculate_similarity_index(requirements, results, weights=None):
         normalized_weights = {level: value / scale for level, value in configured.items()}
         denominator = math.fsum(normalized_weights.values())
         allocations = {
-            level: 100.0 * normalized_weights[level] / denominator
-            for level in configured
+            level: 100.0 * normalized_weights[level] / denominator for level in configured
         }
 
     for level, items in groups.items():
@@ -91,23 +106,36 @@ def calculate_similarity_index(requirements, results, weights=None):
             largest["contribution_points"] -= total - 100
         score = math.fsum(item["contribution_points"] for item in details)
     else:
-        warnings.append("Análise incompleta: ranking vazio em " + ", ".join(incomplete)
-                        + ". Sem índice geral ou contribuições finais; não indica falta de competência.")
+        warnings.append(
+            "Análise incompleta: ranking vazio em "
+            + ", ".join(incomplete)
+            + ". Sem índice geral ou contribuições finais; não indica falta de competência."
+        )
     indices_by_level = {}
     for level, items in groups.items():
-        indices_by_level[level] = (math.fsum(item["contribution_points"] for item in items)
-                                   if items and all(item["contribution_points"] is not None
-                                                    for item in items) else None)
+        indices_by_level[level] = (
+            math.fsum(item["contribution_points"] for item in items)
+            if items and all(item["contribution_points"] is not None for item in items)
+            else None
+        )
     mandatory_items = groups["obrigatorio"]
     mandatory_status = (
-        "incompativel" if any(item["compatible"] is False for item in mandatory_items)
-        else "incompleto" if any(item["compatible"] is None for item in mandatory_items)
+        "incompativel"
+        if any(item["compatible"] is False for item in mandatory_items)
+        else "incompleto"
+        if any(item["compatible"] is None for item in mandatory_items)
         else "atendido"
     )
-    return {"status": "analise_incompleta" if incomplete else "calculado",
-            "score": score, "score_name": "indice_compatibilidade_semantica",
-            "formula_version": FORMULA_VERSION, "weights": configured,
-            "similarity_threshold": SIMILARITY_THRESHOLD,
-            "mandatory_status": mandatory_status,
-            "warnings": warnings, "incomplete_requirement_ids": incomplete,
-            "indices_by_level": indices_by_level, "details": details}
+    return {
+        "status": "analise_incompleta" if incomplete else "calculado",
+        "score": score,
+        "score_name": "indice_compatibilidade_semantica",
+        "formula_version": FORMULA_VERSION,
+        "weights": configured,
+        "similarity_threshold": SIMILARITY_THRESHOLD,
+        "mandatory_status": mandatory_status,
+        "warnings": warnings,
+        "incomplete_requirement_ids": incomplete,
+        "indices_by_level": indices_by_level,
+        "details": details,
+    }

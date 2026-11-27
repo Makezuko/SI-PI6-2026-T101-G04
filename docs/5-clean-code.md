@@ -178,6 +178,11 @@ def validate_profile_form(form, password, password_confirm):
 
 As funções `profile_changes()`, `auth_profile_attributes()` e `update_profile_account()` foram separadas para comparar os dados, construir atributos do Supabase e executar a atualização. `sync_profile_session()` passou a concentrar a atualização da sessão.
 
+> *Links permanentes:*
+> - `https://github.com/Makezuko/SI-PI6-2026-T101-G04/blob/22790f2698ada0d14efd3b103a95982c9b09d68e/app/routes.py#L363-L447`
+> - `https://github.com/Makezuko/SI-PI6-2026-T101-G04/blob/22790f2698ada0d14efd3b103a95982c9b09d68e/app/routes.py#L462-L480`
+> - `https://github.com/Makezuko/SI-PI6-2026-T101-G04/blob/22790f2698ada0d14efd3b103a95982c9b09d68e/tests/test_web_filters.py#L307-L355`
+
     ## 5.2 Nomes claros
 
 Os nomes expressam a responsabilidade de cada unidade:
@@ -283,11 +288,6 @@ de coordenação à implementação completa do Supabase.
 
 ## 5.10 Pull Request
 
-As alterações e análises desta seção serão relacionadas ao Pull Request da refatoração de `editar_perfil()`.
+As alterações e análises desta seção estão relacionadas ao [PR #38](https://github.com/Makezuko/SI-PI6-2026-T101-G04/pull/38).
 
-O PR deve apresentar:
-
-- implementação da separação das responsabilidades;
-- inclusão dos testes de e-mail inválido e senha curta;
-- documentação desta página;
-- ligação com [ADR-0002 — Persistência separada do fluxo de edição de perfil](../adrs/0002-persistencia.md).
+Elas incluem a separação das responsabilidades, os testes de e-mail inválido e senha curta, esta documentação e a ligação com [ADR-0002 — Persistência separada do fluxo de edição de perfil](../adrs/0002-persistencia.md).

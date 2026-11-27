@@ -1,6 +1,6 @@
 # ADR-0002 — Persistência separada do fluxo de edição de perfil
 
-**Status:** Proposto
+**Status:** Aceito
 
 **Responsável:** Julia
 
@@ -80,6 +80,6 @@ Os testes simulam o Supabase e não substituem a validação das políticas RLS 
 
 ## 7. Pull Request
 
-O Pull Request desta refatoração deve implementar esta decisão e apontar para este ADR.
+A decisão foi implementada e documentada no [PR #38](https://github.com/Makezuko/SI-PI6-2026-T101-G04/pull/38).
 
-Ele deve também relacionar a mudança à documentação em [docs/5-clean-code.md](../docs/5-clean-code.md).
+O Pull Request também relaciona a mudança à documentação em [docs/5-clean-code.md](../docs/5-clean-code.md).

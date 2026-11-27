@@ -31,9 +31,9 @@ def calculate_adherence(requirements, decisions, weights=None, strategy=None):
     score, maximum_score, contributions = active_strategy.compute(details, scale)
 ```
 
-> *Links permanentes (substituir `<COMMIT_HASH>` após o merge do PR #33 na `main`):*
-> - `https://github.com/Makezuko/SI-PI6-2026-T101-G04/blob/<COMMIT_HASH>/src/matching/adherence.py#L13-L64`
-> - `https://github.com/Makezuko/SI-PI6-2026-T101-G04/blob/<COMMIT_HASH>/src/matching/aggregators.py#L8-L35`
+> *Links permanentes:*
+> - `https://github.com/Makezuko/SI-PI6-2026-T101-G04/blob/22790f2698ada0d14efd3b103a95982c9b09d68e/src/matching/adherence.py#L13-L64`
+> - `https://github.com/Makezuko/SI-PI6-2026-T101-G04/blob/22790f2698ada0d14efd3b103a95982c9b09d68e/src/matching/aggregators.py#L8-L35`
 
 ## 4.3 LSP — Princípio da Substituição de Liskov
 
@@ -56,8 +56,8 @@ for strategy in strategies:
     self.assertAlmostEqual(math.fsum(contributions), output["score"], places=6)
 ```
 
-> *Link permanente (substituir `<COMMIT_HASH>` após o merge do PR #33 na `main`):*
-> - `https://github.com/Makezuko/SI-PI6-2026-T101-G04/blob/<COMMIT_HASH>/tests/test_solid_matching.py#L108-L143`
+> *Link permanente:*
+> - `https://github.com/Makezuko/SI-PI6-2026-T101-G04/blob/22790f2698ada0d14efd3b103a95982c9b09d68e/tests/test_solid_matching.py#L108-L143`
 
 ## 4.4 ISP — Princípio da Segregação de Interfaces
 
@@ -66,6 +66,29 @@ O ISP recomenda contratos pequenos e específicos, de forma que os consumidores 
 - **Problema antes:** `update_profile_account()` dependia de um cliente amplo do Supabase e chamava diretamente `update_profile()`, embora precisasse apenas de uma operação de autenticação e outra de persistência.
 - **Solução aplicada:** foram separados `ProfileAuthWriter.update_user()` em [app/routes.py](../app/routes.py) e `ProfilePersistence.update_profile()` em [app/repositories.py](../app/repositories.py). Cada contrato contém somente a operação necessária ao fluxo.
 - **Efeito no código:** a coordenação pode ser testada com objetos mínimos. O teste `test_profile_account_update_depends_on_small_contracts` usa um escritor de autenticação e um repositório de perfil independentes, sem o cliente completo do Supabase.
+
+```python
+class ProfileAuthWriter(Protocol):
+    def update_user(self, attributes):
+        ...
+
+def update_profile_account(auth_writer, profile_store, profile, auth_user_id, form, password):
+    changes = profile_changes(profile, form)
+    attributes = auth_profile_attributes(changes, form, password)
+    if attributes:
+        response = auth_writer.update_user(attributes)
+        ...
+    if changes:
+        updated_profile = profile_store.update_profile(
+            profile['id'], auth_user_id, changes,
+        )
+    return updated_profile
+```
+
+> *Links permanentes:*
+> - `https://github.com/Makezuko/SI-PI6-2026-T101-G04/blob/22790f2698ada0d14efd3b103a95982c9b09d68e/app/routes.py#L414-L445`
+> - `https://github.com/Makezuko/SI-PI6-2026-T101-G04/blob/22790f2698ada0d14efd3b103a95982c9b09d68e/app/repositories.py#L28-L55`
+> - `https://github.com/Makezuko/SI-PI6-2026-T101-G04/blob/22790f2698ada0d14efd3b103a95982c9b09d68e/tests/test_web_filters.py#L307-L355`
 
 ## 4.5 DIP — Princípio da Inversão de Dependência
 
@@ -76,13 +99,31 @@ O DIP recomenda que regras de alto nível e detalhes de infraestrutura dependam 
 - **Efeito no código:** a regra de coordenação da conta depende dos contratos de negócio, não da implementação completa do cliente. Isso permite substituir os serviços em testes e diminui o acoplamento da atualização de perfil.
 - **Limitação:** outros repositórios continuam usando `client.table()` diretamente. Este é um exemplo localizado de DIP, não uma reescritura completa de toda a persistência.
 
+```python
+class ProfilePersistence(Protocol):
+    def update_profile(self, profile_id, auth_user_id, values):
+        ...
+
+class SupabaseProfilePersistence:
+    def __init__(self, client):
+        self.client = client
+
+    def update_profile(self, profile_id, auth_user_id, values):
+        return update_profile(
+            self.client, profile_id, auth_user_id, values,
+        )
+```
+
+> *Link permanente:*
+> - `https://github.com/Makezuko/SI-PI6-2026-T101-G04/blob/22790f2698ada0d14efd3b103a95982c9b09d68e/app/repositories.py#L28-L55`
+
 ## 4.6 Resultados
 
 ### Alterações realizadas
 
 - **SRP (PR #23):** [app/repositories.py](../app/repositories.py) (`format_display_date()`) e [tests/test_format_display_date.py](../tests/test_format_display_date.py).
 - **OCP e LSP (PR #33):** [src/matching/aggregators.py](../src/matching/aggregators.py) (`AdherenceScoreStrategy`, `WeightedConfirmedAdherence`, `StrictMandatoryAdherence`, `ProvisionalWeightedAdherence`), [src/matching/adherence.py](../src/matching/adherence.py) (`calculate_adherence(..., strategy=None)`) e [tests/test_solid_matching.py](../tests/test_solid_matching.py).
-- **ISP e DIP:** [app/routes.py](../app/routes.py) (`ProfileAuthWriter`, `update_profile_account()`), [app/repositories.py](../app/repositories.py) (`ProfilePersistence`, `SupabaseProfilePersistence`) e [tests/test_web_filters.py](../tests/test_web_filters.py) (`test_profile_account_update_depends_on_small_contracts`). Esta contribuição está pronta localmente e aguarda PR e merge.
+- **ISP e DIP:** [app/routes.py](../app/routes.py) (`ProfileAuthWriter`, `update_profile_account()`), [app/repositories.py](../app/repositories.py) (`ProfilePersistence`, `SupabaseProfilePersistence`) e [tests/test_web_filters.py](../tests/test_web_filters.py) (`test_profile_account_update_depends_on_small_contracts`).
 - **Documentação:** atualização de [docs/4-solid.md](4-solid.md) com as evidências de OCP e LSP aplicadas à aderência documental atual.
 
 ### Validação executada
@@ -102,6 +143,6 @@ python -m unittest discover -s tests -p "test_contextual.py"
 
 - **[PR #23 — Refatoração SRP, testes automatizados e documentação SOLID](https://github.com/Makezuko/SI-PI6-2026-T101-G04/pull/23):** implementação da função `format_display_date()` e análise inicial.
 - **[PR #22 — Documentação arquitetural e ADR-0001](https://github.com/Makezuko/SI-PI6-2026-T101-G04/pull/22)** e **[PR #21 — Contexto do sistema e atributos de qualidade](https://github.com/Makezuko/SI-PI6-2026-T101-G04/pull/21)**.
-- **[PR #33 — Refatoração OCP e LSP na aderência documental (Kauê Farias Lourenço)](https://github.com/Makezuko/SI-PI6-2026-T101-G04/pull/33):** implementação de `AdherenceScoreStrategy` em `src/matching/aggregators.py`, extensão em `src/matching/adherence.py`, suíte `tests/test_solid_matching.py` e atualização de `docs/4-solid.md` *(substituir `<COMMIT_HASH>` nos links permanentes após o merge na `main`)*.
-- **PR de ISP e DIP (Julia Kimura):** implementação pronta localmente em `app/routes.py`, `app/repositories.py` e `tests/test_web_filters.py`; *inserir link após abrir e mergear o PR*.
+- **[PR #33 — Refatoração OCP e LSP na aderência documental (Kauê Farias Lourenço)](https://github.com/Makezuko/SI-PI6-2026-T101-G04/pull/33):** implementação de `AdherenceScoreStrategy` em `src/matching/aggregators.py`, extensão em `src/matching/adherence.py`, suíte `tests/test_solid_matching.py` e atualização de `docs/4-solid.md`.
+- **[PR #38 — Refatoração ISP e DIP na atualização de perfil (Julia Kimura)](https://github.com/Makezuko/SI-PI6-2026-T101-G04/pull/38):** implementação em `app/routes.py`, `app/repositories.py` e `tests/test_web_filters.py`.
 

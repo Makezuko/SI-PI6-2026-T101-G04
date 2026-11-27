@@ -1,0 +1,40 @@
+flowchart TB
+    subgraph unidade["Aplicação Flask TalentMatch AI (unidade de implantação)"]
+        direction TB
+        subgraph borda["Camada Web e Apresentação"]
+            templates["Templates Jinja2 e JS<br/>(app/templates/, app/static/, presentation.py)"]
+            rotas["Rotas Flask e Validação<br/>(app/routes.py)"]
+        end
+
+        subgraph aplicacao["Camada de Orquestração e Persistência"]
+            repo["Repositórios e Contratos<br/>(app/repositories.py, supabase_client.py)"]
+            orq["Orquestração e Requisitos<br/>(app/analysis.py, app/requisitos.py)"]
+        end
+
+        subgraph nucleo["Núcleo de Processamento e Decisão"]
+            matching["Fachada, Fábricas, Contextual e Estratégias<br/>(src/matching/)"]
+            dados["Limpeza e Privacidade<br/>(src/data/)"]
+            nlp["Extração NER e Embeddings<br/>(src/nlp/)"]
+        end
+    end
+
+    db[("Supabase Auth / PostgreSQL")]
+    pesos[("Modelos Locais em Disco")]
+    api["Google Gemini API"]
+
+    templates -->|"fluxo de dados"| rotas
+    rotas -->|"chamada de procedimento"| repo
+    rotas -->|"chamada de procedimento"| orq
+    orq -->|"chamada de procedimento"| repo
+    orq -->|"chamada de procedimento"| matching
+    matching -->|"fluxo de dados"| dados
+    matching -->|"fluxo de dados"| nlp
+    repo -->|"acesso a dado compartilhado"| db
+    nlp -->|"acesso a dado compartilhado"| pesos
+    matching -->|"acesso a dado compartilhado"| pesos
+    matching -->|"adaptador"| api
+
+    style unidade fill:#ffffff,stroke:#444444,stroke-dasharray: 6 4
+    style borda fill:#f8f9ff,stroke:#8899bb
+    style aplicacao fill:#f8f9ff,stroke:#8899bb
+    style nucleo fill:#f8f9ff,stroke:#8899bb

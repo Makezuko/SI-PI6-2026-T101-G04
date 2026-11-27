@@ -1,0 +1,30 @@
+classDiagram
+    class AppAnalysis {
+        +analyze(job, resume) dict
+    }
+    class TalentMatchPipelineFacade {
+        -models_loader
+        -contextual_loader
+        -justification_generator
+        -lock: RLock
+        -strategy: AdherenceScoreStrategy
+        +analyze_resume(job, resume, requirements, config, strategy) dict
+    }
+    class PrivacyAndExtraction {
+        +anonymize_for_analysis()
+        +personal_spans()
+        +extract_skills()
+    }
+    class SemanticAndContextual {
+        +aggregate_requirement_windows()
+        +compare()
+        +evaluate_batch()
+    }
+    class LlmJustification {
+        +generate_llm_justification()
+    }
+
+    AppAnalysis --> TalentMatchPipelineFacade : delega
+    TalentMatchPipelineFacade --> PrivacyAndExtraction : coordena
+    TalentMatchPipelineFacade --> SemanticAndContextual : coordena
+    TalentMatchPipelineFacade --> LlmJustification : coordena

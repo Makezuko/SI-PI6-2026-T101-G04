@@ -1,0 +1,29 @@
+classDiagram
+    class ContextualAdapterFactory {
+        <<abstract>>
+        +create_adapter(model_path: str, runtime_path: str)* Adapter
+    }
+    class TransformersAdapterFactory {
+        +create_adapter(model_path: str, runtime_path: str) Adapter
+    }
+    class LlamaCppAdapterFactory {
+        +create_adapter(model_path: str, runtime_path: str) Adapter
+    }
+    class LocalTransformersAdapter {
+        +generate(payload: dict) str
+    }
+    class LlamaCppAdapter {
+        +generate(payload: dict) str
+        +close() None
+    }
+    class Adapter {
+        <<protocol>>
+        +generate(payload: dict) str
+    }
+
+    ContextualAdapterFactory <|-- TransformersAdapterFactory
+    ContextualAdapterFactory <|-- LlamaCppAdapterFactory
+    TransformersAdapterFactory ..> LocalTransformersAdapter : cria
+    LlamaCppAdapterFactory ..> LlamaCppAdapter : cria
+    LocalTransformersAdapter ..|> Adapter
+    LlamaCppAdapter ..|> Adapter

@@ -1,0 +1,40 @@
+sequenceDiagram
+    autonumber
+    actor Rec as Recrutador
+    participant Routes as app/routes.py
+    participant Repo as repositories.py
+    participant Analysis as analysis.py
+    participant Facade as PipelineFacade
+    participant DataNLP as src/data + src/nlp
+    participant Ctx as contextual + factory
+    participant Adh as adherence + Strategy
+    participant Gemini as Gemini API
+    participant DB as Supabase DB
+
+    Rec->>Routes: POST /vagas/<job_id>/adicionar-curriculos (PDF)
+    Routes->>DataNLP: parse_resume_pdf()
+    DataNLP-->>Routes: texto bruto e texto anonimizado
+    Routes->>Repo: create_resume(job_id, textos)
+    Repo->>DB: INSERT em curriculos
+    DB-->>Repo: currículo salvo
+    Routes->>Analysis: process_resume(client, job, resume)
+    Analysis->>Analysis: confirmed_requirements() e configuration()
+    Analysis->>Facade: analyze_resume(job, resume, reqs, config)
+    Facade->>DataNLP: load_models(), predict(),<br/>anonymize_for_analysis(), extract_skills()
+    DataNLP-->>Facade: texto anonimizado e semantic_inputs
+    Facade->>DataNLP: encode(reqs, inputs) e compare()
+    DataNLP-->>Facade: ranking de evidências
+    Facade->>Ctx: create_adapter() via ContextualAdapterFactory
+    Ctx-->>Facade: Adapter (Transformers ou LlamaCpp)
+    Facade->>Ctx: evaluate_batch(reqs, results, inputs, adapter, strategy)
+    Ctx->>Adh: calculate_adherence(reqs, decisions, strategy)
+    Adh-->>Ctx: pontuação ponderada e detalhes
+    Ctx-->>Facade: resultado documental
+    Facade->>Gemini: generate_llm_justification(job, texto, result)
+    Gemini-->>Facade: parecer textual (ou indisponível)
+    Facade-->>Analysis: result
+    Analysis->>Repo: get_job(), get_resume() e save_analysis()
+    Repo->>DB: UPSERT em analises_aderencia
+    DB-->>Repo: análise salva
+    Analysis-->>Routes: result
+    Routes-->>Rec: Redireciona para detalhes e ranking

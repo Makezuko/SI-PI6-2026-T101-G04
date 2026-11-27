@@ -1,0 +1,21 @@
+C4Container
+    title Nível 2 (contêineres) do TalentMatch AI
+
+    Person(recrutador, "Recrutador", "Opera o sistema pelo navegador")
+    System_Ext(gemini, "Google Gemini API", "Parecer textual opcional")
+
+    System_Boundary(talentmatch, "TalentMatch AI") {
+        Container(web_ui, "Interface Web", "HTML, Jinja2 e JS", "Telas de login, vagas, ranking e candidato")
+        Container(flask_app, "Aplicação Web e Pipeline", "Python 3.12 / Flask", "Rotas, PDF/NER, privacidade, Qwen e aderência")
+        ContainerDb(supabase_db, "Banco de Dados e Auth", "Supabase / PostgreSQL + RLS", "Usuários, vagas, currículos e análises")
+        ContainerDb(armazenamento_local, "Modelos e Sessões Locais", "Disco (models/, instance/)", "Pesos NER/Embeddings/Qwen e FileSystemCache")
+    }
+
+    Rel(recrutador, web_ui, "Usa", "HTTPS")
+    Rel(web_ui, flask_app, "Chama", "HTTP")
+    Rel(flask_app, supabase_db, "Autentica e persiste", "HTTPS/REST")
+    Rel(flask_app, armazenamento_local, "Lê modelos e sessões", "Arquivo")
+    Rel(flask_app, gemini, "Gera parecer", "HTTPS/JSON")
+
+    UpdateLayoutConfig($c4ShapeInRow="2", $c4BoundaryInRow="1")
+    UpdateRelStyle(web_ui, flask_app, $offsetY="-24")

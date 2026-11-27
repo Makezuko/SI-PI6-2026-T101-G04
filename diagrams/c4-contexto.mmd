@@ -1,0 +1,14 @@
+C4Context
+    title Nível 1 (contexto) do TalentMatch AI
+
+    Person(recrutador, "Recrutador", "Cadastra vagas, envia CVs e revisa evidências")
+    System(talentmatch, "TalentMatch AI", "Aplicação web monolítica modular para triagem de currículos")
+    System_Ext(supabase, "Supabase", "Auth e PostgreSQL de vagas, currículos e análises")
+    System_Ext(gemini, "Google Gemini API", "Geração opcional de parecer textual")
+
+    Rel(recrutador, talentmatch, "Usa", "HTTPS")
+    Rel(talentmatch, supabase, "Autentica e persiste", "HTTPS/REST")
+    Rel(talentmatch, gemini, "Gera parecer", "HTTPS/JSON")
+
+    UpdateLayoutConfig($c4ShapeInRow="2", $c4BoundaryInRow="1")
+    UpdateRelStyle(recrutador, talentmatch, $offsetY="-16")

@@ -1,0 +1,28 @@
+classDiagram
+    class AdherenceModule {
+        +calculate_adherence(requirements, decisions, weights, strategy) dict
+    }
+    class AdherenceScoreStrategy {
+        <<protocol>>
+        +version: str
+        +compute(details: list[dict], scale: float) tuple[float, float, list[float]]
+    }
+    class WeightedConfirmedAdherence {
+        +version: str
+        +compute(details: list[dict], scale: float) tuple[float, float, list[float]]
+    }
+    class StrictMandatoryAdherence {
+        +max_score_when_missing: float
+        +version: str
+        +compute(details: list[dict], scale: float) tuple[float, float, list[float]]
+    }
+    class ProvisionalWeightedAdherence {
+        +provisional_factor: float
+        +version: str
+        +compute(details: list[dict], scale: float) tuple[float, float, list[float]]
+    }
+
+    AdherenceModule --> AdherenceScoreStrategy : usa
+    AdherenceScoreStrategy <|.. WeightedConfirmedAdherence
+    AdherenceScoreStrategy <|.. StrictMandatoryAdherence
+    AdherenceScoreStrategy <|.. ProvisionalWeightedAdherence

@@ -120,3 +120,43 @@ python -m unittest discover -s tests
 ## Avaliações e ferramentas
 
 Métricas de [NER](docs/avaliacao_ner.md) medem extração de entidades; métricas de [recuperação](docs/avaliacao-semantica-ampliada.md) medem a posição de evidências anotadas; a [avaliação contextual](docs/avaliacao-contextual.md) examina decisões fundamentadas em evidências. São etapas distintas. Resultados locais são diagnósticos, não validação geral do modelo. Consulte o [índice de scripts](scripts/README.md) para comandos e dependências.
+
+## Documentação do projeto
+
+A documentação técnica e acadêmica do TalentMatch AI está organizada no diretório `docs/`.
+
+### Fundamentos e arquitetura
+
+- [Contexto do projeto](docs/1-contexto.md)
+- [Qualidade de software](docs/2-qualidade.md)
+- [Arquitetura do sistema](docs/3-arquitetura.md)
+- [Princípios SOLID](docs/4-solid.md)
+- [Padrões de projeto GoF](docs/6-gof.md)
+- [Padrão transversal — Observabilidade](docs/7-transversal.md)
+
+### Avaliação e funcionamento
+
+- [Estado atual do projeto](docs/estado-do-projeto.md)
+- [Avaliação de NER](docs/avaliacao_ner.md)
+- [Avaliação semântica](docs/avaliacao-semantica-ampliada.md)
+- [Avaliação contextual](docs/avaliacao-contextual.md)
+- [Integração de aderência](docs/integracao-aderencia.md)
+- [Diagnóstico documental](docs/diagnostico-documental.md)
+- [Diagnóstico de janelas contextuais](docs/diagnostico-janelas-contextuais.md)
+- [Diagnóstico operacional contextual](docs/diagnostico-operacional-contextual.md)
+- [Diagnóstico de login contextual](docs/diagnostico-login-contextual.md)
+- [Resultados visuais](docs/resultados-visuais.md)
+- [Validação da apresentação de aderência](docs/validacao-apresentacao-aderencia.md)
+- [Regra de aderência](docs/aderencia.md)
+
+### Decisões arquiteturais (ADRs)
+
+As decisões arquiteturais são registradas no diretório `adrs/`, incluindo o contexto, alternativas consideradas, decisão adotada e suas consequências.
+
+- [ADR-0001 — Estrutura geral](adrs/0001-estrutura-geral.md)
+- [ADR-0004 — Estratégia de implantação](adrs/0004-implantacao.md)
+- [ADR-0005 — Estratégia de matching](adrs/0005-estrategia-matching.md)
+
+### Scripts e ferramentas
+
+Consulte o [índice de scripts](scripts/README.md) para instruções de execução, dependências e ferramentas auxiliares do projeto.

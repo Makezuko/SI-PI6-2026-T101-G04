@@ -27,3 +27,4 @@ classDiagram
     LlamaCppAdapterFactory ..> LlamaCppAdapter : cria
     LocalTransformersAdapter ..|> Adapter
     LlamaCppAdapter ..|> Adapter
+    note for ContextualAdapterFactory "Selecionada por get_contextual_adapter_factory(backend); usada por create_adapter() em src/matching/contextual.py"

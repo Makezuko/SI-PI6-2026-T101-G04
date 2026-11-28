@@ -2,33 +2,42 @@ flowchart TB
     nav["Navegador do Recrutador"]
 
     subgraph aplicacao["Aplicação Flask TalentMatch AI (unidade de implantação)"]
+        direction TB
         rotas["Rotas HTTP e Sessão<br/>(app/routes.py)"]
-        repos["Repositórios e Contratos<br/>(app/repositories.py)"]
-        analise["Orquestração de Análise<br/>(app/analysis.py)"]
-        fachada["Fachada do Pipeline<br/>(src/matching/facade.py)"]
+        repos["Repositórios<br/>(app/repositories.py,<br/>supabase_client.py)"]
+        analise["Orquestração de Análise<br/>(app/analysis.py,<br/>app/requisitos.py)"]
         telemetria["Telemetria Estruturada<br/>(src/matching/telemetry.py)"]
-        nlp_priv["Privacidade, NER e Embeddings<br/>(src/data/, src/nlp/)"]
+        fachada["Fachada do Pipeline<br/>(src/matching/facade.py)"]
         contextual["Avaliador Contextual e Fábrica<br/>(contextual.py, factory.py)"]
+        nlp_priv["Privacidade, NER e Embeddings<br/>(src/data/, src/nlp/)"]
         aderencia["Aderência e Estratégias<br/>(adherence.py, aggregators.py)"]
     end
 
-    supabase[("Supabase Auth<br/>e PostgreSQL")]
-    modelos[("Modelos Locais:<br/>NER, Embeddings e Qwen")]
-    gemini["Google Gemini API"]
+    subgraph externos[" "]
+        direction LR
+        supabase[("Supabase Auth<br/>e PostgreSQL")]
+        modelos[("Modelos Locais:<br/>NER, Embeddings e Qwen")]
+        gemini["Google Gemini API"]
+    end
 
     nav -->|"chamada de procedimento remota"| rotas
     rotas -->|"chamada de procedimento"| repos
     rotas -->|"chamada de procedimento"| analise
+    rotas -->|"chamada de procedimento"| nlp_priv
     analise -->|"chamada de procedimento"| repos
-    analise -->|"chamada de procedimento"| fachada
     analise -->|"chamada de procedimento"| telemetria
+    analise -->|"chamada de procedimento"| fachada
     fachada -->|"chamada de procedimento"| telemetria
-    fachada -->|"fluxo de dados"| nlp_priv
     fachada -->|"chamada de procedimento"| contextual
+    fachada -->|"chamada de procedimento"| nlp_priv
     contextual -->|"chamada de procedimento"| aderencia
+
     repos -->|"acesso a dado compartilhado"| supabase
-    nlp_priv -->|"acesso a dado compartilhado"| modelos
     contextual -->|"acesso a dado compartilhado"| modelos
-    fachada -->|"adaptador"| gemini
+    nlp_priv -->|"acesso a dado compartilhado"| modelos
+    fachada -->|"chamada de procedimento remota"| gemini
+
+    aderencia ~~~ modelos
 
     style aplicacao fill:#ffffff,stroke:#444444,stroke-dasharray: 6 4
+    style externos fill:none,stroke:none

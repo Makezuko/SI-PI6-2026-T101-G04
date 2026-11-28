@@ -59,43 +59,50 @@ Fonte do diagrama: [diagrams/organizacao-interna.mmd](../diagrams/organizacao-in
 flowchart TB
     subgraph unidade["Aplicação Flask TalentMatch AI (unidade de implantação)"]
         direction TB
-        subgraph borda["Camada Web e Apresentação"]
-            templates["Templates Jinja2 e JS<br/>(app/templates/, app/static/, presentation.py)"]
+        subgraph borda["Camada Web e Apresentação (app/)"]
+            direction LR
             rotas["Rotas Flask e Validação<br/>(app/routes.py)"]
+            templates["Templates Jinja2 e Privacidade na Tela<br/>(app/templates/, app/static/, presentation.py)"]
         end
 
-        subgraph aplicacao["Camada de Orquestração e Persistência"]
-            repo["Repositórios e Contratos<br/>(app/repositories.py, supabase_client.py)"]
+        subgraph aplicacao["Camada de Orquestração e Persistência (app/)"]
+            direction LR
             orq["Orquestração e Requisitos<br/>(app/analysis.py, app/requisitos.py)"]
+            repo["Repositórios e Cliente Supabase<br/>(app/repositories.py, supabase_client.py)"]
         end
 
-        subgraph nucleo["Núcleo de Processamento e Decisão"]
-            matching["Fachada, Fábricas, Contextual e Estratégias<br/>(src/matching/)"]
+        subgraph nucleo["Núcleo de Processamento e Decisão (src/)"]
+            direction LR
             dados["Limpeza e Privacidade<br/>(src/data/)"]
             nlp["Extração NER e Embeddings<br/>(src/nlp/)"]
+            matching["Fachada, Fábricas, Contextual e Estratégias<br/>(src/matching/)"]
         end
     end
 
-    db[("Supabase Auth / PostgreSQL")]
-    pesos[("Modelos Locais em Disco")]
-    api["Google Gemini API"]
+    subgraph externos[" "]
+        direction LR
+        pesos[("Modelos Locais em Disco")]
+        api["Google Gemini API"]
+        db[("Supabase Auth / PostgreSQL")]
+    end
 
-    templates -->|"fluxo de dados"| rotas
-    rotas -->|"chamada de procedimento"| repo
+    rotas -->|"chamada de procedimento"| templates
     rotas -->|"chamada de procedimento"| orq
+    rotas -->|"chamada de procedimento"| repo
     orq -->|"chamada de procedimento"| repo
     orq -->|"chamada de procedimento"| matching
-    matching -->|"fluxo de dados"| dados
-    matching -->|"fluxo de dados"| nlp
-    repo -->|"acesso a dado compartilhado"| db
+    matching -->|"chamada de procedimento"| dados
+    matching -->|"chamada de procedimento"| nlp
     nlp -->|"acesso a dado compartilhado"| pesos
     matching -->|"acesso a dado compartilhado"| pesos
-    matching -->|"adaptador"| api
+    matching -->|"chamada de procedimento remota"| api
+    repo -->|"acesso a dado compartilhado"| db
 
     style unidade fill:#ffffff,stroke:#444444,stroke-dasharray: 6 4
     style borda fill:#f8f9ff,stroke:#8899bb
     style aplicacao fill:#f8f9ff,stroke:#8899bb
     style nucleo fill:#f8f9ff,stroke:#8899bb
+    style externos fill:none,stroke:none
 ```
 
 ### Correspondência entre camadas/módulos e diretórios
@@ -103,12 +110,14 @@ flowchart TB
 | Parte da arquitetura | Pasta / Módulo real | Responsabilidade principal |
 |---|---|---|
 | Apresentação e borda HTTP | `app/templates/`, `app/static/`, `app/presentation.py`, `app/routes.py` | Renderização Jinja2, autenticação/sessão, validação de entrada e redirecionamento |
-| Persistência e contratos | `app/repositories.py`, `app/supabase_client.py`, `sql/` | Consultas e gravação no Supabase (`vagas`, `curriculos`, `analises_aderencia`, `usuarios`) e adaptação de registros para os templates (`job_for_template`, `resume_for_template`) |
+| Persistência | `app/repositories.py`, `app/supabase_client.py`, `sql/` | Consultas e gravação no Supabase (`vagas`, `curriculos`, `analises_aderencia`, `usuarios`) e adaptação de registros para os templates (`job_for_template`, `resume_for_template`) |
 | Regras de requisitos e orquestração | `app/requisitos.py`, `app/analysis.py`, `app/auth_diagnostics.py` | Parsing/validação de requisitos, controle de cache/versões (`attach_analysis`, `dashboard_scores`) e disparo de `TalentMatchPipelineFacade` |
 | Limpeza e privacidade | `src/data/` (`clean.py`, `privacy.py`, `load.py`, `validate.py`) | Extração de texto de PDF, detecção de spans pessoais e anonimização antes da análise semântica e da chamada ao Gemini |
 | Extração NER e embeddings | `src/nlp/` (`inference.py`, `skills_extractor.py`, `embeddings.py`) | Inferência NER local, extração híbrida de competências e geração de vetores Sentence Transformer |
 | Matching, IA contextual e GoF | `src/matching/` (`facade.py`, `factory.py`, `contextual.py`, `semantic.py`, `adherence.py`, `aggregators.py`, `llm_justification.py`, `telemetry.py`) | Fachada do pipeline, fábrica de runtimes locais (Transformers/llama.cpp), avaliação contextual Qwen, estratégias de aderência, parecer Gemini e telemetria estruturada |
 | Verificação automatizada | `tests/` | Suítes `unittest` cobrindo rotas, privacidade, contratos SOLID, padrões GoF e aderência |
+
+Nos *imports* reais da `main`, a transição modular ainda apresenta acoplamentos diretos da camada web com utilitários do núcleo: `app/routes.py` chama `parse_resume_pdf()` em `src/data/clean.py`, `app/presentation.py` utiliza `src/data/privacy.py` e `app/repositories.py` importa helpers de `src/data/` e `src/nlp/skills_extractor.py` para montar dados exibidos nos templates — ponto que reforça a consolidação gradual descrita nos ADRs 0001 e 0003.
 
 ### Evidências no código (fronteiras internas)
 
@@ -136,7 +145,7 @@ def analyze(job, resume):
     return {**versions(job, resume, config), **{k: v for k, v in config.items() if k != 'contextual'}, 'result': result}
 ```
 
-2. **Núcleo contextual, estratégia de aderência e adaptador opcional Gemini na fachada** — `TalentMatchPipelineFacade` carrega o adaptador contextual sob `self._lock`, avalia os requisitos com a estratégia ativa ([src/matching/facade.py (L136-L156)](https://github.com/Makezuko/SI-PI6-2026-T101-G04/blob/bcd666570bfd9991b831b4f987cfff32f6d1aa53/src/matching/facade.py#L136-L156)) e gera a justificativa textual apenas sobre o texto anonimizado ([src/matching/facade.py (L171-L179)](https://github.com/Makezuko/SI-PI6-2026-T101-G04/blob/bcd666570bfd9991b831b4f987cfff32f6d1aa53/src/matching/facade.py#L171-L179)):
+2. **Núcleo contextual, estratégia de aderência e chamada opcional ao Gemini na fachada** — `TalentMatchPipelineFacade` carrega o adaptador contextual sob `self._lock`, avalia os requisitos com a estratégia ativa ([src/matching/facade.py (L136-L156)](https://github.com/Makezuko/SI-PI6-2026-T101-G04/blob/bcd666570bfd9991b831b4f987cfff32f6d1aa53/src/matching/facade.py#L136-L156)) e gera a justificativa textual apenas sobre o texto anonimizado ([src/matching/facade.py (L171-L179)](https://github.com/Makezuko/SI-PI6-2026-T101-G04/blob/bcd666570bfd9991b831b4f987cfff32f6d1aa53/src/matching/facade.py#L171-L179)):
 
 ```python
 with self._lock:
@@ -266,24 +275,25 @@ Fonte: [diagrams/c4-conteineres.mmd](../diagrams/c4-conteineres.mmd)
 C4Container
     title Nível 2 (contêineres) do TalentMatch AI
 
-    Person(recrutador, "Recrutador", "Opera o sistema pelo navegador")
+    System_Ext(supabase, "Supabase", "Auth e PostgreSQL de vagas, currículos e análises")
     System_Ext(gemini, "Google Gemini API", "Parecer textual opcional")
+    Person(recrutador, "Recrutador", "Opera o sistema pelo navegador")
 
     System_Boundary(talentmatch, "TalentMatch AI") {
-        Container(web_ui, "Interface Web", "HTML, Jinja2 e JS", "Telas de login, vagas, ranking e candidato")
-        Container(flask_app, "Aplicação Web e Pipeline", "Python 3.12 / Flask", "Rotas, PDF/NER, privacidade, Qwen e aderência")
-        ContainerDb(supabase_db, "Banco de Dados e Auth", "Supabase / PostgreSQL + RLS", "Usuários, vagas, currículos e análises")
         ContainerDb(armazenamento_local, "Modelos e Sessões Locais", "Disco (models/, instance/)", "Pesos NER/Embeddings/Qwen e FileSystemCache")
+        Container(flask_app, "Aplicação Web e Pipeline", "Python / Flask + Jinja2", "Rotas, telas, PDF/NER, privacidade, Qwen e aderência")
     }
 
-    Rel(recrutador, web_ui, "Usa", "HTTPS")
-    Rel(web_ui, flask_app, "Chama", "HTTP")
-    Rel(flask_app, supabase_db, "Autentica e persiste", "HTTPS/REST")
-    Rel(flask_app, armazenamento_local, "Lê modelos e sessões", "Arquivo")
+    Rel(recrutador, flask_app, "Usa pelo navegador", "HTTPS")
+    Rel(flask_app, armazenamento_local, "Lê e grava", "Arquivo")
+    Rel(flask_app, supabase, "Autentica e persiste", "HTTPS/REST")
     Rel(flask_app, gemini, "Gera parecer", "HTTPS/JSON")
 
     UpdateLayoutConfig($c4ShapeInRow="2", $c4BoundaryInRow="1")
-    UpdateRelStyle(web_ui, flask_app, $offsetY="-24")
+    UpdateRelStyle(recrutador, flask_app, $offsetX="-95", $offsetY="-28")
+    UpdateRelStyle(flask_app, armazenamento_local, $offsetX="-14", $offsetY="-24")
+    UpdateRelStyle(flask_app, supabase, $offsetX="-25", $offsetY="-55")
+    UpdateRelStyle(flask_app, gemini, $offsetX="12", $offsetY="-20")
 ```
 
 ### Nível 3 — Componentes (contêiner Aplicação Web e Pipeline)
@@ -295,36 +305,45 @@ flowchart TB
     nav["Navegador do Recrutador"]
 
     subgraph aplicacao["Aplicação Flask TalentMatch AI (unidade de implantação)"]
+        direction TB
         rotas["Rotas HTTP e Sessão<br/>(app/routes.py)"]
-        repos["Repositórios e Contratos<br/>(app/repositories.py)"]
-        analise["Orquestração de Análise<br/>(app/analysis.py)"]
-        fachada["Fachada do Pipeline<br/>(src/matching/facade.py)"]
+        repos["Repositórios<br/>(app/repositories.py,<br/>supabase_client.py)"]
+        analise["Orquestração de Análise<br/>(app/analysis.py,<br/>app/requisitos.py)"]
         telemetria["Telemetria Estruturada<br/>(src/matching/telemetry.py)"]
-        nlp_priv["Privacidade, NER e Embeddings<br/>(src/data/, src/nlp/)"]
+        fachada["Fachada do Pipeline<br/>(src/matching/facade.py)"]
         contextual["Avaliador Contextual e Fábrica<br/>(contextual.py, factory.py)"]
+        nlp_priv["Privacidade, NER e Embeddings<br/>(src/data/, src/nlp/)"]
         aderencia["Aderência e Estratégias<br/>(adherence.py, aggregators.py)"]
     end
 
-    supabase[("Supabase Auth<br/>e PostgreSQL")]
-    modelos[("Modelos Locais:<br/>NER, Embeddings e Qwen")]
-    gemini["Google Gemini API"]
+    subgraph externos[" "]
+        direction LR
+        supabase[("Supabase Auth<br/>e PostgreSQL")]
+        modelos[("Modelos Locais:<br/>NER, Embeddings e Qwen")]
+        gemini["Google Gemini API"]
+    end
 
     nav -->|"chamada de procedimento remota"| rotas
     rotas -->|"chamada de procedimento"| repos
     rotas -->|"chamada de procedimento"| analise
+    rotas -->|"chamada de procedimento"| nlp_priv
     analise -->|"chamada de procedimento"| repos
-    analise -->|"chamada de procedimento"| fachada
     analise -->|"chamada de procedimento"| telemetria
+    analise -->|"chamada de procedimento"| fachada
     fachada -->|"chamada de procedimento"| telemetria
-    fachada -->|"fluxo de dados"| nlp_priv
     fachada -->|"chamada de procedimento"| contextual
+    fachada -->|"chamada de procedimento"| nlp_priv
     contextual -->|"chamada de procedimento"| aderencia
+
     repos -->|"acesso a dado compartilhado"| supabase
-    nlp_priv -->|"acesso a dado compartilhado"| modelos
     contextual -->|"acesso a dado compartilhado"| modelos
-    fachada -->|"adaptador"| gemini
+    nlp_priv -->|"acesso a dado compartilhado"| modelos
+    fachada -->|"chamada de procedimento remota"| gemini
+
+    aderencia ~~~ modelos
 
     style aplicacao fill:#ffffff,stroke:#444444,stroke-dasharray: 6 4
+    style externos fill:none,stroke:none
 ```
 
 ---
@@ -356,26 +375,27 @@ sequenceDiagram
     Repo->>DB: INSERT em curriculos
     DB-->>Repo: currículo salvo
     Routes->>Analysis: process_resume(client, job, resume)
-    Analysis->>Analysis: confirmed_requirements() e configuration()
+    Note over Analysis: confirmed_requirements() e configuration()
     Analysis->>Facade: analyze_resume(job, resume, reqs, config)
-    Facade->>DataNLP: load_models(), predict(),<br/>anonymize_for_analysis(), extract_skills()
+    Facade->>DataNLP: predict(), anonymize_for_analysis(),<br/>extract_skills()
     DataNLP-->>Facade: texto anonimizado e semantic_inputs
-    Facade->>DataNLP: encode(reqs, inputs) e compare()
-    DataNLP-->>Facade: ranking de evidências
+    Facade->>DataNLP: encode(reqs, inputs)
+    DataNLP-->>Facade: embeddings
+    Note over Facade: aggregate_requirement_windows() e compare() (semantic.py)
     Facade->>Ctx: create_adapter() via ContextualAdapterFactory
     Ctx-->>Facade: Adapter (Transformers ou LlamaCpp)
     Facade->>Ctx: evaluate_batch(reqs, results, inputs, adapter, strategy)
     Ctx->>Adh: calculate_adherence(reqs, decisions, strategy)
     Adh-->>Ctx: pontuação ponderada e detalhes
     Ctx-->>Facade: resultado documental
-    Facade->>Gemini: generate_llm_justification(job, texto, result)
+    Facade->>Gemini: generate_llm_justification(job, anonymized_text, result)
     Gemini-->>Facade: parecer textual (ou indisponível)
     Facade-->>Analysis: result
     Analysis->>Repo: get_job(), get_resume() e save_analysis()
     Repo->>DB: UPSERT em analises_aderencia
     DB-->>Repo: análise salva
     Analysis-->>Routes: result
-    Routes-->>Rec: Redireciona para detalhes e ranking
+    Routes-->>Rec: Redireciona para /vagas (ranking da vaga)
 ```
 
 ### Evidências do fluxo no código
@@ -439,7 +459,7 @@ def process_resume(client, job, resume):
 
 ## 3.6 Diagramas de classes dos padrões GoF
 
-Os arquivos-fonte dos diagramas de classes dos três padrões aplicados no núcleo (`Strategy`, `Factory Method` e `Facade`) estão versionados na pasta `diagrams/` em alinhamento com [docs/6-gof.md](6-gof.md):
+Os arquivos-fonte dos diagramas de classes dos três padrões aplicados no núcleo (`Strategy`, `Factory Method` e `Facade`) estão versionados na pasta `diagrams/`. Eles mostram apenas classes e protocolos que existem no código; funções de módulo (como `calculate_adherence()` e `analyze()`) aparecem como notas. Os diagramas embutidos em [docs/6-gof.md](6-gof.md) ainda estão na versão anterior e serão sincronizados com estes arquivos em PR separado da frente de padrões GoF:
 
 - [diagrams/gof-strategy.mmd](../diagrams/gof-strategy.mmd) — contrato e estratégias concretas em [src/matching/aggregators.py (L8-L35)](https://github.com/Makezuko/SI-PI6-2026-T101-G04/blob/bcd666570bfd9991b831b4f987cfff32f6d1aa53/src/matching/aggregators.py#L8-L35)
 - [diagrams/gof-factory-method.mmd](../diagrams/gof-factory-method.mmd) — fábrica abstrata e criadores concretos em [src/matching/factory.py (L11-L49)](https://github.com/Makezuko/SI-PI6-2026-T101-G04/blob/bcd666570bfd9991b831b4f987cfff32f6d1aa53/src/matching/factory.py#L11-L49)

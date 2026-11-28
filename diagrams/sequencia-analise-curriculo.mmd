@@ -18,23 +18,24 @@ sequenceDiagram
     Repo->>DB: INSERT em curriculos
     DB-->>Repo: currículo salvo
     Routes->>Analysis: process_resume(client, job, resume)
-    Analysis->>Analysis: confirmed_requirements() e configuration()
+    Note over Analysis: confirmed_requirements() e configuration()
     Analysis->>Facade: analyze_resume(job, resume, reqs, config)
-    Facade->>DataNLP: load_models(), predict(),<br/>anonymize_for_analysis(), extract_skills()
+    Facade->>DataNLP: predict(), anonymize_for_analysis(),<br/>extract_skills()
     DataNLP-->>Facade: texto anonimizado e semantic_inputs
-    Facade->>DataNLP: encode(reqs, inputs) e compare()
-    DataNLP-->>Facade: ranking de evidências
+    Facade->>DataNLP: encode(reqs, inputs)
+    DataNLP-->>Facade: embeddings
+    Note over Facade: aggregate_requirement_windows() e compare() (semantic.py)
     Facade->>Ctx: create_adapter() via ContextualAdapterFactory
     Ctx-->>Facade: Adapter (Transformers ou LlamaCpp)
     Facade->>Ctx: evaluate_batch(reqs, results, inputs, adapter, strategy)
     Ctx->>Adh: calculate_adherence(reqs, decisions, strategy)
     Adh-->>Ctx: pontuação ponderada e detalhes
     Ctx-->>Facade: resultado documental
-    Facade->>Gemini: generate_llm_justification(job, texto, result)
+    Facade->>Gemini: generate_llm_justification(job, anonymized_text, result)
     Gemini-->>Facade: parecer textual (ou indisponível)
     Facade-->>Analysis: result
     Analysis->>Repo: get_job(), get_resume() e save_analysis()
     Repo->>DB: UPSERT em analises_aderencia
     DB-->>Repo: análise salva
     Analysis-->>Routes: result
-    Routes-->>Rec: Redireciona para detalhes e ranking
+    Routes-->>Rec: Redireciona para /vagas (ranking da vaga)

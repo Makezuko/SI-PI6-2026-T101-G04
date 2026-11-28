@@ -1,7 +1,4 @@
 classDiagram
-    class AppAnalysis {
-        +analyze(job, resume) dict
-    }
     class TalentMatchPipelineFacade {
         -models_loader
         -contextual_loader
@@ -10,21 +7,24 @@ classDiagram
         -strategy: AdherenceScoreStrategy
         +analyze_resume(job, resume, requirements, config, strategy) dict
     }
-    class PrivacyAndExtraction {
-        +anonymize_for_analysis()
-        +personal_spans()
-        +extract_skills()
+    class ResumeNERPredictor {
+        +predict(text: str, minimum_confidence: float, include_tokens: bool) dict[str, Any]
     }
-    class SemanticAndContextual {
-        +aggregate_requirement_windows()
-        +compare()
-        +evaluate_batch()
+    class ResumeEmbedder {
+        +encode(semantic_inputs: list[dict]) dict[str, Any]
     }
-    class LlmJustification {
-        +generate_llm_justification()
+    class Adapter {
+        <<protocol>>
+        +generate(payload: dict) str
+    }
+    class AdherenceScoreStrategy {
+        <<protocol>>
+        +version: str
+        +compute(details: list[dict], scale: float) tuple[float, float, list[float]]
     }
 
-    AppAnalysis --> TalentMatchPipelineFacade : delega
-    TalentMatchPipelineFacade --> PrivacyAndExtraction : coordena
-    TalentMatchPipelineFacade --> SemanticAndContextual : coordena
-    TalentMatchPipelineFacade --> LlmJustification : coordena
+    TalentMatchPipelineFacade ..> ResumeNERPredictor : extrai entidades
+    TalentMatchPipelineFacade ..> ResumeEmbedder : gera embeddings
+    TalentMatchPipelineFacade ..> Adapter : carrega e repassa
+    TalentMatchPipelineFacade o--> AdherenceScoreStrategy : repassa
+    note for TalentMatchPipelineFacade "Cliente: analyze() em app/analysis.py. Também coordena as funções anonymize_for_analysis(), extract_skills(), aggregate_requirement_windows(), compare(), evaluate_batch() e generate_llm_justification()"

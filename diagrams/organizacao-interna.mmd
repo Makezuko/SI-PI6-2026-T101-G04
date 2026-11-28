@@ -1,0 +1,47 @@
+flowchart TB
+    subgraph unidade["Aplicação Flask TalentMatch AI (unidade de implantação)"]
+        direction TB
+        subgraph borda["Camada Web e Apresentação (app/)"]
+            direction LR
+            rotas["Rotas Flask e Validação<br/>(app/routes.py)"]
+            templates["Templates Jinja2 e Privacidade na Tela<br/>(app/templates/, app/static/, presentation.py)"]
+        end
+
+        subgraph aplicacao["Camada de Orquestração e Persistência (app/)"]
+            direction LR
+            orq["Orquestração e Requisitos<br/>(app/analysis.py, app/requisitos.py)"]
+            repo["Repositórios e Cliente Supabase<br/>(app/repositories.py, supabase_client.py)"]
+        end
+
+        subgraph nucleo["Núcleo de Processamento e Decisão (src/)"]
+            direction LR
+            dados["Limpeza e Privacidade<br/>(src/data/)"]
+            nlp["Extração NER e Embeddings<br/>(src/nlp/)"]
+            matching["Fachada, Fábricas, Contextual e Estratégias<br/>(src/matching/)"]
+        end
+    end
+
+    subgraph externos[" "]
+        direction LR
+        pesos[("Modelos Locais em Disco")]
+        api["Google Gemini API"]
+        db[("Supabase Auth / PostgreSQL")]
+    end
+
+    rotas -->|"chamada de procedimento"| templates
+    rotas -->|"chamada de procedimento"| orq
+    rotas -->|"chamada de procedimento"| repo
+    orq -->|"chamada de procedimento"| repo
+    orq -->|"chamada de procedimento"| matching
+    matching -->|"chamada de procedimento"| dados
+    matching -->|"chamada de procedimento"| nlp
+    nlp -->|"acesso a dado compartilhado"| pesos
+    matching -->|"acesso a dado compartilhado"| pesos
+    matching -->|"chamada de procedimento remota"| api
+    repo -->|"acesso a dado compartilhado"| db
+
+    style unidade fill:#ffffff,stroke:#444444,stroke-dasharray: 6 4
+    style borda fill:#f8f9ff,stroke:#8899bb
+    style aplicacao fill:#f8f9ff,stroke:#8899bb
+    style nucleo fill:#f8f9ff,stroke:#8899bb
+    style externos fill:none,stroke:none

@@ -1,0 +1,30 @@
+classDiagram
+    class TalentMatchPipelineFacade {
+        -strategy: AdherenceScoreStrategy
+        +analyze_resume(job, resume, requirements, config, strategy) dict
+    }
+    class AdherenceScoreStrategy {
+        <<protocol>>
+        +version: str
+        +compute(details: list[dict], scale: float) tuple[float, float, list[float]]
+    }
+    class WeightedConfirmedAdherence {
+        +version: str
+        +compute(details: list[dict], scale: float) tuple[float, float, list[float]]
+    }
+    class StrictMandatoryAdherence {
+        +max_score_when_missing: float
+        +version: str
+        +compute(details: list[dict], scale: float) tuple[float, float, list[float]]
+    }
+    class ProvisionalWeightedAdherence {
+        +provisional_factor: float
+        +version: str
+        +compute(details: list[dict], scale: float) tuple[float, float, list[float]]
+    }
+
+    TalentMatchPipelineFacade o--> AdherenceScoreStrategy : estratégia ativa
+    AdherenceScoreStrategy <|.. WeightedConfirmedAdherence
+    AdherenceScoreStrategy <|.. StrictMandatoryAdherence
+    AdherenceScoreStrategy <|.. ProvisionalWeightedAdherence
+    note for AdherenceScoreStrategy "Contexto: calculate_adherence() em src/matching/adherence.py recebe a estratégia (padrão WeightedConfirmedAdherence) e chama compute()"
